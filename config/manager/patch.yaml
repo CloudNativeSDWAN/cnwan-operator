@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+spec:
+  template:
+    spec:
+      containers:
+      - name: manager
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: settings
+          mountPath: /settings
+          readOnly: true
+        - name: service-handler-secret
+          mountPath: "/credentials"
+          readOnly: true
+      volumes:
+      - name: settings
+        configMap:
+          name: settings
+      - name: service-handler-secret
+        secret:
+          secretName: service-handler-account

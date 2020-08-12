@@ -1,0 +1,3 @@
+domain: operator.cnwan.io
+repo: github.com/CloudNativeSDWAN/cnwan-operator
+version: "2"
