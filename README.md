@@ -1,6 +1,8 @@
 # CNWAN Operator
 
-Register and manage your Kubernetes Services to a Service Registry.
+Register and manage your Kubernetes Services to a Service Registry. 
+
+The CNWAN Operator is part of the Cloud Native SD-WAN (CNWAN) project. Please check the [CNWAN documentation](https://github.com/CloudNativeSDWAN/cnwan-docs) for the general project overview and architecture. You can contact the CNWAN team at [cnwan@cisco.com](mailto:cnwan@cisco.com).
 
 ## Table of Contents
 
