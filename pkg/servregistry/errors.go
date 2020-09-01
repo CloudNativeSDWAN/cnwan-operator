@@ -19,6 +19,9 @@ package servregistry
 import "errors"
 
 var (
+	// ErrServRegNotProvided is returned when the manager has no service
+	// registry and, thus, cannot make any changes
+	ErrServRegNotProvided error = errors.New("no service registry is provided")
 	// ErrNotFound is returned when the resource does not exist
 	ErrNotFound error = errors.New("resource not found")
 	// ErrAlreadyExists is returned when the resource already exists
