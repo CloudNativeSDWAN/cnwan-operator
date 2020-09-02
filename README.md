@@ -1,23 +1,29 @@
 # CNWAN Operator
 
-Register and manage your Kubernetes Services to a Service Registry. 
+Register and manage your Kubernetes Services to a Service Registry.
 
-The CNWAN Operator is part of the Cloud Native SD-WAN (CNWAN) project. Please check the [CNWAN documentation](https://github.com/CloudNativeSDWAN/cnwan-docs) for the general project overview and architecture. You can contact the CNWAN team at [cnwan@cisco.com](mailto:cnwan@cisco.com).
+The CNWAN Operator is part of the Cloud Native SD-WAN (CNWAN) project.
+Please check the
+[CNWAN documentation](https://github.com/CloudNativeSDWAN/cnwan-docs) for the
+general project overview and architecture.
+You can contact the CNWAN team at [cnwan@cisco.com](mailto:cnwan@cisco.com).
 
 ## Table of Contents
 
 * [Overview](#overview)
-* [Installing](#installing)
 * [Supported Service Registries](#supported-service-registries)
-* [Deploying](#deploying)
-* [How it works](#how-it-works)
-* [Configure the Operator](#configure-the-operator)
+* [How it Works](#how-it-works)
+* [Installing on Your Machine](#installing-on-your-machine)
+* [Configuring the Operator](#configuring-the-operator)
   * [The ConfigMap](#the-configmap)
   * [Namespace List Policy](#namespace-list-policy)
   * [Annotations](#annotations)
   * [Service Directory Settings](#service-directory-settigns)
     * [Google Cloud Service Account](#google-cloud-service-account)
-* [Uninstalling](#uninstalling)
+* [Deploying to Your Cluster](#deploying-to-your-cluster)
+  * [Before Deploying](#before-deploying)
+  * [Deploy](#deploy)
+* [Removing from Your Cluster](#removing-from-your-cluster)
 * [Contributing](#contributing)
 * [License](#license)
 
@@ -33,13 +39,35 @@ properties, as specified from a configuration file.
 ## Supported Service Registries
 
 Currently, the CNWAN Operator can register and manage Kubernetes services to
-Google Cloud's [Service directory](https://cloud.google.com/service-directory).
-The project and region must be provided in the ConfigMap, and the service
-account file must be provided as a Secret.  
+Google Cloud's [Service Directory](https://cloud.google.com/service-directory).
+The project and region must be provided in the `ConfigMap`, and the service
+account file must be provided as a `Secret`.  
 Please follow [this section](#configure-the-operator) to learn how to set up
 the operator and provide such files.
 
-## Installing
+## How it Works
+
+CNWAN Operator implements the
+[operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/):
+it is a standalone program that runs in the Kubernetes cluster and extends it
+by offering additional functionalities.
+
+Specifically, it watches for changes in
+[Services](https://kubernetes.io/docs/concepts/services-networking/service/)
+and whenever a change is detected, the operator extracts some data out of the
+service, i.e. endpoints and annotations, and connects to a
+[Service Registry](https://auth0.com/blog/an-introduction-to-microservices-part-3-the-service-registry/)
+to reflect such changes to it. Example of such changes include new services
+deployed, updates to a service's annotations list and deleted services.
+
+Currently, only services of type `LoadBalancer` are supported, and all other
+types are ignored by the operator. Please make sure your cluster supports
+load balancers before deploying the operator: most managed Kubernetes platforms
+do support them, but in case you are not running a managed Kubernetes you may
+use [MetalLB](https://metallb.universe.tf/) or explore other load balancer
+solutions.
+
+## Installing on Your Machine
 
 To install, clone the repository to your pc with the following command:
 
@@ -47,62 +75,11 @@ To install, clone the repository to your pc with the following command:
 git clone https://github.com/CloudNativeSDWAN/cnwan-operator.git
 ```
 
-Once done, please follow the section on how to [Configure the Operator](#configure-the-operator)
+Once done, please follow the
+[Configuring the Operator](#configure-the-operator) section
 before deploying it to your Kubernetes cluster.
 
-## Deploying
-
-Before deploying the operator, make sure you have read and configured it
-properly. Also, you need [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-installed and the [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/)
-properly set up in order to deploy CNWAN Operator successfully.
-
-First, you need to build and push the docker image to your container registry
-of choice. To ease the process up, you can edit the `Makefile` - included in
-the root folder of the project - by entering the image repository where
-you want to push the image:
-
-```makefile
-IMG ?= example.com/username/image:tag
-```
-
-Make sure you are properly logged in your container registry of choice before
-proceeding. Most of the times, running `docker login <registry>` as documented
-[here](https://docs.docker.com/engine/reference/commandline/login/) should be
-enough, but we encorage you to read your container registry's official
-documentation to know how to do that.  
-Build and push the image:
-
-```bash
-make docker-build
-make docker-push
-```
-
-Deploy the operator on your cluster by running:
-
-```bash
-make deploy
-```
-
-Please refrain from using docker commands directly as the described method
-will also test the program before building it.
-
-## How it works
-
-CNWAN Operator implements the [operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/):
-it is a standalone program that runs in the Kubernetes cluster and extends it
-by offering additional functionalities.
-
-Specifically, it watches for changes in [Services](https://kubernetes.io/docs/concepts/services-networking/service/)
-and whenever a change is detected, the operator extracts some data out of the
-service, i.e. endpoints and annotations, and connects to a [Service Registry](https://auth0.com/blog/an-introduction-to-microservices-part-3-the-service-registry/)
-to reflect such changes to it. Example of such changes include new services
-deployed, updates to a service's annotations list and deleted services.
-
-Currently, only services of type `LoadBalancer` are supported, and all other
-types are ignored by the operator.
-
-## Configure the Operator
+## Configuring the Operator
 
 ### The ConfigMap
 
@@ -250,7 +227,135 @@ Make sure to respect `YAML` identation properties, as the copied content
 must have some tabs/spaces to be correctly included under
 `gcloud-credentials.json`, the same way as the above example.
 
-## Uninstalling
+## Deploying to Your Cluster
+
+### Before Deploying
+
+A container registry account where to push the docker image to is required.
+If you don't know which one to use, you may open an account on
+[DockerHub](https://hub.docker.com/), the default container registry from
+Docker.
+
+Make sure you have [configured the operator](#configure-the-operator)
+correctly and have the following components installed in your machine before
+continuing:
+
+* [Make](https://www.gnu.org/software/make/).
+  * *Unix/Linux and MacOS*: already pre-installed.
+  * *Windows* users: download the binaries from
+[this page](http://gnuwin32.sourceforge.net/packages/make.htm).
+* [Golang](https://golang.org/doc/install) to build the project. Follow
+the link to learn how to install it for any system.
+* [Docker](https://www.docker.com/get-started) for building and pushing the
+operator's container images.
+  * *Unix/Linux* users with
+  [Snap](https://snapcraft.io/docs/installing-snapd):
+
+  ```bash
+  sudo snap install docker
+  ```
+
+  * *MacOs* users:
+  [Docker Desktop for Mac](https://hub.docker.com/editions/community/docker-ce-desktop-mac/)
+  * *Windows* users:
+  [Docker Desktop for Windows](https://hub.docker.com/editions/community/docker-ce-desktop-windows/)
+* [Kustomize](https://kubernetes-sigs.github.io/kustomize/installation/) to
+generate the operator's yaml files correctly.
+  * *Unix/Linux* users with
+  [Snap](https://snapcraft.io/docs/installing-snapd):
+
+  ```bash
+  sudo snap install kustomize
+  ```
+
+  * *MacOs* users with [HomeBrew](https://brew.sh/):
+
+  ```bash
+  brew install kustomize
+  ```
+
+  * *Windows* users with
+  [Chocolatey](https://chocolatey.org/install#install-step2):
+
+  ```bash
+  choco install kustomize
+  ```
+
+* [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) to
+deploy the operator on the cluster.
+  * Make sure
+  [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/)
+  is properly set up with your Kubernetes cluster data.
+
+  * *Unix/Linux* users with
+  [Snap](https://snapcraft.io/docs/installing-snapd):
+
+  ```bash
+  snap install kubectl --classic
+  ```
+
+  * *MacOs* users with [HomeBrew](https://brew.sh/):
+
+  ```bash
+  brew install kubectl
+  ```
+
+  * *Windows* users: follow
+  [this section](https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl-on-windows)
+  of the documentation
+
+* [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder#installation)
+in case you want to add controllers and other Kubernetes components.
+  * *MacOs* users with [HomeBrew](https://brew.sh/):
+
+  ```bash
+  brew install kubebuilder
+  ```
+
+  * *Other systems*: follow
+  [this section](https://book.kubebuilder.io/quick-start.html#installation)
+  on the documentation.
+
+The aforementioned components need to be present in your machine and need not
+to be necessarily installed on your Kubernetes worker nodes. Also please note
+that these components are only needed just for the building phase.
+
+### Deploy
+
+First, you need to build and push the docker image to your container registry
+of choice. To ease the process up, you can edit the `Makefile` - included in
+the root folder of the project - by entering the image repository where
+you want to push the image:
+
+```makefile
+IMG ?= example.com/username/image:tag
+```
+
+Make sure you are properly logged in your container registry of choice before
+proceeding. Most of the times, running `docker login <registry>` as documented
+[here](https://docs.docker.com/engine/reference/commandline/login/) should be
+enough, but we encorage you to read your container registry's official
+documentation to know how to do that.  
+Build and push the image:
+
+```bash
+make docker-build
+make docker-push
+```
+
+Deploy the operator on your cluster by running:
+
+```bash
+make deploy
+```
+
+The operator will be installed in one of the available and suitable nodes
+of your cluster.
+
+Please refrain from using docker commands directly as the described method
+will also test the program before building it.
+
+## Removing from Your Cluster
 
 To remove the operator from your Kubernetes cluster, navigate to the root
 directory of the project and execute:
