@@ -160,7 +160,18 @@ func (f *fakeServReg) DeleteNs(nsName string) error {
 	return nil
 }
 
-func (f *fakeServReg) GetServ(nsName, servName string) (*Service, error) { return nil, nil }
+func (f *fakeServReg) GetServ(nsName, servName string) (*Service, error) {
+	if servName == "get-error" {
+		return nil, errors.New("error")
+	}
+
+	serv, exists := f.servList[servName]
+	if !exists {
+		return nil, ErrNotFound
+	}
+
+	return serv, nil
+}
 
 func (f *fakeServReg) ListServ(nsName string) ([]*Service, error) {
 	if _, exists := f.servList["list-error"]; exists {
@@ -177,11 +188,65 @@ func (f *fakeServReg) ListServ(nsName string) ([]*Service, error) {
 	return list, nil
 }
 
-func (f *fakeServReg) CreateServ(serv *Service) (*Service, error) { return nil, nil }
+func (f *fakeServReg) CreateServ(serv *Service) (*Service, error) {
+	if serv.Name == "create-error" {
+		return nil, errors.New("error")
+	}
 
-func (f *fakeServReg) UpdateServ(serv *Service) (*Service, error) { return nil, nil }
+	_, exists := f.servList[serv.Name]
+	if exists {
+		return nil, ErrAlreadyExists
+	}
 
-func (f *fakeServReg) DeleteServ(nsName, servName string) error { return nil }
+	f.servList[serv.Name] = serv
+	f.createdServ = append(f.createdServ, serv.Name)
+
+	return f.servList[serv.Name], nil
+}
+
+func (f *fakeServReg) UpdateServ(serv *Service) (*Service, error) {
+	if serv.Name == "update-error" {
+		return nil, errors.New("error")
+	}
+
+	_, exists := f.servList[serv.Name]
+	if !exists {
+		return nil, ErrNotFound
+	}
+
+	f.servList[serv.Name] = serv
+	f.updatedServ = append(f.updatedServ, serv.Name)
+
+	return f.servList[serv.Name], nil
+}
+
+func (f *fakeServReg) DeleteServ(nsName, servName string) error {
+	if servName == "delete-error" {
+		return errors.New("error")
+	}
+
+	_, exists := f.servList[servName]
+	if !exists {
+		return ErrNotFound
+	}
+
+	delete(f.servList, nsName)
+	f.deletedServ = append(f.deletedServ, servName)
+
+	del := []string{}
+	for ename, e := range f.endpList {
+		if e.ServName == servName && e.NsName == nsName {
+			del = append(del, ename)
+		}
+	}
+
+	for _, ename := range del {
+		delete(f.endpList, ename)
+		f.deletedEndp = append(f.deletedEndp, ename)
+	}
+
+	return nil
+}
 
 func (f *fakeServReg) GetEndp(nsName, servName, endpName string) (*Endpoint, error) { return nil, nil }
 
