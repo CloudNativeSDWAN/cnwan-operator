@@ -171,3 +171,166 @@ func TestManageServ(t *testing.T) {
 	testOwned(t)
 	testCreate(t)
 }
+
+func TestRemoveServ(t *testing.T) {
+	// prepare
+	nsName, servName := "ns", "serv"
+	var f *fakeServReg
+	b, _ := NewBroker(f, "", "")
+
+	resetFake := func() {
+		f = newFakeStruct()
+		b.Reg = f
+	}
+
+	resetFake()
+
+	// Test validation
+	testValidation := func(tt *testing.T) {
+		defer resetFake()
+		assert := a.New(tt)
+
+		// no service registry provided
+		b.Reg = nil
+		err := b.RemoveServ(nsName, servName, false)
+		assert.Equal(ErrServRegNotProvided, err)
+
+		// service name not provided
+		b.Reg = f
+		err = b.RemoveServ(nsName, "", false)
+		assert.Equal(ErrServNameNotProvided, err)
+
+		// namespace name not provided
+		err = b.RemoveServ("", servName, false)
+		assert.Equal(ErrNsNameNotProvided, err)
+		assert.Empty(f.deletedServ)
+	}
+
+	// Test returns nil when an unknown error is thrown by the service registry
+	testUnErr := func(tt *testing.T) {
+		defer resetFake()
+		assert := a.New(tt)
+
+		err := b.RemoveServ(nsName, "get-error", false)
+		assert.Error(err)
+		assert.NotEqual(ErrServRegNotProvided, err)
+		assert.NotEqual(ErrServNameNotProvided, err)
+		assert.NotEqual(ErrNsNameNotProvided, err)
+
+		assert.Empty(f.deletedServ)
+	}
+
+	// Test services not owned by the operator are not deleted
+	testNotOwned := func(tt *testing.T) {
+		defer resetFake()
+		assert := a.New(tt)
+
+		one := &Service{Name: "one", NsName: nsName, Metadata: map[string]string{b.opKey: "someone-else", "key": "val"}}
+		two := &Service{Name: "two", NsName: nsName, Metadata: map[string]string{"key": "val"}}
+		f.servList[one.Name] = one
+		f.servList[two.Name] = two
+
+		err := b.RemoveServ(one.NsName, one.Name, false)
+		assert.Equal(ErrServNotOwnedByOp, err)
+		err = b.RemoveServ(two.NsName, two.Name, false)
+		assert.Equal(ErrServNotOwnedByOp, err)
+		assert.Empty(f.deletedServ)
+	}
+
+	// Test empty owned services are deleted
+	testEmptyOwned := func(tt *testing.T) {
+		defer resetFake()
+		assert := a.New(tt)
+
+		// unknown error
+		err := b.RemoveServ(nsName, "delete-error", false)
+		assert.NotEqual(ErrServRegNotProvided, err)
+		assert.NotEqual(ErrNsNameNotProvided, err)
+
+		// when it doesn't exist, we just log but return no error
+		// because it doesn't change anything for us
+		err = b.RemoveServ(nsName, "doesnt-exist", false)
+		assert.NoError(err)
+
+		// successful
+		toDel := &Service{Name: "to-del", NsName: nsName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		f.servList[toDel.Name] = toDel
+		err = b.RemoveServ(nsName, "to-del", false)
+		assert.NoError(err)
+		assert.Len(f.deletedServ, 1)
+	}
+
+	// Test not empty owned namespaces are deleted/not deleted
+	testNotEmptyOwned := func(tt *testing.T) {
+		defer resetFake()
+		assert := a.New(tt)
+
+		oneOwned := &Endpoint{
+			Name:     "one",
+			ServName: servName,
+			NsName:   nsName,
+			Metadata: map[string]string{b.opKey: b.opVal, "key": "val"},
+		}
+		twoOwned := &Endpoint{
+			Name:     "two",
+			ServName: servName,
+			NsName:   nsName,
+			Metadata: map[string]string{b.opKey: b.opVal, "key": "val"},
+		}
+		threeNotOwned := &Endpoint{
+			Name:     "three",
+			ServName: servName,
+			NsName:   nsName,
+			Metadata: map[string]string{b.opKey: "someone-else", "key": "val"},
+		}
+		servDel := &Service{Name: servName, NsName: nsName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		f.servList[servDel.Name] = servDel
+
+		// error in listing
+		f.endpList["list-error"] = &Endpoint{}
+		err := b.RemoveServ(servDel.NsName, servDel.Name, false)
+		assert.Error(err)
+		assert.Empty(f.deletedServ)
+		delete(f.endpList, "list-error")
+
+		// there is an endpoint not owned by us
+		f.endpList["one"] = oneOwned
+		f.endpList["two"] = twoOwned
+		f.endpList["three"] = threeNotOwned
+
+		err = b.RemoveServ(servDel.NsName, servDel.Name, false)
+		assert.Empty(f.deletedEndp)
+		assert.Empty(f.deletedServ)
+		assert.Equal(ErrServNotEmpty, err)
+
+		err = b.RemoveServ(servDel.NsName, servDel.Name, true)
+		assert.Len(f.deletedEndp, 2)
+		assert.Empty(f.deletedServ)
+		assert.Equal(ErrServNotOwnedEndps, err)
+		assert.Contains(f.deletedEndp, oneOwned.Name)
+		assert.Contains(f.deletedEndp, twoOwned.Name)
+
+		// all endpoints owned by the operator, so should be successful
+		delete(f.endpList, threeNotOwned.Name)
+		f.endpList["one"] = oneOwned
+		f.endpList["two"] = twoOwned
+		f.deletedEndp = []string{}
+		f.deletedServ = []string{}
+		err = b.RemoveServ(servDel.NsName, servDel.Name, true)
+		assert.NoError(err)
+
+		// error occurs in deleting service
+		shouldErr := &Service{Name: "delete-error", NsName: nsName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		f.servList[shouldErr.Name] = shouldErr
+		f.deletedEndp = []string{}
+		f.deletedServ = []string{}
+		err = b.RemoveServ(shouldErr.NsName, shouldErr.Name, true)
+		assert.Error(err)
+	}
+
+	testValidation(t)
+	testUnErr(t)
+	testNotOwned(t)
+	testEmptyOwned(t)
+	testNotEmptyOwned(t)
+}

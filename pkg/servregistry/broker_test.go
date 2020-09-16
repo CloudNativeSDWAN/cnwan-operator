@@ -250,13 +250,40 @@ func (f *fakeServReg) DeleteServ(nsName, servName string) error {
 
 func (f *fakeServReg) GetEndp(nsName, servName, endpName string) (*Endpoint, error) { return nil, nil }
 
-func (f *fakeServReg) ListEndp(nsName, servName string) ([]*Endpoint, error) { return nil, nil }
+func (f *fakeServReg) ListEndp(nsName, servName string) ([]*Endpoint, error) {
+	if _, exists := f.endpList["list-error"]; exists {
+		return nil, errors.New("error")
+	}
+
+	list := []*Endpoint{}
+	for _, s := range f.endpList {
+		if s.NsName == nsName && s.ServName == servName {
+			list = append(list, s)
+		}
+	}
+
+	return list, nil
+}
 
 func (f *fakeServReg) CreateEndp(endp *Endpoint) (*Endpoint, error) { return nil, nil }
 
 func (f *fakeServReg) UpdateEndp(endp *Endpoint) (*Endpoint, error) { return nil, nil }
 
-func (f *fakeServReg) DeleteEndp(nsName, servName, endpName string) error { return nil }
+func (f *fakeServReg) DeleteEndp(nsName, servName, endpName string) error {
+	if endpName == "delete-error" {
+		return errors.New("error")
+	}
+
+	_, exists := f.endpList[endpName]
+	if !exists {
+		return ErrNotFound
+	}
+
+	delete(f.endpList, nsName)
+	f.deletedEndp = append(f.deletedEndp, endpName)
+
+	return nil
+}
 
 func TestNewBroker(t *testing.T) {
 	// prepare
