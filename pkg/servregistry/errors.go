@@ -56,4 +56,7 @@ var (
 	// ErrServNotOwnedByOp is returned when a service is not owned by the
 	// cnwan operator and therefore the action cannot be performed
 	ErrServNotOwnedByOp error = errors.New("service is not owned by the cnwan operator")
+	// ErrEndpNotOwnedByOp is returned when an endpoint is not owned by the
+	// cnwan operator and therefore the action cannot be performed
+	ErrEndpNotOwnedByOp error = errors.New("endpoint is not owned by the cnwan operator")
 )

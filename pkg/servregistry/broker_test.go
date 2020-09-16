@@ -265,13 +265,41 @@ func (f *fakeServReg) ListEndp(nsName, servName string) ([]*Endpoint, error) {
 	return list, nil
 }
 
-func (f *fakeServReg) CreateEndp(endp *Endpoint) (*Endpoint, error) { return nil, nil }
+func (f *fakeServReg) CreateEndp(endp *Endpoint) (*Endpoint, error) {
+	if endp.Name == "create-error" {
+		return nil, errors.New("create-endp-error")
+	}
 
-func (f *fakeServReg) UpdateEndp(endp *Endpoint) (*Endpoint, error) { return nil, nil }
+	_, exists := f.endpList[endp.Name]
+	if exists {
+		return nil, ErrAlreadyExists
+	}
+
+	f.endpList[endp.Name] = endp
+	f.createdEndp = append(f.createdEndp, endp.Name)
+
+	return f.endpList[endp.Name], nil
+}
+
+func (f *fakeServReg) UpdateEndp(endp *Endpoint) (*Endpoint, error) {
+	if endp.Name == "update-error" {
+		return nil, errors.New("update-endp-error")
+	}
+
+	_, exists := f.endpList[endp.Name]
+	if !exists {
+		return nil, ErrNotFound
+	}
+
+	f.endpList[endp.Name] = endp
+	f.updatedEndp = append(f.updatedEndp, endp.Name)
+
+	return f.endpList[endp.Name], nil
+}
 
 func (f *fakeServReg) DeleteEndp(nsName, servName, endpName string) error {
 	if endpName == "delete-error" {
-		return errors.New("error")
+		return errors.New("delete-endp-error")
 	}
 
 	_, exists := f.endpList[endpName]
@@ -279,7 +307,7 @@ func (f *fakeServReg) DeleteEndp(nsName, servName, endpName string) error {
 		return ErrNotFound
 	}
 
-	delete(f.endpList, nsName)
+	delete(f.endpList, endpName)
 	f.deletedEndp = append(f.deletedEndp, endpName)
 
 	return nil
