@@ -93,3 +93,80 @@ func (b *Broker) ManageNs(nsData *Namespace) (regNs *Namespace, err error) {
 
 	return
 }
+
+// RemoveNs checks if a namespace can be safely deleted from the
+// service registry before actually delete it. The second parameter forces
+// the function to delete the namespace even if it is not empty.
+// NOTE: setting forceNotEmpty to true will have no effect if the namespace
+// contains services not owned by the operator, and therefore the namespace
+// will not be deleted.
+// NOTE: this function does *not* check if one of the contained services has
+// endpoints not owned by the cnwan operator!
+//
+// For example: it checks if the namespace is actually owned by us.
+func (b *Broker) RemoveNs(nsName string, forceNotEmpty bool) (err error) {
+	if b.Reg == nil {
+		return ErrServRegNotProvided
+	}
+
+	// -- Validate
+	if len(nsName) == 0 {
+		return ErrNsNameNotProvided
+	}
+
+	// -- Init
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	l := b.log.WithName("RemoveNs").WithValues("ns-name", nsName)
+
+	// -- Do stuff
+	l.V(1).Info("going to remove namespace from service registry")
+
+	// Load the namespace first
+	regNs, err := b.Reg.GetNs(nsName)
+	if err != nil {
+		if err != ErrNotFound {
+			l.Error(err, "error occurred while removing namespace from service registry")
+			return
+		}
+
+		// If you're here, it means that the namespace does not exist.
+		// This doesn't change anything for us.
+		l.V(0).Info("namespace does not exist in service registry, going to stop here")
+		return nil
+	}
+
+	if by, exists := regNs.Metadata[b.opKey]; by != b.opVal || !exists {
+		// If the namespace is not owned (as in, managed by) us, then it's
+		// better not to touch it.
+		l.V(0).Info("namespace is not owned by the operator and thus will not be updated")
+		return ErrNsNotOwnedByOp
+	}
+
+	// Is it empty?
+	l.V(1).Info("checking if namespace is empty before deleting")
+	listServ, err := b.Reg.ListServ(nsName)
+	if err != nil {
+		return
+	}
+
+	if len(listServ) > 0 && !forceNotEmpty {
+		l.V(0).Info("cannot delete namespace from service registry")
+		return ErrNsNotEmpty
+	}
+
+	for _, serv := range listServ {
+		if by, exists := serv.Metadata[b.opKey]; by != b.opVal || !exists {
+			l.V(0).Info("namespace contains services not owned by the operator")
+			return ErrNsNotOwnedServs
+		}
+	}
+
+	err = b.Reg.DeleteNs(nsName)
+	if err != nil {
+		l.Error(err, "error while deleting namespace from service registry")
+	}
+
+	l.V(0).Info("namespace deleted from service registry successfully")
+	return
+}

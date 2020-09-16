@@ -162,7 +162,20 @@ func (f *fakeServReg) DeleteNs(nsName string) error {
 
 func (f *fakeServReg) GetServ(nsName, servName string) (*Service, error) { return nil, nil }
 
-func (f *fakeServReg) ListServ(nsName string) ([]*Service, error) { return nil, nil }
+func (f *fakeServReg) ListServ(nsName string) ([]*Service, error) {
+	if _, exists := f.servList["list-error"]; exists {
+		return nil, errors.New("error")
+	}
+
+	list := []*Service{}
+	for _, s := range f.servList {
+		if s.NsName == nsName {
+			list = append(list, s)
+		}
+	}
+
+	return list, nil
+}
 
 func (f *fakeServReg) CreateServ(serv *Service) (*Service, error) { return nil, nil }
 
