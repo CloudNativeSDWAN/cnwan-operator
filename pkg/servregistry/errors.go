@@ -41,10 +41,19 @@ var (
 	// ErrNsNotEmpty is returned when trying to delete a namespace that is not
 	// empty
 	ErrNsNotEmpty error = errors.New("namespace is not empty")
+	// ErrServNotEmpty is returned when trying to delete a service that is not
+	// empty
+	ErrServNotEmpty error = errors.New("service is not empty")
 	// ErrNsNotOwnedServs is returned when trying to delete a namespace that
 	// has services that are not owned by the operator
 	ErrNsNotOwnedServs error = errors.New("namespace contains services not owned by the operator")
+	// ErrServNotOwnedEndps is returned when trying to delete a service that
+	// has endpoints that are not owned by the operator
+	ErrServNotOwnedEndps error = errors.New("service contains endpoints not owned by the operator")
 	// ErrNsNotOwnedByOp is returned when a namespace is not owned by the
 	// cnwan operator and therefore the action cannot be performed
 	ErrNsNotOwnedByOp error = errors.New("namespace is not owned by the cnwan operator")
+	// ErrServNotOwnedByOp is returned when a service is not owned by the
+	// cnwan operator and therefore the action cannot be performed
+	ErrServNotOwnedByOp error = errors.New("service is not owned by the cnwan operator")
 )

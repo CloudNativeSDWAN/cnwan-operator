@@ -102,3 +102,100 @@ func (b *Broker) ManageServ(servData *Service) (regServ *Service, err error) {
 
 	return
 }
+
+// RemoveServ checks if a service can be safely deleted from the
+// service registry before actually delete it. The second parameter forces
+// the function to delete the service even if it is not empty.
+// NOTE: setting forceNotEmpty to true will have no effect if the service
+// contains endpoints not owned by the operator, and therefore the service
+// will not be deleted.
+//
+// For example: it checks if the service is actually owned by us.
+func (b *Broker) RemoveServ(nsName, servName string, forceNotEmpty bool) (err error) {
+	if b.Reg == nil {
+		return ErrServRegNotProvided
+	}
+
+	// -- Validate
+	if len(nsName) == 0 {
+		return ErrNsNameNotProvided
+	}
+
+	if len(servName) == 0 {
+		return ErrServNameNotProvided
+	}
+
+	// -- Init
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	l := b.log.WithName("RemoveServ").WithValues("serv-name", servName)
+
+	// -- Do stuff
+	l.V(1).Info("going to remove service from service registry")
+
+	// Load the service first
+	regServ, err := b.Reg.GetServ(nsName, servName)
+	if err != nil {
+		if err != ErrNotFound {
+			l.Error(err, "error occurred while removing service from service registry")
+			return
+		}
+
+		// If you're here, it means that the servce does not exist.
+		// This doesn't change anything for us.
+		l.V(0).Info("servce does not exist in service registry, going to stop here")
+		return nil
+	}
+
+	// Is it empty?
+	l.V(1).Info("checking if service is empty before deleting")
+	listEndp, err := b.Reg.ListEndp(nsName, servName)
+	if err != nil {
+		return
+	}
+
+	if len(listEndp) > 0 && !forceNotEmpty {
+		l.V(0).Info("service is not empty and will not be deleted from service registry")
+		return ErrServNotEmpty
+	}
+
+	l.V(0).Info("service is not empty: checking if it can be removed")
+	endps := []string{}
+	hasNotOwned := false
+	for _, endp := range listEndp {
+		if by, exists := endp.Metadata[b.opKey]; by != b.opVal || !exists {
+			hasNotOwned = true
+			continue
+		}
+
+		endps = append(endps, endp.Name)
+	}
+
+	if hasNotOwned {
+		// There are some endpoints not owned by the operator, so we must delete
+		// endpoints singularly
+		l.V(0).Info("service contains endpoints not owned by the operator and will not be removed from service registry")
+		for _, endpName := range endps {
+			if delErr := b.Reg.DeleteEndp(nsName, servName, endpName); delErr != nil {
+				l.WithValues("endp-name", endpName).Error(delErr, "error while deleting endpoint from service registry")
+			}
+		}
+
+		return ErrServNotOwnedEndps
+	}
+
+	if by, exists := regServ.Metadata[b.opKey]; by != b.opVal || !exists {
+		// If the service is not owned (as in, managed by) us, then it's
+		// better not to touch it.
+		l.V(0).Info("WARNING: service is not owned by the operator and will not be removed from service registry")
+		return ErrServNotOwnedByOp
+	}
+
+	err = b.Reg.DeleteServ(nsName, servName)
+	if err != nil {
+		l.Error(err, "error while deleting service from service registry")
+	}
+
+	l.V(0).Info("service deleted from service registry successfully")
+	return
+}

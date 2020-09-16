@@ -280,25 +280,25 @@ func TestRemoveNs(t *testing.T) {
 		f.servList["one"] = oneOwned
 		f.servList["two"] = twoOwned
 		f.servList["three"] = threeNotOwned
-		err = b.RemoveNs(nsDel.Name, true)
-		assert.Equal(ErrNsNotOwnedServs, err)
-		assert.Empty(f.deletedNs)
-		delete(f.servList, "three")
-
-		// there are only services owned by us but forceNotEmpty is false
 		err = b.RemoveNs(nsDel.Name, false)
+		assert.Empty(f.deletedServ)
+		assert.Empty(f.deletedNs)
 		assert.Equal(ErrNsNotEmpty, err)
-		assert.Empty(f.deletedServ, true)
 
-		// there are only services owned by us and forceNotEmpty is true
-		f.nsList[nsDel.Name] = nsDel
-		f.servList["one"] = oneOwned
-		f.servList["two"] = twoOwned
-		delete(f.servList, "list-error")
 		err = b.RemoveNs(nsDel.Name, true)
-		assert.NoError(err)
-		assert.NotEmpty(f.deletedServ)
-		assert.Len(f.deletedNs, 1)
+		assert.Len(f.deletedServ, 2)
+		assert.Empty(f.deletedNs)
+		assert.Equal(ErrNsNotOwnedServs, err)
+		assert.Contains(f.deletedServ, oneOwned.Name)
+		assert.Contains(f.deletedServ, twoOwned.Name)
+
+		// error occurs in deleting namespace
+		shouldErr := &Namespace{Name: "delete-error", Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		f.nsList[shouldErr.Name] = shouldErr
+		f.deletedServ = []string{}
+		f.deletedNs = []string{}
+		err = b.RemoveNs(shouldErr.Name, true)
+		assert.Error(err)
 	}
 
 	testValidation(t)

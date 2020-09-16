@@ -136,13 +136,6 @@ func (b *Broker) RemoveNs(nsName string, forceNotEmpty bool) (err error) {
 		return nil
 	}
 
-	if by, exists := regNs.Metadata[b.opKey]; by != b.opVal || !exists {
-		// If the namespace is not owned (as in, managed by) us, then it's
-		// better not to touch it.
-		l.V(0).Info("namespace is not owned by the operator and thus will not be updated")
-		return ErrNsNotOwnedByOp
-	}
-
 	// Is it empty?
 	l.V(1).Info("checking if namespace is empty before deleting")
 	listServ, err := b.Reg.ListServ(nsName)
@@ -151,15 +144,41 @@ func (b *Broker) RemoveNs(nsName string, forceNotEmpty bool) (err error) {
 	}
 
 	if len(listServ) > 0 && !forceNotEmpty {
-		l.V(0).Info("cannot delete namespace from service registry")
+		l.V(0).Info("namespace is not empty and will not be deleted from service registry")
 		return ErrNsNotEmpty
 	}
 
+	l.V(0).Info("namespace is not empty: checking if it can be removed")
+	servs := []string{}
+	hasNotOwned := false
 	for _, serv := range listServ {
 		if by, exists := serv.Metadata[b.opKey]; by != b.opVal || !exists {
 			l.V(0).Info("namespace contains services not owned by the operator")
-			return ErrNsNotOwnedServs
+			hasNotOwned = true
+			continue
 		}
+
+		servs = append(servs, serv.Name)
+	}
+
+	if hasNotOwned {
+		// There are some services not owned by the operator, so we must delete
+		// services singularly
+		l.V(0).Info("namespace contains services not owned by the operator and will not be removed from service registry")
+		for _, servName := range servs {
+			if delErr := b.Reg.DeleteServ(nsName, servName); delErr != nil {
+				l.WithValues("serv-name", servName).Error(delErr, "error while deleting service from service registry")
+			}
+		}
+
+		return ErrNsNotOwnedServs
+	}
+
+	if by, exists := regNs.Metadata[b.opKey]; by != b.opVal || !exists {
+		// If the namespace is not owned (as in, managed by) us, then it's
+		// better not to touch it.
+		l.V(0).Info("WARNING: namespace is not owned by the operator and will not be removed from service registry")
+		return ErrNsNotOwnedByOp
 	}
 
 	err = b.Reg.DeleteNs(nsName)
