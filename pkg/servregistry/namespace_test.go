@@ -159,3 +159,151 @@ func TestManageNs(t *testing.T) {
 	testOwned(t)
 	testCreate(t)
 }
+
+func TestRemoveNs(t *testing.T) {
+	// prepare
+	nsName := "ns"
+	var f *fakeServReg
+	b, _ := NewBroker(f, "", "")
+
+	resetFake := func() {
+		f = newFakeStruct()
+		b.Reg = f
+	}
+
+	resetFake()
+
+	// Test validation
+	testValidation := func(tt *testing.T) {
+		defer resetFake()
+		assert := a.New(tt)
+
+		// no service registry provided
+		b.Reg = nil
+		err := b.RemoveNs(nsName, false)
+		assert.Equal(ErrServRegNotProvided, err)
+
+		// namespace name not provided
+		b.Reg = f
+		err = b.RemoveNs("", false)
+		assert.Equal(ErrNsNameNotProvided, err)
+		assert.Empty(f.deletedNs)
+	}
+
+	// Test returns nil when an unknown error is thrown by the service registry
+	testUnErr := func(tt *testing.T) {
+		defer resetFake()
+		assert := a.New(tt)
+
+		err := b.RemoveNs("get-error", false)
+		assert.Error(err)
+		assert.NotEqual(ErrNsNameNotProvided, err)
+		assert.NotEqual(ErrNsNotProvided, err)
+		assert.NotEqual(ErrNsNameNotProvided, err)
+
+		assert.Empty(f.deletedNs)
+	}
+
+	// Test namespaces not owned by the operator are not deleted
+	testNotOwned := func(tt *testing.T) {
+		defer resetFake()
+		assert := a.New(tt)
+
+		one := &Namespace{Name: "not-owned", Metadata: map[string]string{b.opKey: "someone-else", "key": "val"}}
+		two := &Namespace{Name: "not-owned", Metadata: map[string]string{"key": "val"}}
+		f.nsList[one.Name] = one
+		f.nsList[two.Name] = two
+
+		err := b.RemoveNs(one.Name, false)
+		assert.Equal(ErrNsNotOwnedByOp, err)
+
+		err = b.RemoveNs(two.Name, false)
+		assert.Equal(ErrNsNotOwnedByOp, err)
+		assert.Empty(f.deletedNs)
+	}
+
+	// Test empty owned namespaces are deleted
+	testEmptyOwned := func(tt *testing.T) {
+		defer resetFake()
+		assert := a.New(tt)
+
+		// when it doesn't exist, we just log but return no error
+		// because it doesn't change anything for us
+		err := b.RemoveNs("doesnt-exist", false)
+		assert.NoError(err)
+
+		// unknown error
+		toDel := &Namespace{Name: "delete-error", Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		f.nsList[toDel.Name] = toDel
+		err = b.RemoveNs("delete-error", false)
+		assert.NotEqual(ErrServRegNotProvided, err)
+		assert.NotEqual(ErrNsNameNotProvided, err)
+
+		// successful
+		present := &Namespace{Name: "owned", Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		f.nsList[present.Name] = present
+		err = b.RemoveNs("owned", false)
+		assert.NoError(err)
+		assert.Len(f.deletedNs, 1)
+	}
+
+	// Test not empty owned namespaces are deleted/not deleted
+	testNotEmptyOwned := func(tt *testing.T) {
+		defer resetFake()
+		assert := a.New(tt)
+
+		oneOwned := &Service{
+			Name:     "one",
+			Metadata: map[string]string{b.opKey: b.opVal, "key": "val"},
+			NsName:   nsName,
+		}
+		twoOwned := &Service{
+			Name:     "two",
+			Metadata: map[string]string{b.opKey: b.opVal, "key": "val"},
+			NsName:   nsName,
+		}
+		threeNotOwned := &Service{
+			Name:     "three",
+			Metadata: map[string]string{b.opKey: "someone-else", "key": "val"},
+			NsName:   nsName,
+		}
+		nsDel := &Namespace{Name: nsName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		f.nsList[nsDel.Name] = nsDel
+
+		// error in listing
+		f.servList["list-error"] = &Service{}
+		err := b.RemoveNs(nsDel.Name, false)
+		assert.Error(err)
+		delete(f.servList, "list-error")
+
+		// there is a service not owned by us
+		f.servList["one"] = oneOwned
+		f.servList["two"] = twoOwned
+		f.servList["three"] = threeNotOwned
+		err = b.RemoveNs(nsDel.Name, true)
+		assert.Equal(ErrNsNotOwnedServs, err)
+		assert.Empty(f.deletedNs)
+		delete(f.servList, "three")
+
+		// there are only services owned by us but forceNotEmpty is false
+		err = b.RemoveNs(nsDel.Name, false)
+		assert.Equal(ErrNsNotEmpty, err)
+		assert.Empty(f.deletedServ, true)
+
+		// there are only services owned by us and forceNotEmpty is true
+		f.nsList[nsDel.Name] = nsDel
+		f.servList["one"] = oneOwned
+		f.servList["two"] = twoOwned
+		delete(f.servList, "list-error")
+		err = b.RemoveNs(nsDel.Name, true)
+		assert.NoError(err)
+		assert.NotEmpty(f.deletedServ)
+		assert.Len(f.deletedNs, 1)
+	}
+
+	testValidation(t)
+	testUnErr(t)
+	testNotOwned(t)
+	testEmptyOwned(t)
+	testNotEmptyOwned(t)
+}
