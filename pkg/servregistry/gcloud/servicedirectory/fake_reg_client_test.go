@@ -194,22 +194,74 @@ func (f *fakeRegClient) DeleteService(ctx context.Context, req *sdpb.DeleteServi
 }
 
 func (f *fakeRegClient) GetEndpoint(ctx context.Context, req *sdpb.GetEndpointRequest, opts ...gax.CallOption) (*sdpb.Endpoint, error) {
-	// TODO
-	return nil, nil
+	split := strings.Split(req.Name, "/")
+	name := split[len(split)-1]
+	if name == "get-error" {
+		return nil, errors.New("error")
+	}
+
+	if name == "get-not-found" {
+		return nil, status.Error(codes.NotFound, codes.NotFound.String())
+	}
+
+	if name == "timeout-error" {
+		return nil, context.DeadlineExceeded
+	}
+
+	return &sdpb.Endpoint{Name: "one/two/three/four/five/six/seven/eight/nine/" + req.Name}, nil
 }
 
 func (f *fakeRegClient) CreateEndpoint(ctx context.Context, req *sdpb.CreateEndpointRequest, opts ...gax.CallOption) (*sdpb.Endpoint, error) {
-	// TODO
-	return nil, nil
+	split := strings.Split(req.EndpointId, "/")
+	name := split[len(split)-1]
+	if name == "create-error" {
+		return nil, errors.New("error")
+	}
+
+	if name == "create-exists" {
+		return nil, status.Error(codes.AlreadyExists, codes.AlreadyExists.String())
+	}
+
+	if name == "timeout-error" {
+		return nil, context.DeadlineExceeded
+	}
+
+	return &sdpb.Endpoint{Name: "one/two/three/four/five/six/seven/eight/nine/" + req.EndpointId}, nil
 }
 
 func (f *fakeRegClient) UpdateEndpoint(ctx context.Context, req *sdpb.UpdateEndpointRequest, opts ...gax.CallOption) (*sdpb.Endpoint, error) {
-	// TODO
-	return nil, nil
+	split := strings.Split(req.Endpoint.Name, "/")
+	name := split[len(split)-1]
+	if name == "update-error" {
+		return nil, errors.New("error")
+	}
+
+	if name == "update-not-found" {
+		return nil, status.Error(codes.NotFound, codes.NotFound.String())
+	}
+
+	if name == "timeout-error" {
+		return nil, context.DeadlineExceeded
+	}
+
+	return &sdpb.Endpoint{Name: "one/two/three/four/five/six/seven/eight/nine/" + req.Endpoint.Name}, nil
 }
 
 func (f *fakeRegClient) DeleteEndpoint(ctx context.Context, req *sdpb.DeleteEndpointRequest, opts ...gax.CallOption) error {
-	// TODO
+	split := strings.Split(req.Name, "/")
+	name := split[len(split)-1]
+	if name == "delete-error" {
+		return errors.New("error")
+	}
+
+	if name == "delete-not-found" {
+		return status.Error(codes.NotFound, codes.NotFound.String())
+	}
+
+	if name == "timeout-error" {
+		return context.DeadlineExceeded
+	}
+
 	return nil
 }
 

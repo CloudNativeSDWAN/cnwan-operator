@@ -63,4 +63,6 @@ var (
 	ErrTimeOutExpired error = errors.New("timeout expired while waiting for service registry to reply")
 	// ErrEndpNameNotProvided is returned when the endpoint name is empty
 	ErrEndpNameNotProvided error = errors.New("endpoint name not provided")
+	// ErrEndpNotProvided is returned when the endpoint is missing, i.e. is nil
+	ErrEndpNotProvided error = errors.New("endpoint is empty")
 )
