@@ -59,4 +59,8 @@ var (
 	// ErrEndpNotOwnedByOp is returned when an endpoint is not owned by the
 	// cnwan operator and therefore the action cannot be performed
 	ErrEndpNotOwnedByOp error = errors.New("endpoint is not owned by the cnwan operator")
+	// ErrTimeOutExpired is returned when the timeout of a context is expired
+	ErrTimeOutExpired error = errors.New("timeout expired while waiting for service registry to reply")
+	// ErrEndpNameNotProvided is returned when the endpoint name is empty
+	ErrEndpNameNotProvided error = errors.New("endpoint name not provided")
 )

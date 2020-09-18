@@ -18,11 +18,15 @@ package servicedirectory
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	sd "cloud.google.com/go/servicedirectory/apiv1beta1"
 	gax "github.com/googleapis/gax-go"
 	sdpb "google.golang.org/genproto/googleapis/cloud/servicedirectory/v1beta1"
 	iampb "google.golang.org/genproto/googleapis/iam/v1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
@@ -41,27 +45,79 @@ func getFakeHandler() *servDir {
 }
 
 func (f *fakeRegClient) GetNamespace(ctx context.Context, req *sdpb.GetNamespaceRequest, opts ...gax.CallOption) (*sdpb.Namespace, error) {
-	// TODO
-	return nil, nil
+	split := strings.Split(req.Name, "/")
+	name := split[len(split)-1]
+	if name == "get-error" {
+		return nil, errors.New("error")
+	}
+
+	if name == "get-not-found" {
+		return nil, status.Error(codes.NotFound, codes.NotFound.String())
+	}
+
+	if name == "timeout-error" {
+		return nil, context.DeadlineExceeded
+	}
+
+	return &sdpb.Namespace{Name: "one/two/three/four/five/ns"}, nil
 }
 
 func (f *fakeRegClient) ListNamespaces(ctx context.Context, req *sdpb.ListNamespacesRequest, opts ...gax.CallOption) *sd.NamespaceIterator {
-	// TODO
+	// Not mocked as currently not used by the operator
 	return nil
 }
 
 func (f *fakeRegClient) CreateNamespace(ctx context.Context, req *sdpb.CreateNamespaceRequest, opts ...gax.CallOption) (*sdpb.Namespace, error) {
-	// TODO
-	return nil, nil
+	split := strings.Split(req.NamespaceId, "/")
+	name := split[len(split)-1]
+	if name == "create-error" {
+		return nil, errors.New("error")
+	}
+
+	if name == "create-exists" {
+		return nil, status.Error(codes.AlreadyExists, codes.AlreadyExists.String())
+	}
+
+	if name == "timeout-error" {
+		return nil, context.DeadlineExceeded
+	}
+
+	return &sdpb.Namespace{Name: "one/two/three/four/five/ns"}, nil
 }
 
 func (f *fakeRegClient) UpdateNamespace(ctx context.Context, req *sdpb.UpdateNamespaceRequest, opts ...gax.CallOption) (*sdpb.Namespace, error) {
-	// TODO
-	return nil, nil
+	split := strings.Split(req.Namespace.Name, "/")
+	name := split[len(split)-1]
+	if name == "update-error" {
+		return nil, errors.New("error")
+	}
+
+	if name == "update-not-found" {
+		return nil, status.Error(codes.NotFound, codes.NotFound.String())
+	}
+
+	if name == "timeout-error" {
+		return nil, context.DeadlineExceeded
+	}
+
+	return &sdpb.Namespace{Name: "one/two/three/four/five/ns"}, nil
 }
 
 func (f *fakeRegClient) DeleteNamespace(ctx context.Context, req *sdpb.DeleteNamespaceRequest, opts ...gax.CallOption) error {
-	// TODO
+	split := strings.Split(req.Name, "/")
+	name := split[len(split)-1]
+	if name == "delete-error" {
+		return errors.New("error")
+	}
+
+	if name == "delete-not-found" {
+		return status.Error(codes.NotFound, codes.NotFound.String())
+	}
+
+	if name == "timeout-error" {
+		return context.DeadlineExceeded
+	}
+
 	return nil
 }
 
