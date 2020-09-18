@@ -33,7 +33,7 @@ import (
 type servDir struct {
 	project     string
 	region      string
-	client      *sd.RegistrationClient
+	client      regClient
 	log         logr.Logger
 	context     context.Context
 	resMetadata map[string]string
