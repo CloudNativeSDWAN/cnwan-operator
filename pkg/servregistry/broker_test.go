@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	a "github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type fakeServReg struct {
@@ -311,6 +312,11 @@ func (f *fakeServReg) DeleteEndp(nsName, servName, endpName string) error {
 	f.deletedEndp = append(f.deletedEndp, endpName)
 
 	return nil
+}
+
+func (f *fakeServReg) ExtractData(ns *corev1.Namespace, serv *corev1.Service) (*Namespace, *Service, []*Endpoint, error) {
+	// No need to implement this
+	return nil, nil, nil, nil
 }
 
 func TestNewBroker(t *testing.T) {
