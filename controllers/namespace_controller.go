@@ -21,9 +21,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/CloudNativeSDWAN/cnwan-operator/servicedirectory"
+	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"github.com/CloudNativeSDWAN/cnwan-operator/types"
-	"github.com/CloudNativeSDWAN/cnwan-operator/utils"
 	"github.com/go-logr/logr"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
@@ -35,16 +34,17 @@ import (
 // NamespaceReconciler reconciles a Namespace object
 type NamespaceReconciler struct {
 	client.Client
-	Log        logr.Logger
-	Scheme     *runtime.Scheme
-	nsLastConf map[string]types.ListPolicy
-	lock       sync.Mutex
-	SDHandler  servicedirectory.Handler
+	Log           logr.Logger
+	Scheme        *runtime.Scheme
+	nsLastConf    map[string]types.ListPolicy
+	lock          sync.Mutex
+	ServRegBroker *sr.Broker
 }
 
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=namespaces/status,verbs=get;update;patch
 
+// Reconcile checks the changes in a service and reflects those changes in the service registry
 func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	l := r.Log.WithValues("namespace", req.NamespacedName)
@@ -69,8 +69,8 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		deleted = false
 	}
 
-	if r.SDHandler == nil {
-		l.Error(fmt.Errorf("%s", "service directory handler is nil"), "cannot handle namespace")
+	if r.ServRegBroker == nil {
+		l.Error(fmt.Errorf("%s", "service registry broker is nil"), "cannot handle namespace")
 		return ctrl.Result{}, nil
 	}
 
@@ -130,20 +130,18 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
+	// First, check the services
 	for _, serv := range servList.Items {
-		if nsList == types.BlockList || deleted {
-			r.SDHandler.DeleteService(serv.Namespace, serv.Name)
-		} else {
-			servSnap := utils.GetSnapshot(&serv)
-			if len(servSnap.Endpoints) > 0 && len(servSnap.Metadata) > 0 {
-				r.SDHandler.CreateOrUpdateService(servSnap)
-			}
-		}
+		// TODO...
+		_ = serv
 	}
+
+	_ = deleted
 
 	return ctrl.Result{}, nil
 }
 
+// SetupWithManager ...
 func (r *NamespaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.nsLastConf = map[string]types.ListPolicy{}
 
