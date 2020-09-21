@@ -20,9 +20,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/CloudNativeSDWAN/cnwan-operator/servicedirectory"
+	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
+
 	cnwan_types "github.com/CloudNativeSDWAN/cnwan-operator/types"
-	"github.com/CloudNativeSDWAN/cnwan-operator/utils"
 	"github.com/go-logr/logr"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
@@ -35,14 +35,15 @@ import (
 // ServiceReconciler reconciles a Service object
 type ServiceReconciler struct {
 	client.Client
-	Log       logr.Logger
-	Scheme    *runtime.Scheme
-	SDHandler servicedirectory.Handler
+	Log           logr.Logger
+	Scheme        *runtime.Scheme
+	ServRegBroker *sr.Broker
 }
 
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=services/status,verbs=get;update;patch
 
+// Reconcile checks the changes in a service and reflects those changes in the service registry
 func (r *ServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	l := r.Log.WithValues("service", req.NamespacedName)
@@ -90,21 +91,18 @@ func (r *ServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	}
 
-	if r.SDHandler == nil {
-		l.Error(fmt.Errorf("%s", "service directory handler is nil"), "cannot handle service")
+	if r.ServRegBroker == nil {
+		l.Error(fmt.Errorf("%s", "service registry broker is nil"), "cannot handle namespace")
 		return ctrl.Result{}, nil
 	}
 
-	servSnap := utils.GetSnapshot(&service)
-	if !deleted && len(servSnap.Metadata) > 0 {
-		r.SDHandler.CreateOrUpdateService(servSnap)
-	} else {
-		r.SDHandler.DeleteService(service.Namespace, service.Name)
-	}
+	// TODO...
 
+	_ = deleted
 	return ctrl.Result{}, nil
 }
 
+// SetupWithManager ...
 func (r *ServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Service{}).
