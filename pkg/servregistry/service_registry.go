@@ -16,6 +16,10 @@
 
 package servregistry
 
+import (
+	corev1 "k8s.io/api/core/v1"
+)
+
 // ServiceRegistry is an interface containing functions that are implemented
 // by a service registry.
 type ServiceRegistry interface {
@@ -49,4 +53,8 @@ type ServiceRegistry interface {
 	UpdateEndp(endp *Endpoint) (*Endpoint, error)
 	// DeleteEndp deletes the endpoint.
 	DeleteEndp(nsName, servName, endpName string) error
+	// ExtractData extracts relevant data from the provided Kubernetes namespace and service
+	// and returns a namespace, service and an array of endpoints with data relevant to this
+	// specific service registry.
+	ExtractData(ns *corev1.Namespace, serv *corev1.Service) (*Namespace, *Service, []*Endpoint, error)
 }
