@@ -23,6 +23,7 @@ import (
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"github.com/CloudNativeSDWAN/cnwan-operator/types"
+	"github.com/CloudNativeSDWAN/cnwan-operator/utils"
 	"github.com/go-logr/logr"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
@@ -79,7 +80,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		defer r.lock.Unlock()
 
 		currPolicy := types.ListPolicy(viper.GetString(types.NamespaceListPolicy))
-		previousList := r.nsLastConf[nsData.Name]
+		previousList, existed := r.nsLastConf[nsData.Name]
 		var nsList types.ListPolicy
 
 		if currPolicy == types.AllowList {
@@ -108,6 +109,14 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		// Update
 		r.nsLastConf[ns.Name] = nsList
 
+		if !existed {
+			// If we have no data about previous configuration,
+			// then we don't need to do anything, as this namespace
+			// will be created as services are created.
+			// We update the conf even if it is not the case.
+			return false, currPolicy
+		}
+
 		return nsList != previousList, nsList
 	}(ns)
 
@@ -132,11 +141,44 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// First, check the services
 	for _, serv := range servList.Items {
-		// TODO...
-		_ = serv
+		if nsList == types.BlockList || deleted {
+			if err := r.ServRegBroker.RemoveServ(serv.Namespace, serv.Name, true); err != nil {
+				l.Error(err, "error while deleting service")
+			}
+		} else {
+
+			// Get the data in our simpler format
+			// Note: as of now, we are not copying any annotations from a namespace
+			serv.Annotations = utils.FilterAnnotations(serv.Annotations)
+			nsData, servData, endpList, err := r.ServRegBroker.Reg.ExtractData(&ns, &serv)
+			if err != nil {
+				l.WithValues("serv-name", servData.Name).Error(err, "error while extracting data from the namespace and service")
+				return ctrl.Result{}, nil
+			}
+			nsData.Metadata = map[string]string{}
+
+			if _, err := r.ServRegBroker.ManageNs(nsData); err != nil {
+				l.WithValues("ns-name", nsData.Name).Error(err, "error while processing namespace change")
+				return ctrl.Result{}, nil
+			}
+			if len(servData.Metadata) > 0 && len(endpList) > 0 {
+				if _, err := r.ServRegBroker.ManageServ(servData); err != nil {
+					l.WithValues("serv-name", servData.Name).Error(err, "error while updating service")
+					continue
+				}
+				if _, err := r.ServRegBroker.ManageServEndps(servData.NsName, servData.Name, endpList); err != nil {
+					l.WithValues("serv-name", servData.Name).Error(err, "an error occurred while processing service's endpoints")
+					continue
+				}
+			}
+		}
 	}
 
-	_ = deleted
+	if nsList == types.BlockList || deleted {
+		if err := r.ServRegBroker.RemoveNs(ns.Name, true); err != nil {
+			l.Error(err, "error while deleting service")
+		}
+	}
 
 	return ctrl.Result{}, nil
 }
