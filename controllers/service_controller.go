@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
+	"github.com/CloudNativeSDWAN/cnwan-operator/utils"
 
 	cnwan_types "github.com/CloudNativeSDWAN/cnwan-operator/types"
 	"github.com/go-logr/logr"
@@ -96,9 +97,39 @@ func (r *ServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
-	// TODO...
+	// Get the data in our simpler format
+	// Note: as of now, we are not copying any annotations from a namespace
+	service.Annotations = utils.FilterAnnotations(service.Annotations)
+	nsData, servData, endpList, err := r.ServRegBroker.Reg.ExtractData(&ns, &service)
+	if err != nil {
+		l.Error(err, "error while getting data from the namespace and service")
+		return ctrl.Result{}, nil
+	}
 
-	_ = deleted
+	// We don't support metadata on namespaces right now
+	nsData.Metadata = map[string]string{}
+
+	if !deleted && len(endpList) > 0 && len(servData.Metadata) > 0 {
+		if _, err := r.ServRegBroker.ManageNs(nsData); err != nil {
+			l.WithValues("ns-name", nsData.Name).Error(err, "an error occurred while processing the namespace")
+			return ctrl.Result{}, nil
+		}
+		if _, err := r.ServRegBroker.ManageServ(servData); err != nil {
+			l.WithValues("serv-name", nsData.Name).Error(err, "an error occurred while processing the service")
+			return ctrl.Result{}, nil
+		}
+		if _, err := r.ServRegBroker.ManageServEndps(nsData.Name, servData.Name, endpList); err != nil {
+			l.WithValues("serv-name", nsData.Name).Error(err, "an error occurred while processing service's endpoints")
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, nil
+	}
+
+	if err := r.ServRegBroker.RemoveServ(ns.Name, service.Name, true); err != nil {
+		l.WithValues("serv-name", nsData.Name).Error(err, "an error occurred while processing service deletion")
+		return ctrl.Result{}, nil
+	}
+
 	return ctrl.Result{}, nil
 }
 
