@@ -17,75 +17,17 @@
 package utils
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"strings"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/types"
 	"github.com/spf13/viper"
-	corev1 "k8s.io/api/core/v1"
 )
 
 const (
 	hashFormat string = "%s:%d"
 	hashChars  int    = 10
 )
-
-func getIPsFromLoadBalancer(servSpec corev1.ServiceSpec, lb corev1.LoadBalancerStatus) (ips []string) {
-	// Append external IPs
-	ips = append(ips, servSpec.ExternalIPs...)
-
-	// Get data from load balancers
-	for _, ing := range lb.Ingress {
-		ips = append(ips, ing.IP)
-	}
-
-	return
-}
-
-func getHashedName(name, ip string, port int32) string {
-	fullName := fmt.Sprintf(hashFormat, ip, port)
-	h := sha256.New()
-
-	h.Write([]byte(fullName))
-	hash := fmt.Sprintf("%x", h.Sum(nil))
-	return fmt.Sprintf("%s-%s", name, hash[:hashChars])
-}
-
-// GetSnapshot returns a snapshot of the current service
-func GetSnapshot(service *corev1.Service) types.ServiceSnapshot {
-	snap := types.ServiceSnapshot{
-		Name:      service.Name,
-		Namespace: service.Namespace,
-		Metadata:  FilterAnnotations(service.Annotations),
-	}
-
-	if !service.DeletionTimestamp.IsZero() {
-		// If it is deleted, it means that it does not have *valid* endpoitns
-		// anymore
-		snap.Endpoints = map[string]types.EndpointSnapshot{}
-		return snap
-	}
-
-	ips := getIPsFromLoadBalancer(service.Spec, service.Status.LoadBalancer)
-
-	// Get the endpoints
-	endpoints := map[string]types.EndpointSnapshot{}
-	for _, port := range service.Spec.Ports {
-		for _, ip := range ips {
-			name := getHashedName(service.Name, ip, port.Port)
-			endpoints[name] = types.EndpointSnapshot{
-				Name:     name,
-				Address:  ip,
-				Port:     port.Port,
-				Metadata: map[string]string{},
-			}
-		}
-	}
-
-	snap.Endpoints = endpoints
-	return snap
-}
 
 // FilterAnnotations is used to remove annotations that should be ignored
 // by the operator
