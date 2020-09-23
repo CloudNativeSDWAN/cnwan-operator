@@ -13,14 +13,16 @@ You can contact the CNWAN team at [cnwan@cisco.com](mailto:cnwan@cisco.com).
 * [Overview](#overview)
 * [Supported Service Registries](#supported-service-registries)
 * [How it Works](#how-it-works)
+  * [Ownership](#ownership)
 * [Installing on Your Machine](#installing-on-your-machine)
 * [Configuring the Operator](#configuring-the-operator)
   * [The ConfigMap](#the-configmap)
   * [Namespace List Policy](#namespace-list-policy)
   * [Annotations](#annotations)
-  * [Service Directory Settings](#service-directory-settigns)
+  * [Service Directory Settings](#service-directory-settings)
     * [Google Cloud Service Account](#google-cloud-service-account)
 * [Deploying to Your Cluster](#deploying-to-your-cluster)
+  * [Kubernetes Requirements](#kubernetes-requirements)
   * [Before Deploying](#before-deploying)
   * [Deploy](#deploy)
 * [Removing from Your Cluster](#removing-from-your-cluster)
@@ -66,6 +68,26 @@ load balancers before deploying the operator: most managed Kubernetes platforms
 do support them, but in case you are not running a managed Kubernetes you may
 use [MetalLB](https://metallb.universe.tf/) or explore other load balancer
 solutions.
+
+### Ownership
+
+The operator is built with a concept of *ownership*: whenever it **creates**
+a resource on the service registry, it automatically inserts the reserved
+metadata `owner: cnwan-operator`. This will make the operator skip all those
+resources that have been created by someone else or manually, avoiding messing
+up pre-existing configuration.
+
+That being said, the operator will still insert child resources even if the
+parent resource is not owned by the operator.  
+For example: if your service registry contains a service called `my-service`
+that does **not** have the `owner: cnwan-operator` metadata or that has
+something else entirely - i.e. `owner: someone-else`, then the operator will
+never update or delete its metadata, but will still add endpoints under it,
+as long as they, again, do not already exists and are owned by someone else.
+
+Finally, if you wish the operator to manage your pre-existing resources on your
+service registry, please update all the necessary resources by inserting
+`owner: cnwan-operator` among their metadata.
 
 ## Installing on Your Machine
 
@@ -229,6 +251,24 @@ must have some tabs/spaces to be correctly included under
 
 ## Deploying to Your Cluster
 
+### Kubernetes Requirements
+
+If your Kubernetes version is older than `1.11.3`, the operator will not
+work properly. To check your version, please run
+
+```bash
+kubectl version --short
+```
+
+If this is your case, we strongly encourage you to
+[upgrade your cluster](https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-upgrade/)
+before deploying the CNWAN Operator.
+
+Finally, please make sure your cluster can correctly make HTTP/S requests to
+the internet, especially if you are behind a proxy; otherwise outbound requests
+to the service registry may hang and get abrutly interrupted by the Operator
+if they take longer that `30` seconds to complete.
+
 ### Before Deploying
 
 A container registry account where to push the docker image to is required.
@@ -244,9 +284,9 @@ continuing:
   * *Unix/Linux and MacOS*: already pre-installed.
   * *Windows* users: download the binaries from
 [this page](http://gnuwin32.sourceforge.net/packages/make.htm).
-* [Golang](https://golang.org/doc/install) to build the project. Follow
+* [Golang 1.13+](https://golang.org/doc/install) to build the project. Follow
 the link to learn how to install it for any system.
-* [Docker](https://www.docker.com/get-started) for building and pushing the
+* [Docker 17.03+](https://www.docker.com/get-started) for building and pushing the
 operator's container images.
   * *Unix/Linux* users with
   [Snap](https://snapcraft.io/docs/installing-snapd):
@@ -259,7 +299,7 @@ operator's container images.
   [Docker Desktop for Mac](https://hub.docker.com/editions/community/docker-ce-desktop-mac/)
   * *Windows* users:
   [Docker Desktop for Windows](https://hub.docker.com/editions/community/docker-ce-desktop-windows/)
-* [Kustomize](https://kubernetes-sigs.github.io/kustomize/installation/) to
+* [Kustomize 3.1.0+](https://kubernetes-sigs.github.io/kustomize/installation/) to
 generate the operator's yaml files correctly.
   * *Unix/Linux* users with
   [Snap](https://snapcraft.io/docs/installing-snapd):
@@ -281,7 +321,7 @@ generate the operator's yaml files correctly.
   choco install kustomize
   ```
 
-* [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) to
+* [Kubectl 1.11.3+](https://kubernetes.io/docs/tasks/tools/install-kubectl/) to
 deploy the operator on the cluster.
   * Make sure
   [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/)
