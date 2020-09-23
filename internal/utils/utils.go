@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/CloudNativeSDWAN/cnwan-operator/types"
+	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
 	"github.com/spf13/viper"
 )
 

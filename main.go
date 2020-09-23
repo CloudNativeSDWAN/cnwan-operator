@@ -22,9 +22,9 @@ import (
 	"fmt"
 	"os"
 
-	sd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/gcloud/servicedirectory"
-
+	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
+	sd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/gcloud/servicedirectory"
 
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/controllers"
-	"github.com/CloudNativeSDWAN/cnwan-operator/types"
 	// +kubebuilder:scaffold:imports
 )
 

@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
+	"github.com/CloudNativeSDWAN/cnwan-operator/internal/utils"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
-	"github.com/CloudNativeSDWAN/cnwan-operator/types"
-	"github.com/CloudNativeSDWAN/cnwan-operator/utils"
 	"github.com/go-logr/logr"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
