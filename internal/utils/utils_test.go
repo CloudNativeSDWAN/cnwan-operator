@@ -19,7 +19,7 @@ package utils
 import (
 	"testing"
 
-	"github.com/CloudNativeSDWAN/cnwan-operator/types"
+	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
 	"github.com/spf13/viper"
 	. "github.com/stretchr/testify/assert"
 )
