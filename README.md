@@ -1,3 +1,10 @@
+![GitHub](https://img.shields.io/github/license/CloudNativeSDWAN/cnwan-operator)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/CloudNativeSDWAN/cnwan-operator)
+![Kubernetes version](https://img.shields.io/badge/kubernetes-1.11.3%2B-blue)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/CloudNativeSDWAN/cnwan-operator/Test)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/CloudNativeSDWAN/cnwan-operator)
+![Docker Image Version (latest by date)](https://img.shields.io/docker/v/cnwan/cnwan-operator?label=docker%20version)
+
 # CNWAN Operator
 
 Register and manage your Kubernetes Services to a Service Registry.
