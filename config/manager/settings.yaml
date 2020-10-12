@@ -12,5 +12,4 @@ data:
     namespace:
       listPolicy: allowlist
     service:
-      annotations:
-      - cnwan.io/profile
+      annotations: []
