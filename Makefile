@@ -1,7 +1,12 @@
 # Image URL to use all building/pushing image targets
-IMG ?= <repository>
+IMG ?= {CONTAINER_IMAGE}
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
+
+ifeq ($(IMG),{CONTAINER_IMAGE})
+TAG := $(shell ./scripts/get-latest.sh)
+IMG := cnwan/cnwan-operator:${TAG}
+endif
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -34,6 +39,7 @@ uninstall: manifests
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests
+	@echo "using ${IMG}"
 	cd config/manager && kustomize edit set image controller=${IMG}
 	kustomize build config/default | kubectl apply -f -
 
