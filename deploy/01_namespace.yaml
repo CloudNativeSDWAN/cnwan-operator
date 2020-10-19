@@ -1,0 +1,6 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: cnwan-operator-system
+  labels:
+    control-plane: controller-manager
