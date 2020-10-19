@@ -18,7 +18,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 
@@ -56,13 +55,6 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
-	flag.Parse()
 	ctx, canc := context.WithCancel(context.Background())
 	defer canc()
 
@@ -115,10 +107,8 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
-		Port:               9443,
-		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "ebb9afc0.operator.cnwan.io",
+		LeaderElection:     false,
+		MetricsBindAddress: "0",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
