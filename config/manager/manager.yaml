@@ -12,22 +12,25 @@ metadata:
   namespace: system
   labels:
     control-plane: controller-manager
+    cnwan.io/application: operator
 spec:
   selector:
     matchLabels:
       control-plane: controller-manager
+      cnwan.io/application: operator
   replicas: 1
   template:
     metadata:
       labels:
         control-plane: controller-manager
+        cnwan.io/application: operator
     spec:
       serviceAccountName: cnwan-operator-service-account
       containers:
       - command:
         - /manager
-        args:
-        - --enable-leader-election
+        # args:
+        # - --enable-leader-election
         image: controller:latest
         name: manager
         resources:
