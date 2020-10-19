@@ -5,11 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.1] (2020-10-12)
+## [0.2.1] (2020-10-19)
 
 ## Added
 
 - A service account, so that the operator does not use the default one anymore
+- Folder `deploy` containing pre-built yaml files, for an easier and
+quicker deployment.
+- Scripts `deploy.sh` and `remove.sh` to automate some commands.
 
 ## Changed
 
@@ -19,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Removed
 
 - Annotations list in `config/manager/settings.yaml` is now empty.
+- Leader election and metrics server
+- Many resources that are not utilized.
 
 ## [0.2.0] (2020-09-24)
 
@@ -53,6 +58,15 @@ too many resources.
 - `Dockerfile` has been changed accordingly
 - Improve requirements by adding minimum version to some of the dependencies
 of the operator.
+- Upgrades:
+  - `sigs.k8s.io/controller-runtime` to `v0.6.3`
+  - `google.golang.org/grpc` to `v1.33.0`
+  - `github.com/stretchr/testify` to `v1.6.1`
+  - `github.com/spf13/viper` to `v1.7.1`
+  - `github.com/onsi/gomega` to `v1.10.3`
+  - `github.com/onsi/ginkgo` to `v1.14.2`
+  - `github.com/googleapis/gax-go` to `v1.0.3`
+  - `cloud.google.com/go` to `v0.69.1`
 
 ### Fixed
 
