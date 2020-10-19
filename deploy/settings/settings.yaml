@@ -1,0 +1,8 @@
+gcloud:
+  serviceDirectory:
+    region: <region>
+    project: <project>
+namespace:
+  listPolicy: allowlist
+service:
+  annotations: []
