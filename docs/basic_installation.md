@@ -67,7 +67,7 @@ Therefore, your `deploy/settings` will contain `settings.yaml` and
 
 ## Deploy
 
-While you can deploy the operator with plain kubectl commands, CNWAN Operator
+While you can deploy the operator with plain kubectl commands, CN-WAN Operator
 comes with scripts that automate such commands for you.
 
 From the root directory of the project, execute
@@ -80,11 +80,11 @@ From the root directory of the project, execute
 ./scripts/deploy.sh example.com/repository/image:tag
 ```
 
-If everything goes fine, CNWAN Operator will run in namespace
+If everything goes fine, CN-WAN Operator will run in namespace
 `cnwan-operator-system` and deployed to a suitable and available worker node.
 
 If you haven't already, please read [Concepts](./concepts.md) to learn more
-about CNWAN Operator.
+about CN-WAN Operator.
 
 ## Remove
 

@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for your interest in contributing to CNWAN Operator.  
+Thank you for your interest in contributing to CN-WAN Operator.
 Please make sure you read the full code of conduct before making any
 contribution.
 
@@ -25,9 +25,9 @@ Request.
 
 ## Code of Conduct
 
-All participants of CNWAN Operator are expected to abide by our Code of Conduct,
+All participants of CN-WAN Operator are expected to abide by our Code of Conduct,
 both online and during in-person events that are hosted and/or associated
-with CNWAN Operator.
+with CN-WAN Operator.
 
 ### Our Pledge
 

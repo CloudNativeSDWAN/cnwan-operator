@@ -1,6 +1,6 @@
 # Quickstart
 
-Curious to see CNWAN Operator in action but feeling lazy about learning
+Curious to see CN-WAN Operator in action but feeling lazy about learning
 how it does stuff? Follow this guide!
 
 ## Requirements
@@ -197,10 +197,10 @@ service have changed accordingly.
 ## Where to go from here
 
 Well, that's it for a quickstart. Now we encourage you to learn more about
-CNWAN Operator by taking a look at the [docs](./docs).
+CN-WAN Operator by taking a look at the [docs](./docs).
 
 Also, make sure you read the
-[official documentation of CNWAN](https://github.com/CloudNativeSDWAN/cnwan-docs)
+[official documentation of CN-WAN](https://github.com/CloudNativeSDWAN/cnwan-docs)
 to learn how you can apply this simple quickstart to a real world
 scenario.
 

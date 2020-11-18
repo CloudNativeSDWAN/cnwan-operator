@@ -5,19 +5,19 @@
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/CloudNativeSDWAN/cnwan-operator)
 ![Docker Image Version (latest by date)](https://img.shields.io/docker/v/cnwan/cnwan-operator?label=docker%20version)
 
-# CNWAN Operator
+# CN-WAN Operator
 
 Register and manage your Kubernetes Services to a Service Registry.
 
-The CNWAN Operator is part of the Cloud Native SD-WAN (CNWAN) project.
+The CN-WAN Operator is part of the Cloud Native SD-WAN (CN-WAN) project.
 Please check the
-[CNWAN documentation](https://github.com/CloudNativeSDWAN/cnwan-docs) for the
+[CN-WAN documentation](https://github.com/CloudNativeSDWAN/cnwan-docs) for the
 general project overview and architecture.
-You can contact the CNWAN team at [cnwan@cisco.com](mailto:cnwan@cisco.com).
+You can contact the CN-WAN team at [cnwan@cisco.com](mailto:cnwan@cisco.com).
 
 ## Overview
 
-CNWAN Operator is a Kubernetes operator created with [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder)
+CN-WAN Operator is a Kubernetes operator created with [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder)
 that watches for changes in services deployed in your cluster and registers
 them to a service registry so that clients can later discover all registered
 services and know how to connect to them properly.
@@ -27,7 +27,7 @@ properties, as specified from a configuration file.
 
 ## Supported Service Registries
 
-Currently, the CNWAN Operator can register and manage Kubernetes services to
+Currently, the CN-WAN Operator can register and manage Kubernetes services to
 Google Cloud's [Service Directory](https://cloud.google.com/service-directory).
 The project and region must be provided in the `ConfigMap`, and the service
 account file must be provided as a `Secret`.  
@@ -36,7 +36,7 @@ the operator and provide such files.
 
 ## Try It Out
 
-If you want to quickly see how CNWAN Operator works, you can follow this simple
+If you want to quickly see how CN-WAN Operator works, you can follow this simple
 step by step [quickstart](./docs/quickstart.md) guide.
 
 ## Documentation
@@ -66,4 +66,4 @@ Before starting, please make sure you know and agree to our [Code of conduct](./
 
 ## License
 
-CNWAN Operator is released under the Apache 2.0 license. See [LICENSE](./LICENSE)
+CN-WAN Operator is released under the Apache 2.0 license. See [LICENSE](./LICENSE)

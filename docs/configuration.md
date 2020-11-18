@@ -1,7 +1,7 @@
 # Configure the Operator
 
 This section will guide you through the steps you need to take to configure
-the CNWAN Operator.
+the CN-WAN Operator.
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@ the CNWAN Operator.
 
 ## Format
 
-The CNWAN Operator can be configured with the following YAML format.
+The CN-WAN Operator can be configured with the following YAML format.
 
 ```yaml
 gcloud:

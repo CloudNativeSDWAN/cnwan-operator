@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# This script removes the CNWAN Operator
+# This script removes the CN-WAN Operator
 function print_error {
   echo && echo 'An error occurred while removing the operator'
   exit 1
 }
 function print_success {
-  echo && echo 'CNWAN Operator removed successfully'
+  echo && echo 'CN-WAN Operator removed successfully'
   exit 0
 }
 trap print_error ERR

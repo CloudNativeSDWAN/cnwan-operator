@@ -15,7 +15,7 @@
 
 ## How it Works
 
-CNWAN Operator implements the
+CN-WAN Operator implements the
 [operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/):
 it is a standalone program that runs in the Kubernetes cluster and extends it
 by offering additional functionalities.
@@ -54,7 +54,7 @@ service registry pattern is a
 
 ## Metadata
 
-When the CNWAN Operator registers/modifies a service in the service registry,
+When the CN-WAN Operator registers/modifies a service in the service registry,
 it will also register some metadata with it, if the service registry allows
 it.  
 Think of metadata as a collection of `key: value` pairs that provide more
@@ -78,7 +78,7 @@ in the service registry.
 Let's further elaborate the *Metadata* section and specify why we treat
 *annotations* as metadata instead of doing that with *labels*.
 
-The CNWAN Operator reads *annotations* and not *labels* because they are the
+The CN-WAN Operator reads *annotations* and not *labels* because they are the
 closest to metadata: let's take a look at how Kubernetes defines
 [annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/)
 and [labels](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/):
@@ -118,7 +118,7 @@ kubectl annotate service service-name image-name-
 
 ## Ownership
 
-Whenever the CNWAN Operator **creates** a resource - *any resource*, including
+Whenever the CN-WAN Operator **creates** a resource - *any resource*, including
 namespaces, services and endpoints, on the service registry, it automatically
 inserts the reserved metadata `owner: cnwan-operator`.
 This will make the operator skip all those resources that have been created by
@@ -139,9 +139,9 @@ service registry, please update all the necessary resources by inserting
 
 ## Namespace Lists
 
-For the CNWAN Operator, a namespace can belong to two lists: *allowlist* or
+For the CN-WAN Operator, a namespace can belong to two lists: *allowlist* or
 *blocklist*.  
-CNWAN Operator only processes services that belong to namespaces it is allowed
+CN-WAN Operator only processes services that belong to namespaces it is allowed
 to work on: those that are inside the *allowlist*.
 
 To insert a namespace in a list, you have to label it like this:

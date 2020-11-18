@@ -80,7 +80,7 @@ separation of concerns and unit tests.
 - `utils` has been cleaned up to only contain `FilterAnnotations`, as the
 other functions have now been moved to other packages or just not used anymore.
 - `COPYRIGHT` file is removed, as copyright is contained on top of each file
-created by the CNWAN Operator Owners.
+created by the CN-WAN Operator Owners.
 
 ## [0.1.0] (2020-08-12)
 

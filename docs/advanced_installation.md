@@ -86,12 +86,12 @@ If you are not adding any new Kubernetes resources, such as `Secret`s,
 `Deployment`s, `Service`s, etc., you can skip this section and go directly
 to [Configure the operator](#configure-the-operator).
 
-Note that this is different from `CRD`s, as the CNWAN Operator does not have
+Note that this is different from `CRD`s, as the CN-WAN Operator does not have
 any custom resources.
 
-As a reminder, if you are adding resources to CNWAN
+As a reminder, if you are adding resources to CN-WAN
 Operator to contribute to the project, please discuss the changes you want
-to make with the CNWAN Operator [OWNERS](../OWNERS.md) by opening a new
+to make with the CN-WAN Operator [OWNERS](../OWNERS.md) by opening a new
 [issue](https://github.com/CloudNativeSDWAN/cnwan-operator/issues)
 or by email prior to make a pull request.
 
@@ -188,7 +188,7 @@ IMG ?= example.com/username/image:tag
 Make sure you are properly logged in your container registry of choice before
 proceeding. Most of the times, running `docker login <registry>` as documented
 [here](https://docs.docker.com/engine/reference/commandline/login/) should be
-enough, but we encorage you to read your container registry's official
+enough, but we encourage you to read your container registry's official
 documentation to know how to do that.  
 Build and push the image:
 
@@ -210,7 +210,7 @@ The operator will be first tested and, if successful, installed in one of the
 available and suitable worker nodes of your cluster.
 
 If you haven't already, please read [Concepts](./concepts.md) to learn more
-about CNWAN Operator.
+about CN-WAN Operator.
 
 ## Remove
 

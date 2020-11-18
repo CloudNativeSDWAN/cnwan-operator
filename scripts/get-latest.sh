@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script prints the latest version of the CNWAN Operator
+# This script prints the latest version of the CN-WAN Operator
 
 ORG=cnwan
 REPO=cnwan-operator

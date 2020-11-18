@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script deploys the CNWAN Operator
+# This script deploys the CN-WAN Operator
 DIR_VALID=0
 dir_exists () {
     if [ -d "$1" ]; then
@@ -24,7 +24,7 @@ function print_error {
   exit 1
 }
 function print_success {
-  echo && echo 'CNWAN Operator deployed successfully'
+  echo && echo 'CN-WAN Operator deployed successfully'
   exit 0
 }
 trap print_error ERR
