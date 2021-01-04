@@ -19,34 +19,34 @@ package servregistry
 // Namespace holds data about a namespace
 type Namespace struct {
 	// Name of the namespace
-	Name string
+	Name string `yaml:"name" json:"name"`
 	// Metadata is a key-value map with metadata of the namespace
-	Metadata map[string]string
+	Metadata map[string]string `yaml:"metadata" json:"metadata"`
 }
 
 // Service holds data about a service
 type Service struct {
 	// Name of the service
-	Name string
+	Name string `yaml:"name" json:"name"`
 	// NsName is the name of the namespace that contains this service
-	NsName string
+	NsName string `yaml:"namespaceName" json:"namespaceName"`
 	// Metadata is a key-value map with metadata of this service
-	Metadata map[string]string
+	Metadata map[string]string `yaml:"metadata" json:"metadata"`
 }
 
 // Endpoint holds data about an endpoint
 type Endpoint struct {
 	// Name of the endpoint
-	Name string
+	Name string `yaml:"name" json:"name"`
 	// ServName is the name of the service that contains this endpoint
-	ServName string
+	ServName string `yaml:"serviceName" json:"serviceName"`
 	// NsName is the name of the namespace that contains the service this
 	// endpoint belongs to
-	NsName string
+	NsName string `yaml:"namespaceName" json:"namespaceName"`
 	// Metadata is a key-value map with metadata of this endpoint
-	Metadata map[string]string
+	Metadata map[string]string `yaml:"metadata" json:"metadata"`
 	// Address, i.e. IPv4 or IPv6, of this endpoint
-	Address string
+	Address string `yaml:"address" json:"address"`
 	// Port of this endpoint
-	Port int32
+	Port int32 `yaml:"port" json:"port"`
 }
