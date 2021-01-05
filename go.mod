@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go v0.72.0
 	github.com/go-logr/logr v0.1.0
 	github.com/googleapis/gax-go v1.0.3
+	github.com/grpc-ecosystem/grpc-gateway v1.14.6 // indirect
 	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.3
 	github.com/spf13/viper v1.7.1
@@ -16,6 +17,7 @@ require (
 	google.golang.org/api v0.36.0
 	google.golang.org/genproto v0.0.0-20201210142538-e3217bee35cc
 	google.golang.org/grpc v1.34.0
+	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 	k8s.io/api v0.18.6
 	k8s.io/apimachinery v0.18.6
 	k8s.io/client-go v0.18.6

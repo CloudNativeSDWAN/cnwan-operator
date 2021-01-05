@@ -24,6 +24,9 @@ import (
 	"github.com/go-logr/logr"
 	clientv3 "go.etcd.io/etcd/clientv3"
 	namespace "go.etcd.io/etcd/clientv3/namespace"
+	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
+	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
@@ -81,12 +84,55 @@ func NewServiceRegistryWithEtcd(ctx context.Context, cli *clientv3.Client, prefi
 	pref := parsePrefix(prefix)
 	kv := namespace.NewKV(cli.KV, pref)
 
-	// TODO: etcdServReg does not implement Service Registry fully yet, it will
-	// on future commits
 	return &etcdServReg{
 		cli:     cli,
 		kv:      kv,
 		prefix:  pref,
 		mainCtx: c,
 	}, nil
+}
+
+func (e *etcdServReg) ExtractData(ns *corev1.Namespace, serv *corev1.Service) (*sr.Namespace, *sr.Service, []*sr.Endpoint, error) {
+	// TODO: implement me
+	return nil, nil, nil, nil
+}
+
+func (e *etcdServReg) getOne(ctx context.Context, key *KeyBuilder) (interface{}, error) {
+	// This function is not exported and thus is only for internal purpose
+	// only: any checks and validations are performed by the caller
+	// and not here.
+	resp, err := e.kv.Get(ctx, key.String(), clientv3.WithLimit(1))
+	if err != nil {
+		if err == rpctypes.ErrGRPCKeyNotFound {
+			return nil, sr.ErrNotFound
+		}
+		return nil, err
+	}
+
+	if len(resp.Kvs) == 0 {
+		return nil, sr.ErrNotFound
+	}
+
+	switch key.ObjectType() {
+	case NamespaceObject:
+		var ns sr.Namespace
+		if err := yaml.Unmarshal(resp.Kvs[0].Value, &ns); err != nil {
+			return nil, err
+		}
+		return &ns, err
+	case ServiceObject:
+		var serv sr.Service
+		if err := yaml.Unmarshal(resp.Kvs[0].Value, &serv); err != nil {
+			return nil, err
+		}
+		return &serv, err
+	case EndpointObject:
+		var endp sr.Endpoint
+		if err := yaml.Unmarshal(resp.Kvs[0].Value, &endp); err != nil {
+			return nil, err
+		}
+		return &endp, err
+	default:
+		return nil, ErrUnknownObject
+	}
 }
