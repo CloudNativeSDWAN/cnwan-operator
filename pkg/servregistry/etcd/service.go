@@ -20,6 +20,7 @@ import (
 	"context"
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
+	"gopkg.in/yaml.v3"
 )
 
 // GetServ returns the service if exists.
@@ -42,8 +43,26 @@ func (e *etcdServReg) GetServ(nsName, servName string) (*sr.Service, error) {
 
 // ListServ returns a list of services inside the provided namespace.
 func (e *etcdServReg) ListServ(nsName string) (servList []*sr.Service, err error) {
-	// TODO: implement me
-	return nil, nil
+	if !KeyFromNames(nsName).IsValid() {
+		return nil, sr.ErrNsNameNotProvided
+	}
+
+	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
+	defer canc()
+
+	err = e.getList(ctx, KeyFromNames(nsName), func(item []byte) {
+		var serv *sr.Service
+		if err := yaml.Unmarshal(item, &serv); err == nil {
+			servList = append(servList, serv)
+			return
+		}
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return
 }
 
 // CreateServ creates the service.

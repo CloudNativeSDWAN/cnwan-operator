@@ -101,3 +101,82 @@ func TestGetServ(t *testing.T) {
 		}
 	}
 }
+
+func TestListServ(t *testing.T) {
+	a := assert.New(t)
+	unknErr := fmt.Errorf("unknown")
+	e := &etcdServReg{mainCtx: context.Background()}
+	serv := &sr.Service{
+		NsName: "namespace-name",
+		Name:   "service-name",
+		Metadata: map[string]string{
+			"env": "beta",
+		},
+	}
+	serv2 := &sr.Service{
+		NsName: serv.Name,
+		Name:   "namespace-name-2",
+		Metadata: map[string]string{
+			"env": "prod",
+		},
+	}
+	servBytes, _ := yaml.Marshal(serv)
+	servBytes2, _ := yaml.Marshal(serv2)
+	invalid := []byte(`name: invalid
+	name: invalid2`)
+
+	cases := []struct {
+		id     string
+		nsName string
+		get    func(ctx context.Context, key string, opts ...clientv3.OpOption) (*clientv3.GetResponse, error)
+		expRes []*sr.Service
+		expErr error
+	}{
+		{
+			id:     "empty-ns-name",
+			expErr: sr.ErrNsNameNotProvided,
+		},
+		{
+			id:     "any-error", // all the specific errors are tested in TestGetList
+			nsName: serv.NsName,
+			get: func(ctx context.Context, key string, opts ...clientv3.OpOption) (*clientv3.GetResponse, error) {
+				return nil, fmt.Errorf("any error")
+			},
+			expErr: unknErr,
+		},
+		{
+			id:     "should-marshal-some",
+			nsName: serv.NsName,
+			get: func(ctx context.Context, key string, opts ...clientv3.OpOption) (*clientv3.GetResponse, error) {
+				return &clientv3.GetResponse{
+					Kvs: []*mvccpb.KeyValue{
+						{Key: []byte(KeyFromNames(serv.NsName, serv.Name).String()), Value: servBytes},
+						{Key: []byte(KeyFromNames(serv2.NsName, serv2.Name).String()), Value: servBytes2},
+						{Key: []byte(KeyFromNames("whatever", "invalid").String()), Value: invalid},
+					},
+				}, nil
+			},
+			expRes: []*sr.Service{serv, serv2},
+		},
+	}
+
+	for _, currCase := range cases {
+		e.kv = &fakeKV{
+			_get: currCase.get,
+		}
+
+		var errErr bool
+		res, err := e.ListServ(currCase.nsName)
+
+		errRes := a.Equal(currCase.expRes, res)
+		if currCase.expErr == unknErr {
+			errErr = a.Error(err)
+		} else {
+			errErr = a.Equal(currCase.expErr, err)
+		}
+
+		if !errRes || !errErr {
+			a.FailNow(fmt.Sprintf("case %s failed", currCase.id))
+		}
+	}
+}

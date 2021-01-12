@@ -20,6 +20,7 @@ import (
 	"context"
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
+	"gopkg.in/yaml.v3"
 )
 
 // GetEndp returns the endpoint, if it exists.
@@ -44,8 +45,27 @@ func (e *etcdServReg) GetEndp(nsName, servName, endpName string) (*sr.Endpoint, 
 
 // ListServ returns a list of services inside the provided namespace.
 func (e *etcdServReg) ListEndp(nsName, servName string) (endpList []*sr.Endpoint, err error) {
-	// TODO: implement me
-	return nil, nil
+	key, keyErr := KeyFromServiceRegistryObject(&sr.Service{NsName: nsName, Name: servName})
+	if keyErr != nil {
+		return nil, keyErr
+	}
+
+	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
+	defer canc()
+
+	err = e.getList(ctx, key, func(item []byte) {
+		var endp *sr.Endpoint
+		if err := yaml.Unmarshal(item, &endp); err == nil {
+			endpList = append(endpList, endp)
+			return
+		}
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return
 }
 
 // CreateEndp creates the endpoint.

@@ -18,6 +18,7 @@ package etcd
 
 import (
 	"context"
+	"path"
 	"time"
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
@@ -135,4 +136,46 @@ func (e *etcdServReg) getOne(ctx context.Context, key *KeyBuilder) (interface{},
 	default:
 		return nil, ErrUnknownObject
 	}
+}
+
+func (e *etcdServReg) getList(ctx context.Context, key *KeyBuilder, each func([]byte)) error {
+	var objectsToFind ObjectType
+	var suffix string
+	if key == nil {
+		key = &KeyBuilder{}
+	}
+
+	switch key.ObjectType() {
+	case NamespaceObject:
+		objectsToFind = ServiceObject
+		suffix = string(servicePrefix)
+	case ServiceObject:
+		objectsToFind = EndpointObject
+		suffix = string(endpointPrefix)
+	default:
+		objectsToFind = NamespaceObject
+		suffix = string(namespacePrefix)
+	}
+
+	actualKey := path.Join(key.String(), suffix)
+	resp, err := e.kv.Get(ctx, actualKey, clientv3.WithPrefix())
+	if err != nil {
+		if err == rpctypes.ErrGRPCKeyNotFound {
+			return sr.ErrNotFound
+		}
+		return err
+	}
+
+	for _, currentKV := range resp.Kvs {
+		currentKey := string(currentKV.Key)
+		if KeyFromString(currentKey).ObjectType() != objectsToFind {
+			continue
+		}
+
+		if each != nil {
+			each(currentKV.Value)
+		}
+	}
+
+	return nil
 }

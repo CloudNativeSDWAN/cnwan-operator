@@ -110,3 +110,92 @@ func TestGetEndp(t *testing.T) {
 		}
 	}
 }
+
+func TestListEndp(t *testing.T) {
+	a := assert.New(t)
+	unknErr := fmt.Errorf("unknown")
+	e := &etcdServReg{mainCtx: context.Background()}
+	endp := &sr.Endpoint{
+		NsName:   "namespace-name",
+		ServName: "service-name",
+		Name:     "endpoint-name",
+		Metadata: map[string]string{
+			"protocol": "tcp",
+		},
+	}
+	endp2 := &sr.Endpoint{
+		NsName:   "namespace-name",
+		ServName: "service-name",
+		Name:     "endpoint-name-2",
+		Metadata: map[string]string{
+			"protocol": "udp",
+		},
+	}
+	endpBytes, _ := yaml.Marshal(endp)
+	endpBytes2, _ := yaml.Marshal(endp2)
+	invalid := []byte(`name: invalid
+	name: invalid2`)
+
+	cases := []struct {
+		id       string
+		nsName   string
+		servName string
+		get      func(ctx context.Context, key string, opts ...clientv3.OpOption) (*clientv3.GetResponse, error)
+		expRes   []*sr.Endpoint
+		expErr   error
+	}{
+		{
+			id:     "empty-ns-name",
+			expErr: sr.ErrNsNameNotProvided,
+		},
+		{
+			id:     "empty-serv-name",
+			nsName: endp.NsName,
+			expErr: sr.ErrServNameNotProvided,
+		},
+		{
+			id:       "any-error", // all the specific errors are tested in TestGetList
+			nsName:   endp.NsName,
+			servName: endp.ServName,
+			get: func(ctx context.Context, key string, opts ...clientv3.OpOption) (*clientv3.GetResponse, error) {
+				return nil, fmt.Errorf("any error")
+			},
+			expErr: unknErr,
+		},
+		{
+			id:       "should-marshal-some", // Other test cases are done in TestGetList
+			nsName:   endp.NsName,
+			servName: endp.ServName,
+			get: func(ctx context.Context, key string, opts ...clientv3.OpOption) (*clientv3.GetResponse, error) {
+				return &clientv3.GetResponse{
+					Kvs: []*mvccpb.KeyValue{
+						{Key: []byte(KeyFromNames(endp.NsName, endp.ServName, endp.Name).String()), Value: endpBytes},
+						{Key: []byte(KeyFromNames(endp2.NsName, endp2.ServName, endp2.Name).String()), Value: endpBytes2},
+						{Key: []byte(KeyFromNames("whatever", "whatever", "invalid").String()), Value: invalid},
+					},
+				}, nil
+			},
+			expRes: []*sr.Endpoint{endp, endp2},
+		},
+	}
+
+	for _, currCase := range cases {
+		e.kv = &fakeKV{
+			_get: currCase.get,
+		}
+
+		var errErr bool
+		res, err := e.ListEndp(currCase.nsName, currCase.servName)
+
+		errRes := a.Equal(currCase.expRes, res)
+		if currCase.expErr == unknErr {
+			errErr = a.Error(err)
+		} else {
+			errErr = a.Equal(currCase.expErr, err)
+		}
+
+		if !errRes || !errErr {
+			a.FailNow(fmt.Sprintf("case %s failed", currCase.id))
+		}
+	}
+}

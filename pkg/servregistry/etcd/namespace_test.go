@@ -94,3 +94,73 @@ func TestGetNs(t *testing.T) {
 		}
 	}
 }
+
+func TestListNs(t *testing.T) {
+	a := assert.New(t)
+	unknErr := fmt.Errorf("unknown")
+	e := &etcdServReg{mainCtx: context.Background()}
+	ns := &sr.Namespace{
+		Name: "namespace-name",
+		Metadata: map[string]string{
+			"env": "beta",
+		},
+	}
+	ns2 := &sr.Namespace{
+		Name: "namespace-name-2",
+		Metadata: map[string]string{
+			"env": "prod",
+		},
+	}
+	nsBytes, _ := yaml.Marshal(ns)
+	nsBytes2, _ := yaml.Marshal(ns2)
+	invalid := []byte(`name: invalid
+	name: invalid2`)
+
+	cases := []struct {
+		id     string
+		get    func(ctx context.Context, key string, opts ...clientv3.OpOption) (*clientv3.GetResponse, error)
+		expRes []*sr.Namespace
+		expErr error
+	}{
+		{
+			id: "any-error", // all the specific errors are tested in TestGetList
+			get: func(ctx context.Context, key string, opts ...clientv3.OpOption) (*clientv3.GetResponse, error) {
+				return nil, fmt.Errorf("any error")
+			},
+			expErr: unknErr,
+		},
+		{
+			id: "should-marshal-some", // Other test cases are done in TestGetList
+			get: func(ctx context.Context, key string, opts ...clientv3.OpOption) (*clientv3.GetResponse, error) {
+				return &clientv3.GetResponse{
+					Kvs: []*mvccpb.KeyValue{
+						{Key: []byte(KeyFromNames(ns.Name).String()), Value: nsBytes},
+						{Key: []byte(KeyFromNames(ns2.Name).String()), Value: nsBytes2},
+						{Key: []byte(KeyFromNames("invalid").String()), Value: invalid},
+					},
+				}, nil
+			},
+			expRes: []*sr.Namespace{ns, ns2},
+		},
+	}
+
+	for _, currCase := range cases {
+		e.kv = &fakeKV{
+			_get: currCase.get,
+		}
+
+		var errErr bool
+		res, err := e.ListNs()
+
+		errRes := a.Equal(currCase.expRes, res)
+		if currCase.expErr == unknErr {
+			errErr = a.Error(err)
+		} else {
+			errErr = a.Equal(currCase.expErr, err)
+		}
+
+		if !errRes || !errErr {
+			a.FailNow(fmt.Sprintf("case %s failed", currCase.id))
+		}
+	}
+}

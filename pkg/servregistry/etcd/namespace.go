@@ -20,6 +20,7 @@ import (
 	"context"
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
+	"gopkg.in/yaml.v3"
 )
 
 // GetNs returns the namespace if exists.
@@ -41,9 +42,23 @@ func (e *etcdServReg) GetNs(name string) (*sr.Namespace, error) {
 }
 
 // ListNs returns a list of all namespaces.
-func (e *etcdServReg) ListNs() ([]*sr.Namespace, error) {
-	// TODO: implement me
-	return nil, nil
+func (e *etcdServReg) ListNs() (nsList []*sr.Namespace, err error) {
+	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
+	defer canc()
+
+	err = e.getList(ctx, nil, func(item []byte) {
+		var ns *sr.Namespace
+		if err := yaml.Unmarshal(item, &ns); err == nil {
+			nsList = append(nsList, ns)
+			return
+		}
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return
 }
 
 // CreateNs creates the namespace.
