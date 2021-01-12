@@ -406,3 +406,66 @@ func TestGetList(t *testing.T) {
 		}
 	}
 }
+func TestPut(t *testing.T) {
+	a := assert.New(t)
+	e := &etcdServReg{}
+	txn := &fakeTXN{}
+	txn._if = func(cs ...clientv3.Cmp) clientv3.Txn {
+		return txn
+	}
+	txn._then = func(ops ...clientv3.Op) clientv3.Txn {
+		return txn
+	}
+	txn._else = func(ops ...clientv3.Op) clientv3.Txn {
+		return txn
+	}
+	unknErr := fmt.Errorf("unknown")
+
+	cases := []struct {
+		obj    interface{}
+		commit func() (*clientv3.TxnResponse, error)
+		upd    bool
+		expErr error
+	}{
+		{
+			expErr: ErrNilObject,
+		},
+		{
+			obj:    &sr.Namespace{},
+			expErr: sr.ErrNsNameNotProvided,
+		},
+		{
+			obj:    &sr.Service{NsName: "namespace-name"},
+			expErr: sr.ErrServNameNotProvided,
+		},
+		{
+			obj:    &sr.Endpoint{NsName: "namespace-name", ServName: "service-name"},
+			expErr: sr.ErrEndpNameNotProvided,
+		},
+		{
+			obj:    &sr.Endpoint{NsName: "namespace-name", ServName: "service-name"},
+			expErr: sr.ErrEndpNameNotProvided,
+		},
+	}
+
+	for i, currCase := range cases {
+		f := &fakeKV{}
+		f._txn = func(ctx context.Context) clientv3.Txn {
+			return txn
+		}
+		txn._commit = currCase.commit
+		e.kv = f
+
+		var errErr bool
+		err := e.put(context.Background(), currCase.obj, currCase.upd)
+		if currCase.expErr == unknErr {
+			errErr = a.Error(err)
+		} else {
+			errErr = a.Equal(currCase.expErr, err)
+		}
+
+		if !errErr {
+			a.FailNow(fmt.Sprintf("case %d failed", i))
+		}
+	}
+}

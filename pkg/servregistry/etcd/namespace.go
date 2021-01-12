@@ -63,14 +63,26 @@ func (e *etcdServReg) ListNs() (nsList []*sr.Namespace, err error) {
 
 // CreateNs creates the namespace.
 func (e *etcdServReg) CreateNs(ns *sr.Namespace) (*sr.Namespace, error) {
-	// TODO: implement me
-	return nil, nil
+	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
+	defer canc()
+
+	if err := e.put(ctx, ns, false); err != nil {
+		return nil, err
+	}
+
+	return ns, nil
 }
 
 // UpdateNs updates the namespace.
 func (e *etcdServReg) UpdateNs(ns *sr.Namespace) (*sr.Namespace, error) {
-	// TODO: implement me
-	return nil, nil
+	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
+	defer canc()
+
+	if err := e.put(ctx, ns, true); err != nil {
+		return nil, err
+	}
+
+	return ns, nil
 }
 
 // DeleteNs deletes the namespace.

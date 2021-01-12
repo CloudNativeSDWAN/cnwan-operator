@@ -21,7 +21,7 @@ import "errors"
 var (
 	// ErrNilClient is returned when the etcd client is nil
 	ErrNilClient error = errors.New("no etcd client provided")
-	// ErrNilObject is returned when the KeyBuilder is provided with a nil
+	// ErrNilObject is returned when a function is provided with a nil
 	// object.
 	ErrNilObject error = errors.New("no object provided")
 	// ErrUnknownObject is returned when the KeyBuilder is provided with an

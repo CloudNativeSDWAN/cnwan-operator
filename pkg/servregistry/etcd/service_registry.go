@@ -18,6 +18,7 @@ package etcd
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"time"
 
@@ -178,4 +179,71 @@ func (e *etcdServReg) getList(ctx context.Context, key *KeyBuilder, each func([]
 	}
 
 	return nil
+}
+
+func (e *etcdServReg) put(ctx context.Context, object interface{}, update bool) error {
+	if object == nil {
+		return ErrNilObject
+	}
+
+	key, err := KeyFromServiceRegistryObject(object)
+	if err != nil {
+		return err
+	}
+
+	// As per documentation, "Conflicting names result in a runtime error."
+	// We handle service registry objects, which do not suffer from this.
+	// Therefore, there is no need to check the error here.
+	bytes, _ := yaml.Marshal(object)
+
+	// revision == 0 means does not exist
+	cmp := "="
+	if update {
+		// revision > 0 means that it does exist
+		cmp = ">"
+	}
+
+	conditions := []clientv3.Cmp{}
+	elses := []clientv3.Op{}
+
+	if key.ObjectType() >= ServiceObject {
+		nsKey := KeyFromNames(key.GetNamespace())
+		conditions = append(conditions, clientv3.Compare(clientv3.CreateRevision(nsKey.String()), ">", 0))
+		elses = append(elses, clientv3.OpGet(nsKey.String(), clientv3.WithCountOnly()))
+
+		if key.ObjectType() == EndpointObject {
+			servKey := KeyFromNames(key.GetNamespace(), key.GetService())
+			conditions = append(conditions, clientv3.Compare(clientv3.CreateRevision(servKey.String()), ">", 0))
+			elses = append(elses, clientv3.OpGet(servKey.String(), clientv3.WithCountOnly()))
+		}
+	}
+
+	conditions = append(conditions, clientv3.Compare(clientv3.CreateRevision(key.String()), cmp, 0))
+	createIt := clientv3.OpPut(key.String(), string(bytes))
+
+	resp, err := e.kv.Txn(ctx).If(conditions...).Then(createIt).Else(elses...).Commit()
+	if err != nil {
+		return err
+	}
+
+	if resp.Succeeded {
+		// All ok
+		return nil
+	}
+
+	if len(resp.Responses) > 0 {
+		if resp.Responses[0].GetResponseRange().Count == 0 {
+			return fmt.Errorf("namespace with name %s does not exist", key.GetNamespace())
+		}
+
+		if len(resp.Responses) == 2 && resp.Responses[1].GetResponseRange().Count == 0 {
+			return fmt.Errorf("service with name %s does not exist", key.GetService())
+		}
+	}
+
+	if !update {
+		return sr.ErrAlreadyExists
+	}
+
+	return sr.ErrNotFound
 }

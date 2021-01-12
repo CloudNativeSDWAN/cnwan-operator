@@ -67,14 +67,26 @@ func (e *etcdServReg) ListServ(nsName string) (servList []*sr.Service, err error
 
 // CreateServ creates the service.
 func (e *etcdServReg) CreateServ(serv *sr.Service) (*sr.Service, error) {
-	// TODO: implement me
-	return nil, nil
+	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
+	defer canc()
+
+	if err := e.put(ctx, serv, false); err != nil {
+		return nil, err
+	}
+
+	return serv, nil
 }
 
 // UpdateServ updates the service.
 func (e *etcdServReg) UpdateServ(serv *sr.Service) (*sr.Service, error) {
-	// TODO: implement me
-	return nil, nil
+	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
+	defer canc()
+
+	if err := e.put(ctx, serv, true); err != nil {
+		return nil, err
+	}
+
+	return serv, nil
 }
 
 // DeleteServ deletes the service.

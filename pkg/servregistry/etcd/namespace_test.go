@@ -164,3 +164,161 @@ func TestListNs(t *testing.T) {
 		}
 	}
 }
+
+func TestCreateNs(t *testing.T) {
+	a := assert.New(t)
+	e := &etcdServReg{
+		mainCtx: context.Background(),
+	}
+	unknownErr := fmt.Errorf("unknwon")
+	ns := &sr.Namespace{
+		Name:     "namespace-name",
+		Metadata: map[string]string{"env": "beta"},
+	}
+	txn := &fakeTXN{}
+	txn._if = func(cs ...clientv3.Cmp) clientv3.Txn {
+		return txn
+	}
+	txn._then = func(ops ...clientv3.Op) clientv3.Txn {
+		return txn
+	}
+	txn._else = func(ops ...clientv3.Op) clientv3.Txn {
+		return txn
+	}
+
+	cases := []struct {
+		ns     *sr.Namespace
+		commit func() (*clientv3.TxnResponse, error)
+		expRes *sr.Namespace
+		expErr error
+	}{
+		{
+			ns: ns,
+			commit: func() (*clientv3.TxnResponse, error) {
+				// All other errors are tested in testPut
+				return nil, fmt.Errorf("any error")
+			},
+			expErr: unknownErr,
+		},
+		{
+			ns: ns,
+			commit: func() (*clientv3.TxnResponse, error) {
+				return &clientv3.TxnResponse{
+					Succeeded: true,
+				}, nil
+			},
+			expRes: ns,
+		},
+		{
+			ns: ns,
+			commit: func() (*clientv3.TxnResponse, error) {
+				return &clientv3.TxnResponse{
+					Succeeded: false,
+				}, nil
+			},
+			expErr: sr.ErrAlreadyExists,
+		},
+	}
+
+	for i, currCase := range cases {
+		f := &fakeKV{}
+		f._txn = func(ctx context.Context) clientv3.Txn {
+			return txn
+		}
+		txn._commit = currCase.commit
+		e.kv = f
+
+		var errErr bool
+		res, err := e.CreateNs(currCase.ns)
+		errRes := a.Equal(currCase.expRes, res)
+
+		if currCase.expErr == unknownErr {
+			errErr = a.Error(err)
+		} else {
+			errErr = a.Equal(currCase.expErr, err)
+		}
+
+		if !errRes || !errErr {
+			a.FailNow(fmt.Sprintf("case %d failed", i))
+		}
+	}
+}
+
+func TestUpdateNs(t *testing.T) {
+	a := assert.New(t)
+	e := &etcdServReg{
+		mainCtx: context.Background(),
+	}
+	unknownErr := fmt.Errorf("unknwon")
+	ns := &sr.Namespace{
+		Name:     "namespace-name",
+		Metadata: map[string]string{"env": "beta"},
+	}
+	txn := &fakeTXN{}
+	txn._if = func(cs ...clientv3.Cmp) clientv3.Txn {
+		return txn
+	}
+	txn._then = func(ops ...clientv3.Op) clientv3.Txn {
+		return txn
+	}
+	txn._else = func(ops ...clientv3.Op) clientv3.Txn {
+		return txn
+	}
+
+	cases := []struct {
+		ns     *sr.Namespace
+		commit func() (*clientv3.TxnResponse, error)
+		expRes *sr.Namespace
+		expErr error
+	}{
+		{
+			ns: ns,
+			commit: func() (*clientv3.TxnResponse, error) {
+				// All other errors are tested in testPut
+				return nil, fmt.Errorf("any error")
+			},
+			expErr: unknownErr,
+		},
+		{
+			ns: ns,
+			commit: func() (*clientv3.TxnResponse, error) {
+				return &clientv3.TxnResponse{
+					Succeeded: true,
+				}, nil
+			},
+			expRes: ns,
+		},
+		{
+			ns: ns,
+			commit: func() (*clientv3.TxnResponse, error) {
+				return &clientv3.TxnResponse{
+					Succeeded: false,
+				}, nil
+			},
+			expErr: sr.ErrNotFound,
+		},
+	}
+
+	for i, currCase := range cases {
+		f := &fakeKV{}
+		f._txn = func(ctx context.Context) clientv3.Txn {
+			return txn
+		}
+		txn._commit = currCase.commit
+		e.kv = f
+
+		var errErr bool
+		res, err := e.UpdateNs(currCase.ns)
+		errRes := a.Equal(currCase.expRes, res)
+
+		if currCase.expErr == unknownErr {
+			errErr = a.Error(err)
+		} else {
+			errErr = a.Equal(currCase.expErr, err)
+		}
+
+		if !errRes || !errErr {
+			a.FailNow(fmt.Sprintf("case %d failed", i))
+		}
+	}
+}

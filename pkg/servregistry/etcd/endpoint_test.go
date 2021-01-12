@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"testing"
 
+	"go.etcd.io/etcd/etcdserver/etcdserverpb"
 	"go.etcd.io/etcd/mvcc/mvccpb"
 	"gopkg.in/yaml.v3"
 
@@ -149,7 +150,7 @@ func TestListEndp(t *testing.T) {
 			expErr: sr.ErrNsNameNotProvided,
 		},
 		{
-			id:     "empty-serv-name",
+			id:     "empty-ns-name",
 			nsName: endp.NsName,
 			expErr: sr.ErrServNameNotProvided,
 		},
@@ -196,6 +197,254 @@ func TestListEndp(t *testing.T) {
 
 		if !errRes || !errErr {
 			a.FailNow(fmt.Sprintf("case %s failed", currCase.id))
+		}
+	}
+}
+
+func TestCreateEndp(t *testing.T) {
+	a := assert.New(t)
+	e := &etcdServReg{
+		mainCtx: context.Background(),
+	}
+	unknownErr := fmt.Errorf("unknwon")
+	endp := &sr.Endpoint{
+		NsName:   "namespace-name",
+		ServName: "service-name",
+		Name:     "endpoint-name",
+		Metadata: map[string]string{"protocol": "tcp"},
+	}
+	txn := &fakeTXN{}
+	txn._if = func(cs ...clientv3.Cmp) clientv3.Txn {
+		return txn
+	}
+	txn._then = func(ops ...clientv3.Op) clientv3.Txn {
+		return txn
+	}
+	txn._else = func(ops ...clientv3.Op) clientv3.Txn {
+		return txn
+	}
+
+	cases := []struct {
+		endp   *sr.Endpoint
+		commit func() (*clientv3.TxnResponse, error)
+		expRes *sr.Endpoint
+		expErr error
+	}{
+		{
+			endp: endp,
+			commit: func() (*clientv3.TxnResponse, error) {
+				// All other errors are tested in testPut
+				return nil, fmt.Errorf("any error")
+			},
+			expErr: unknownErr,
+		},
+		{
+			endp: endp,
+			commit: func() (*clientv3.TxnResponse, error) {
+				return &clientv3.TxnResponse{
+					Succeeded: true,
+				}, nil
+			},
+			expRes: endp,
+		},
+		{
+			endp: endp,
+			commit: func() (*clientv3.TxnResponse, error) {
+				return &clientv3.TxnResponse{
+					Succeeded: false,
+				}, nil
+			},
+			expErr: sr.ErrAlreadyExists,
+		},
+		{
+			endp: endp,
+			commit: func() (*clientv3.TxnResponse, error) {
+				return &clientv3.TxnResponse{
+					Succeeded: false,
+					Responses: []*etcdserverpb.ResponseOp{
+						{
+							Response: &etcdserverpb.ResponseOp_ResponseRange{
+								ResponseRange: &etcdserverpb.RangeResponse{
+									Count: 0,
+								},
+							},
+						},
+					},
+				}, nil
+			},
+			expErr: fmt.Errorf("namespace with name %s does not exist", endp.NsName),
+		},
+		{
+			endp: endp,
+			commit: func() (*clientv3.TxnResponse, error) {
+				return &clientv3.TxnResponse{
+					Succeeded: false,
+					Responses: []*etcdserverpb.ResponseOp{
+						{
+							Response: &etcdserverpb.ResponseOp_ResponseRange{
+								ResponseRange: &etcdserverpb.RangeResponse{
+									Count: 1,
+								},
+							},
+						},
+						{
+							Response: &etcdserverpb.ResponseOp_ResponseRange{
+								ResponseRange: &etcdserverpb.RangeResponse{
+									Count: 0,
+								},
+							},
+						},
+					},
+				}, nil
+			},
+			expErr: fmt.Errorf("service with name %s does not exist", endp.ServName),
+		},
+	}
+
+	for i, currCase := range cases {
+		f := &fakeKV{}
+		f._txn = func(ctx context.Context) clientv3.Txn {
+			return txn
+		}
+		txn._commit = currCase.commit
+		e.kv = f
+
+		var errErr bool
+		res, err := e.CreateEndp(currCase.endp)
+		errRes := a.Equal(currCase.expRes, res)
+
+		if currCase.expErr == unknownErr {
+			errErr = a.Error(err)
+		} else {
+			errErr = a.Equal(currCase.expErr, err)
+		}
+
+		if !errRes || !errErr {
+			a.FailNow(fmt.Sprintf("case %d failed", i))
+		}
+	}
+}
+
+func TestUpdateEndp(t *testing.T) {
+	a := assert.New(t)
+	e := &etcdServReg{
+		mainCtx: context.Background(),
+	}
+	unknownErr := fmt.Errorf("unknwon")
+	endp := &sr.Endpoint{
+		NsName:   "namespace-name",
+		ServName: "service-name",
+		Name:     "endpoint-name",
+		Metadata: map[string]string{"protocol": "tcp"},
+	}
+	txn := &fakeTXN{}
+	txn._if = func(cs ...clientv3.Cmp) clientv3.Txn {
+		return txn
+	}
+	txn._then = func(ops ...clientv3.Op) clientv3.Txn {
+		return txn
+	}
+	txn._else = func(ops ...clientv3.Op) clientv3.Txn {
+		return txn
+	}
+
+	cases := []struct {
+		endp   *sr.Endpoint
+		commit func() (*clientv3.TxnResponse, error)
+		expRes *sr.Endpoint
+		expErr error
+	}{
+		{
+			endp: endp,
+			commit: func() (*clientv3.TxnResponse, error) {
+				// All other errors are tested in testPut
+				return nil, fmt.Errorf("any error")
+			},
+			expErr: unknownErr,
+		},
+		{
+			endp: endp,
+			commit: func() (*clientv3.TxnResponse, error) {
+				return &clientv3.TxnResponse{
+					Succeeded: true,
+				}, nil
+			},
+			expRes: endp,
+		},
+		{
+			endp: endp,
+			commit: func() (*clientv3.TxnResponse, error) {
+				return &clientv3.TxnResponse{
+					Succeeded: false,
+				}, nil
+			},
+			expErr: sr.ErrNotFound,
+		},
+		{
+			endp: endp,
+			commit: func() (*clientv3.TxnResponse, error) {
+				return &clientv3.TxnResponse{
+					Succeeded: false,
+					Responses: []*etcdserverpb.ResponseOp{
+						{
+							Response: &etcdserverpb.ResponseOp_ResponseRange{
+								ResponseRange: &etcdserverpb.RangeResponse{
+									Count: 0,
+								},
+							},
+						},
+					},
+				}, nil
+			},
+			expErr: fmt.Errorf("namespace with name %s does not exist", endp.NsName),
+		},
+		{
+			endp: endp,
+			commit: func() (*clientv3.TxnResponse, error) {
+				return &clientv3.TxnResponse{
+					Succeeded: false,
+					Responses: []*etcdserverpb.ResponseOp{
+						{
+							Response: &etcdserverpb.ResponseOp_ResponseRange{
+								ResponseRange: &etcdserverpb.RangeResponse{
+									Count: 1,
+								},
+							},
+						},
+						{
+							Response: &etcdserverpb.ResponseOp_ResponseRange{
+								ResponseRange: &etcdserverpb.RangeResponse{
+									Count: 0,
+								},
+							},
+						},
+					},
+				}, nil
+			},
+			expErr: fmt.Errorf("service with name %s does not exist", endp.ServName),
+		},
+	}
+
+	for i, currCase := range cases {
+		f := &fakeKV{}
+		f._txn = func(ctx context.Context) clientv3.Txn {
+			return txn
+		}
+		txn._commit = currCase.commit
+		e.kv = f
+
+		var errErr bool
+		res, err := e.UpdateEndp(currCase.endp)
+		errRes := a.Equal(currCase.expRes, res)
+
+		if currCase.expErr == unknownErr {
+			errErr = a.Error(err)
+		} else {
+			errErr = a.Equal(currCase.expErr, err)
+		}
+
+		if !errRes || !errErr {
+			a.FailNow(fmt.Sprintf("case %d failed", i))
 		}
 	}
 }

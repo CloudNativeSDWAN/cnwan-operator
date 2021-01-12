@@ -70,14 +70,26 @@ func (e *etcdServReg) ListEndp(nsName, servName string) (endpList []*sr.Endpoint
 
 // CreateEndp creates the endpoint.
 func (e *etcdServReg) CreateEndp(endp *sr.Endpoint) (*sr.Endpoint, error) {
-	// TODO: implement me
-	return nil, nil
+	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
+	defer canc()
+
+	if err := e.put(ctx, endp, false); err != nil {
+		return nil, err
+	}
+
+	return endp, nil
 }
 
 // UpdateEndp updates the endpoint.
 func (e *etcdServReg) UpdateEndp(endp *sr.Endpoint) (*sr.Endpoint, error) {
-	// TODO: implement me
-	return nil, nil
+	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
+	defer canc()
+
+	if err := e.put(ctx, endp, true); err != nil {
+		return nil, err
+	}
+
+	return endp, nil
 }
 
 // DeleteEndp deletes the endpoint.
