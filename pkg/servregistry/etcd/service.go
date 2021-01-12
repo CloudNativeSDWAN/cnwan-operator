@@ -91,6 +91,13 @@ func (e *etcdServReg) UpdateServ(serv *sr.Service) (*sr.Service, error) {
 
 // DeleteServ deletes the service.
 func (e *etcdServReg) DeleteServ(nsName, servName string) error {
-	// TODO: implement me
-	return nil
+	key, err := KeyFromServiceRegistryObject(&sr.Service{NsName: nsName, Name: servName})
+	if err != nil {
+		return err
+	}
+
+	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
+	defer canc()
+
+	return e.delete(ctx, key)
 }

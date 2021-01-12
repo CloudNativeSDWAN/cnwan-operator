@@ -247,3 +247,24 @@ func (e *etcdServReg) put(ctx context.Context, object interface{}, update bool) 
 
 	return sr.ErrNotFound
 }
+
+func (e *etcdServReg) delete(ctx context.Context, key *KeyBuilder) error {
+	condition := clientv3.Compare(clientv3.CreateRevision(key.String()), ">", 0)
+
+	// We need to remove all children elements.
+	// The user must check if they care about them manually. (i.e. the broker
+	// will have to check this).
+	deleteIt := clientv3.OpDelete(key.String(), clientv3.WithPrefix())
+
+	resp, err := e.kv.Txn(ctx).If(condition).Then(deleteIt).Commit()
+	if err != nil {
+		return err
+	}
+
+	if resp.Succeeded {
+		// All ok
+		return nil
+	}
+
+	return sr.ErrNotFound
+}

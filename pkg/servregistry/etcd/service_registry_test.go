@@ -469,3 +469,72 @@ func TestPut(t *testing.T) {
 		}
 	}
 }
+
+func TestDelete(t *testing.T) {
+	a := assert.New(t)
+	e := &etcdServReg{}
+	txn := &fakeTXN{}
+	txn._if = func(cs ...clientv3.Cmp) clientv3.Txn {
+		return txn
+	}
+	txn._then = func(ops ...clientv3.Op) clientv3.Txn {
+		return txn
+	}
+	unknErr := fmt.Errorf("unknown")
+
+	cases := []struct {
+		id     string
+		key    *KeyBuilder
+		commit func() (*clientv3.TxnResponse, error)
+		expErr error
+	}{
+		{
+			key: KeyFromNames("anything"),
+			id:  "returns-an-error",
+			commit: func() (*clientv3.TxnResponse, error) {
+				return nil, fmt.Errorf("any error")
+			},
+			expErr: unknErr,
+		},
+		{
+			key: KeyFromNames("anything"),
+			id:  "is-not-successful",
+			commit: func() (*clientv3.TxnResponse, error) {
+				return &clientv3.TxnResponse{
+					Succeeded: false,
+				}, nil
+			},
+			expErr: sr.ErrNotFound,
+		},
+		{
+			key: KeyFromNames("anything"),
+			id:  "is-successful",
+			commit: func() (*clientv3.TxnResponse, error) {
+				return &clientv3.TxnResponse{
+					Succeeded: true,
+				}, nil
+			},
+		},
+	}
+
+	for i, currCase := range cases {
+		f := &fakeKV{}
+		f._txn = func(ctx context.Context) clientv3.Txn {
+			return txn
+		}
+		txn._commit = currCase.commit
+		e.kv = f
+
+		var errErr bool
+		err := e.delete(context.Background(), currCase.key)
+		if currCase.expErr == unknErr {
+			errErr = a.Error(err)
+		} else {
+			errErr = a.Equal(currCase.expErr, err)
+		}
+
+		if !errErr {
+			a.FailNow(fmt.Sprintf("case %d failed", i))
+		}
+	}
+}

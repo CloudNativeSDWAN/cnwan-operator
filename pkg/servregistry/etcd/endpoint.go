@@ -94,6 +94,15 @@ func (e *etcdServReg) UpdateEndp(endp *sr.Endpoint) (*sr.Endpoint, error) {
 
 // DeleteEndp deletes the endpoint.
 func (e *etcdServReg) DeleteEndp(nsName, servName, endpName string) error {
-	// TODO: implement me
-	return nil
+	key, err := KeyFromServiceRegistryObject(&sr.Endpoint{
+		NsName: nsName, ServName: servName, Name: endpName,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
+	defer canc()
+
+	return e.delete(ctx, key)
 }

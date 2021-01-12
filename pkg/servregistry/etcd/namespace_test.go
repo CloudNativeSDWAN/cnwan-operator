@@ -322,3 +322,68 @@ func TestUpdateNs(t *testing.T) {
 		}
 	}
 }
+
+func TestDeleteNs(t *testing.T) {
+	a := assert.New(t)
+	e := &etcdServReg{
+		mainCtx: context.Background(),
+	}
+	txn := &fakeTXN{}
+	txn._if = func(cs ...clientv3.Cmp) clientv3.Txn {
+		return txn
+	}
+	txn._then = func(ops ...clientv3.Op) clientv3.Txn {
+		return txn
+	}
+	unknErr := fmt.Errorf("unknown")
+
+	cases := []struct {
+		id     string
+		name   string
+		commit func() (*clientv3.TxnResponse, error)
+		expErr error
+	}{
+		{
+			id:     "empty-ns-name",
+			expErr: sr.ErrNsNameNotProvided,
+		},
+		{
+			id:   "returns-any-error", // specific errors are tested in TestDelete
+			name: "ns-name",
+			commit: func() (*clientv3.TxnResponse, error) {
+				return nil, fmt.Errorf("any error")
+			},
+			expErr: unknErr,
+		},
+		{
+			id:   "is-successful",
+			name: "ns-name",
+			commit: func() (*clientv3.TxnResponse, error) {
+				return &clientv3.TxnResponse{
+					Succeeded: true,
+				}, nil
+			},
+		},
+	}
+
+	for _, currCase := range cases {
+		f := &fakeKV{}
+		f._txn = func(ctx context.Context) clientv3.Txn {
+			return txn
+		}
+		txn._commit = currCase.commit
+		e.kv = f
+
+		var errErr bool
+		err := e.DeleteNs(currCase.name)
+		if currCase.expErr == unknErr {
+			errErr = a.Error(err)
+		} else {
+			errErr = a.Equal(currCase.expErr, err)
+		}
+
+		if !errErr {
+			a.FailNow(fmt.Sprintf("case %s failed", currCase.id))
+		}
+	}
+}

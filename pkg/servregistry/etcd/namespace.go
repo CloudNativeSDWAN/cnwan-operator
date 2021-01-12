@@ -87,6 +87,13 @@ func (e *etcdServReg) UpdateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 
 // DeleteNs deletes the namespace.
 func (e *etcdServReg) DeleteNs(name string) error {
-	// TODO: implement me
-	return nil
+	key := KeyFromNames(name)
+	if !key.IsValid() {
+		return sr.ErrNsNameNotProvided
+	}
+
+	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
+	defer canc()
+
+	return e.delete(ctx, key)
 }
