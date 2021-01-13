@@ -18,6 +18,8 @@ package etcd
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"path"
 	"time"
@@ -95,8 +97,74 @@ func NewServiceRegistryWithEtcd(ctx context.Context, cli *clientv3.Client, prefi
 }
 
 func (e *etcdServReg) ExtractData(ns *corev1.Namespace, serv *corev1.Service) (*sr.Namespace, *sr.Service, []*sr.Endpoint, error) {
-	// TODO: implement me
-	return nil, nil, nil, nil
+	// NOTE: on future versions, this function will be removed from service
+	// registry and moved to the broker instead: it's not this package's job
+	// to convert structs.
+	if ns == nil {
+		return nil, nil, nil, sr.ErrNsNotProvided
+	}
+	if serv == nil {
+		return nil, nil, nil, sr.ErrServNotProvided
+	}
+
+	// Parse the namespace
+	namespaceData := &sr.Namespace{
+		Name:     ns.Name,
+		Metadata: ns.Annotations,
+	}
+	if namespaceData.Metadata == nil {
+		namespaceData.Metadata = map[string]string{}
+	}
+
+	// Parse the service
+	// NOTE: we put metadata on the service in service directory,
+	// not on the endpoints
+	serviceData := &sr.Service{
+		Name:     serv.Name,
+		NsName:   ns.Name,
+		Metadata: serv.Annotations,
+	}
+	if serviceData.Metadata == nil {
+		serviceData.Metadata = map[string]string{}
+	}
+
+	// Get the endpoints from the service
+	// First, build the ips
+	ips := []string{}
+	// TODO: check if Spec is nil
+	// TODO: check if ExternalIPS is not nil
+	// ^ this will be performed on the new version of ExternalData
+	ips = append(ips, serv.Spec.ExternalIPs...)
+
+	// Get data from load balancers
+	for _, ing := range serv.Status.LoadBalancer.Ingress {
+		ips = append(ips, ing.IP)
+	}
+
+	endpointsData := []*sr.Endpoint{}
+	for _, port := range serv.Spec.Ports {
+		for _, ip := range ips {
+
+			// Create an hashed name for this
+			toBeHashed := fmt.Sprintf("%s-%d", ip, port.Port)
+			h := sha256.New()
+			h.Write([]byte(toBeHashed))
+			hash := hex.EncodeToString(h.Sum(nil))
+
+			// Only take the first 10 characters of the hashed name
+			name := fmt.Sprintf("%s-%s", serv.Name, hash[:10])
+			endpointsData = append(endpointsData, &sr.Endpoint{
+				Name:     name,
+				NsName:   namespaceData.Name,
+				ServName: serviceData.Name,
+				Address:  ip,
+				Port:     port.Port,
+				Metadata: map[string]string{},
+			})
+		}
+	}
+
+	return namespaceData, serviceData, endpointsData, nil
 }
 
 func (e *etcdServReg) getOne(ctx context.Context, key *KeyBuilder) (interface{}, error) {

@@ -18,6 +18,8 @@ package etcd
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"path"
 	"testing"
@@ -28,6 +30,8 @@ import (
 	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
 	"go.etcd.io/etcd/mvcc/mvccpb"
 	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestNewServiceRegistryWithEtcd(t *testing.T) {
@@ -537,4 +541,323 @@ func TestDelete(t *testing.T) {
 			a.FailNow(fmt.Sprintf("case %d failed", i))
 		}
 	}
+}
+
+func TestExtractData(t *testing.T) {
+	a := assert.New(t)
+	nsName, servName := "ns", "serv"
+	e := &etcdServReg{}
+	nsToTest := &corev1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
+			Name: nsName,
+		},
+	}
+	nsAnnotations := map[string]string{
+		"key": "val",
+	}
+	ips := []string{"10.10.10.10", "11.11.11.11"}
+	ports := []int32{3333, 4444}
+	servToTest := &corev1.Service{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      servName,
+			Namespace: nsName,
+		},
+		Spec: corev1.ServiceSpec{
+			ExternalIPs: ips,
+			Ports: []corev1.ServicePort{
+				{
+					Port: ports[0],
+					Name: "3333",
+				},
+				{
+					Port: ports[1],
+					Name: "4444",
+				},
+			},
+		},
+	}
+	servAnnotations := map[string]string{
+		"key": "val",
+	}
+	statusIPS := []string{"20.20.20.20", "21.21.21.21"}
+	servStatus := corev1.ServiceStatus{
+		LoadBalancer: corev1.LoadBalancerStatus{
+			Ingress: []corev1.LoadBalancerIngress{
+				{IP: statusIPS[0]},
+				{IP: statusIPS[1]},
+			},
+		},
+	}
+
+	cases := []struct {
+		id      string
+		ns      *corev1.Namespace
+		serv    *corev1.Service
+		expNs   *sr.Namespace
+		expServ *sr.Service
+		expEndp []*sr.Endpoint
+		expErr  error
+	}{
+		{
+			id:     "empty-ns",
+			expErr: sr.ErrNsNotProvided,
+		},
+		{
+			id:     "empty-serv",
+			ns:     &corev1.Namespace{},
+			expErr: sr.ErrServNotProvided,
+		},
+		{
+			id:      "empty-metadatas-external-ips",
+			ns:      nsToTest,
+			serv:    servToTest,
+			expNs:   &sr.Namespace{Name: nsToTest.Name, Metadata: map[string]string{}},
+			expServ: &sr.Service{NsName: servToTest.Namespace, Name: servToTest.Name, Metadata: map[string]string{}},
+			expEndp: []*sr.Endpoint{
+				{
+					NsName:   servToTest.Namespace,
+					ServName: servToTest.Name,
+					Name: func() string {
+						toBeHashed := fmt.Sprintf("%s-%d", ips[0], servToTest.Spec.Ports[0].Port)
+						h := sha256.New()
+						h.Write([]byte(toBeHashed))
+						return fmt.Sprintf("%s-%s", servToTest.Name, hex.EncodeToString(h.Sum(nil))[:10])
+					}(),
+					Address:  ips[0],
+					Port:     servToTest.Spec.Ports[0].Port,
+					Metadata: map[string]string{},
+				},
+				{
+					NsName:   servToTest.Namespace,
+					ServName: servToTest.Name,
+					Name: func() string {
+						toBeHashed := fmt.Sprintf("%s-%d", ips[0], servToTest.Spec.Ports[1].Port)
+						h := sha256.New()
+						h.Write([]byte(toBeHashed))
+						return fmt.Sprintf("%s-%s", servToTest.Name, hex.EncodeToString(h.Sum(nil))[:10])
+					}(),
+					Address:  ips[0],
+					Port:     servToTest.Spec.Ports[1].Port,
+					Metadata: map[string]string{},
+				},
+				{
+					NsName:   servToTest.Namespace,
+					ServName: servToTest.Name,
+					Name: func() string {
+						toBeHashed := fmt.Sprintf("%s-%d", ips[1], servToTest.Spec.Ports[0].Port)
+						h := sha256.New()
+						h.Write([]byte(toBeHashed))
+						return fmt.Sprintf("%s-%s", servToTest.Name, hex.EncodeToString(h.Sum(nil))[:10])
+					}(),
+					Address:  ips[1],
+					Port:     servToTest.Spec.Ports[0].Port,
+					Metadata: map[string]string{},
+				},
+				{
+					NsName:   servToTest.Namespace,
+					ServName: servToTest.Name,
+					Name: func() string {
+						toBeHashed := fmt.Sprintf("%s-%d", ips[1], servToTest.Spec.Ports[1].Port)
+						h := sha256.New()
+						h.Write([]byte(toBeHashed))
+						return fmt.Sprintf("%s-%s", servToTest.Name, hex.EncodeToString(h.Sum(nil))[:10])
+					}(),
+					Address:  ips[1],
+					Port:     servToTest.Spec.Ports[1].Port,
+					Metadata: map[string]string{},
+				},
+			},
+		},
+		{
+			id: "not-empty-metadatas-ingress-ips",
+			ns: func() *corev1.Namespace {
+				n := nsToTest.DeepCopy()
+				n.Annotations = nsAnnotations
+				return n
+			}(),
+			serv: func() *corev1.Service {
+				s := servToTest.DeepCopy()
+				s.Spec.ExternalIPs = []string{}
+				s.Status = servStatus
+				s.Annotations = servAnnotations
+				return s
+			}(),
+			expNs:   &sr.Namespace{Name: nsToTest.Name, Metadata: nsAnnotations},
+			expServ: &sr.Service{NsName: servToTest.Namespace, Name: servToTest.Name, Metadata: servAnnotations},
+			expEndp: []*sr.Endpoint{
+				{
+					NsName:   servToTest.Namespace,
+					ServName: servToTest.Name,
+					Name: func() string {
+						toBeHashed := fmt.Sprintf("%s-%d", statusIPS[0], servToTest.Spec.Ports[0].Port)
+						h := sha256.New()
+						h.Write([]byte(toBeHashed))
+						return fmt.Sprintf("%s-%s", servToTest.Name, hex.EncodeToString(h.Sum(nil))[:10])
+					}(),
+					Address:  statusIPS[0],
+					Port:     servToTest.Spec.Ports[0].Port,
+					Metadata: map[string]string{},
+				},
+				{
+					NsName:   servToTest.Namespace,
+					ServName: servToTest.Name,
+					Name: func() string {
+						toBeHashed := fmt.Sprintf("%s-%d", statusIPS[0], servToTest.Spec.Ports[1].Port)
+						h := sha256.New()
+						h.Write([]byte(toBeHashed))
+						return fmt.Sprintf("%s-%s", servToTest.Name, hex.EncodeToString(h.Sum(nil))[:10])
+					}(),
+					Address:  statusIPS[0],
+					Port:     servToTest.Spec.Ports[1].Port,
+					Metadata: map[string]string{},
+				},
+				{
+					NsName:   servToTest.Namespace,
+					ServName: servToTest.Name,
+					Name: func() string {
+						toBeHashed := fmt.Sprintf("%s-%d", statusIPS[1], servToTest.Spec.Ports[0].Port)
+						h := sha256.New()
+						h.Write([]byte(toBeHashed))
+						return fmt.Sprintf("%s-%s", servToTest.Name, hex.EncodeToString(h.Sum(nil))[:10])
+					}(),
+					Address:  statusIPS[1],
+					Port:     servToTest.Spec.Ports[0].Port,
+					Metadata: map[string]string{},
+				},
+				{
+					NsName:   servToTest.Namespace,
+					ServName: servToTest.Name,
+					Name: func() string {
+						toBeHashed := fmt.Sprintf("%s-%d", statusIPS[1], servToTest.Spec.Ports[1].Port)
+						h := sha256.New()
+						h.Write([]byte(toBeHashed))
+						return fmt.Sprintf("%s-%s", servToTest.Name, hex.EncodeToString(h.Sum(nil))[:10])
+					}(),
+					Address:  statusIPS[1],
+					Port:     servToTest.Spec.Ports[1].Port,
+					Metadata: map[string]string{},
+				},
+			},
+		},
+	}
+
+	for _, currCase := range cases {
+		n, s, e, err := e.ExtractData(currCase.ns, currCase.serv)
+		errN := a.Equal(currCase.expNs, n)
+		errS := a.Equal(currCase.expServ, s)
+		errErr := a.Equal(currCase.expErr, err)
+		errLen := a.Len(e, len(currCase.expEndp))
+		// errE := a.Equal(currCase.expEndp, e)
+
+		for _, eEndp := range currCase.expEndp {
+			found := false
+
+			for _, endp := range e {
+				if endp.Name == eEndp.Name {
+					found = true
+					if !a.Equal(eEndp, endp) {
+						a.FailNow("case %s failed", currCase.id)
+					}
+					break
+				}
+			}
+
+			if !found {
+				a.FailNow("case %s failed: endpoint %s not found", currCase.id, eEndp.Name)
+			}
+		}
+
+		if !errN || !errS || /*!errE ||*/ !errErr || !errLen {
+			a.FailNow(fmt.Sprintf("case %s failed", currCase.id))
+		}
+	}
+
+	// statusIPS := []string{"20.20.20.20", "21.21.21.21", "22.22.22.22"}
+	// servStatus := corev1.ServiceStatus{
+	// 	LoadBalancer: corev1.LoadBalancerStatus{
+	// 		Ingress: []corev1.LoadBalancerIngress{
+	// 			{IP: "20.20.20.20"},
+	// 			{IP: "21.21.21.21"},
+	// 			{IP: "22.22.22.22"},
+	// 		},
+	// 	},
+	// }
+
+	// a := assert.New(t)
+
+	// ns, serv, endp, err := e.ExtractData(nsToTest, nil)
+	// a.Nil(ns)
+	// a.Nil(serv)
+	// a.Nil(endp)
+	// a.Equal(sr.ErrServNotProvided, err)
+
+	// ns, serv, endp, err = e.ExtractData(nil, servToTest)
+	// a.Nil(ns)
+	// a.Nil(serv)
+	// a.Nil(endp)
+	// a.Equal(sr.ErrNsNotProvided, err)
+
+	// ns, serv, endp, err = e.ExtractData(nsToTest, servToTest)
+	// a.NotNil(ns)
+	// a.NotNil(serv)
+	// a.NotNil(endp)
+	// a.NoError(err)
+	// a.Equal(&sr.Namespace{
+	// 	Name:     nsName,
+	// 	Metadata: nsToTest.Annotations,
+	// }, ns)
+	// a.Equal(&sr.Service{
+	// 	Name:     servName,
+	// 	NsName:   nsName,
+	// 	Metadata: servToTest.Annotations,
+	// }, serv)
+	// a.Len(endp, 4)
+	// for _, e := range endp {
+	// 	a.Contains(ips, e.Address)
+	// 	a.Contains(ports, e.Port)
+	// 	a.Empty(e.Metadata)
+	// 	a.Equal(nsName, e.NsName)
+	// 	a.Equal(servName, e.ServName)
+
+	// 	if !strings.HasPrefix(e.Name, servName+"-") {
+	// 		a.Fail("endpoint name is incorrect. Should start with", servName, "but is", e.Name)
+	// 	}
+
+	// 	suffix := e.Name[len(servName)+1:]
+	// 	a.Len(suffix, 10)
+	// }
+
+	// servToTest.Status = servStatus
+	// ns, serv, endp, err = e.ExtractData(nsToTest, servToTest)
+	// a.NotNil(ns)
+	// a.NotNil(serv)
+	// a.NotNil(endp)
+	// a.NoError(err)
+	// a.Equal(&sr.Namespace{
+	// 	Name:     nsName,
+	// 	Metadata: nsToTest.Annotations,
+	// }, ns)
+	// a.Equal(&sr.Service{
+	// 	Name:     servName,
+	// 	NsName:   nsName,
+	// 	Metadata: servToTest.Annotations,
+	// }, serv)
+	// expIPS := []string{}
+	// expIPS = append(expIPS, ips...)
+	// expIPS = append(expIPS, statusIPS...)
+	// a.Len(endp, len(expIPS)*len(servToTest.Spec.Ports))
+	// for _, e := range endp {
+	// 	a.Contains(expIPS, e.Address)
+	// 	a.Contains(ports, e.Port)
+	// 	a.Empty(e.Metadata)
+	// 	a.Equal(nsName, e.NsName)
+	// 	a.Equal(servName, e.ServName)
+
+	// 	if !strings.HasPrefix(e.Name, servName+"-") {
+	// 		a.Fail("endpoint name is incorrect. Should start with", servName, "but is", e.Name)
+	// 	}
+
+	// 	suffix := e.Name[len(servName)+1:]
+	// 	a.Len(suffix, 10)
+	// }
 }
