@@ -35,10 +35,11 @@ const (
 	endpointPrefix objectPrefix = "endpoints"
 )
 
-// ObjectType identifies the type of the object we are dealing it nad will
+// ObjectType identifies the type of the object we are dealing with and will
 // build the key according to it, i.e. namespace, service or endpoint.
 type ObjectType int
 
+// These constants define the object type that the key builder will deal with.
 const (
 	// UnknownOrInvalidObject is an object that is neither a namespace, nor a service,
 	// nor an endpoint and is thus not related to service registry.
@@ -55,18 +56,20 @@ const (
 // It can create the appropriate path key based on the object type it is
 // dealing with or make assumptions on what the value is based on
 // its key path so that you know how to unmarshal its value.
-// Be aware that KeyBuilder will **not** include a prefix when it returns the
+//
+// Be aware that KeyBuilder will NOT include a prefix when it returns the
 // key as a string, so you should either include it manually or use the
-// [namespace package](https://pkg.go.dev/go.etcd.io/etcd@v3.3.25+incompatible/clientv3/namespace).
+// namespace package
+// (https://pkg.go.dev/go.etcd.io/etcd@v3.3.25+incompatible/clientv3/namespace).
+//
 // Take a look at the examples to learn more about this.
 //
-// You can use this struct directly in case you don't know the names yet
-// or use `KeyFromNames` or `KeyFromString` according to your needs.
-// Take a look at the examples to learn more about the usage of `KeyBuilder`.
 //
-// NOTE: as written above, `Key` only makes **assumptions**: you need to
+// NOTE: as written above, Key only makes **assumptions**: you need to
 // check that the unmarshal operation was successful to make sure the object
-// is correct.
+// is correct. This is performed automatically by the Service Registry
+// implementer, but you have to do it on your own in case you use it with
+// a crude client.
 type KeyBuilder struct {
 	nsName   string
 	servName string
@@ -99,13 +102,13 @@ func KeyFromNames(names ...string) *KeyBuilder {
 	return e
 }
 
-// KeyFromServiceRegistryObject returns a `KeyBuilder` starting from a service
-// registry object defined in `github.com/CloudNativeSDWAN/cnwan-operator` pkg,
+// KeyFromServiceRegistryObject returns a KeyBuilder starting from a service
+// registry object defined in
+// https://pkg.go.dev/github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry:
 // for example a namespace, service or endpoint.
 //
 // In case the a key couldn't be built this method either returns an error
-// belonging to `github.com/CloudNativeSDWAN/cnwan-operator` or
-// built or
+// belonging to package mentioned above or ErrNilObject if the object is nil.
 func KeyFromServiceRegistryObject(object interface{}) (*KeyBuilder, error) {
 	if object == nil {
 		return nil, ErrNilObject
@@ -144,15 +147,20 @@ func KeyFromServiceRegistryObject(object interface{}) (*KeyBuilder, error) {
 	}
 }
 
-// KeyFromString returns a `KeyBuilder` starting from a string, i.e.
-// `/namespaces/namespace-name/services/service-name` or
-// `/something/something-name/another/another-name` and want to know if this
-// is a valid key for service registry.
+// KeyFromString returns a KeyBuilder starting from a string, i.e.
+// 	/namespaces/namespace-name/services/service-name`
+// or
+//	/something/something-name/another/another-name
 //
-// Note that this will also strip any prefix from the key, so if you really
+// This is very useful in case you want to check if the key is valid for
+// the service registry.
+//
+// Note that this WILL also strip any prefix from the key, so if you really
 // need it you should either write it manually or use the
-// [namespace package](https://pkg.go.dev/go.etcd.io/etcd@v3.3.25+incompatible/clientv3/namespace)
-// from etcd, which does so automatically for each key.
+// namespace package
+// (https://pkg.go.dev/go.etcd.io/etcd@v3.3.25+incompatible/clientv3/namespace)
+// from etcd, which includes/excludes it automatically for each key.
+//
 // Take a look at the examples to learn more.
 func KeyFromString(key string) *KeyBuilder {
 	_key := strings.Trim(key, "/")
@@ -204,10 +212,10 @@ func KeyFromString(key string) *KeyBuilder {
 	return KeyFromNames(names[1], names[3], names[5])
 }
 
-// Clone returns another pointer to a `KeyBuilder` with the same settings
+// Clone returns another pointer to a KeyBuilder with the same settings
 // as the one you're cloning from.
 //
-// Since golang doesn't have a `DeepCopy` method, use this in case you want
+// Since golang doesn't have a DeepCopy method, use this in case you want
 // to generate other keys leaving this one intact.
 func (k *KeyBuilder) Clone() *KeyBuilder {
 	return &KeyBuilder{
@@ -218,12 +226,13 @@ func (k *KeyBuilder) Clone() *KeyBuilder {
 }
 
 // IsValid returns true if the key is a valid key for service registry and is
-// the equivalent of doing `k.ObjectType() != UnknownOrInvalidObject`.
+// the equivalent of doing:
+// 	k.ObjectType() != UnknownOrInvalidObject
 func (k *KeyBuilder) IsValid() bool {
 	return k.ObjectType() != UnknownOrInvalidObject
 }
 
-// ObjectType returns the *assumed* type of the object stored as value.
+// ObjectType returns the assumed type of the object stored as value.
 func (k *KeyBuilder) ObjectType() ObjectType {
 	if k.nsName == "" {
 		// If no namespace is there, then it is always invalid
@@ -301,12 +310,16 @@ func (k *KeyBuilder) GetEndpoint() (name string) {
 
 // String "marshals" the key into a string.
 //
-// This will **not** print any prefix and the key will never start with a
-// `/`. In case you need that, you will have to put that manually.
-// **Note**: this method will return an empty string if the key is not valid,
+// This will not print any prefix and the key will never start with a
+// `/`.
+//
+// In case you need that, you will have to put that manually.
+//
+// Note: this method will return an empty string if the key is not valid,
 // i.e. when no namespace is set or the key is not suitable for service
 // registry usage.
-// Make sure to call `IsValid()` before marshaling to string.
+//
+// Make sure to call IsValid() before marshaling to string.
 func (k *KeyBuilder) String() string {
 	if !k.IsValid() {
 		return ""

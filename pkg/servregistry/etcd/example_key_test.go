@@ -19,42 +19,64 @@ package etcd
 import (
 	"context"
 	"fmt"
+	"os"
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	clientv3 "go.etcd.io/etcd/clientv3"
 	namespace "go.etcd.io/etcd/clientv3/namespace"
 )
 
+// This example shows how to use the Keybuilder without any names yet.
+// It is useful in case you want to build a key based on some conditions.
+//
+// In this very simple example, an environment variable is set to drive
+// the conditions on how the key should be built.
 func ExampleKeyBuilder() {
 	namespaceName := "ns-name"
 	serviceName := "serv-name"
 	endpName := "endp-name"
 	builder := &KeyBuilder{}
 
-	key := builder.SetNamespace(namespaceName).SetService(serviceName).SetEndpoint(endpName)
-	fmt.Println(key)
+	os.Setenv("GET", "endpoint")
+	builder.SetNamespace(namespaceName).SetService(serviceName)
+
+	if os.Getenv("GET") == "endpoint" {
+		builder.SetEndpoint(endpName)
+	}
+	fmt.Println(builder)
 	// Output: namespaces/ns-name/services/serv-name/endpoints/endp-name
 }
 
-func ExampleKeyBuilder_withEtcdNamespace() {
-	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
+// This example shows how to use this package's KeyBuilder to build keys
+// for etcd to use for operations that are not supported by this package,
+// i.e. watching.
+func ExampleKeyBuilder_withUnsupportedOperations() {
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints: []string{
+			"localhost:2379",
+		},
+	})
 	if err != nil {
-		// handle error!
+		fmt.Println("cannot establish connection to etcd:", err)
+		os.Exit(1)
 	}
 
-	kv := namespace.NewKV(cli.KV, "my-prefix/")
+	watcher := namespace.NewWatcher(cli.Watcher, "my-prefix/")
 	builder := &KeyBuilder{}
 	nsName := "namespace-name"
 
-	// Please look at the service registry package to learn how to get
-	// namespaces, services and endpoints from etcd more easily.
-	resp, _ := kv.Get(context.TODO(), builder.SetNamespace(nsName).String())
-	for _, kvs := range resp.Kvs {
-		// Handle the key values here
-		_ = kvs
+	ctx, canc := context.WithCancel(context.TODO())
+	defer canc()
+	wchan := watcher.Watch(ctx, builder.SetNamespace(nsName).String())
+	for {
+		w := <-wchan
+		if w.Canceled {
+			break
+		}
 	}
 }
 
+// This example shows how to build a key starting from a list of names.
 func ExampleKeyFromNames() {
 	namespaceName := "ns-name"
 	serviceName := "serv-name"
@@ -64,27 +86,15 @@ func ExampleKeyFromNames() {
 	// Output: namespaces/ns-name/services/serv-name
 }
 
-func ExampleKeyFromNames_withEtcdNamespace() {
-	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
-	if err != nil {
-		// handle error!
-	}
-
-	kv := namespace.NewKV(cli.KV, "my-prefix/")
-	nsName := "namespace-name"
-	servName := "serv-name"
-
-	// Please look at the service registry package to learn how to get
-	// namespaces, services and endpoints from etcd more easily.
-	resp, _ := kv.Get(context.TODO(), KeyFromNames(nsName, servName).String())
-	for _, kvs := range resp.Kvs {
-		// Handle the key values here
-		_ = kvs
-	}
-}
-
 func ExampleKeyFromString_validKey() {
 	key := "namespaces/ns-name/services/service-name/endpoints/endpoint-name"
+
+	fmt.Println(KeyFromString(key).IsValid())
+	// Output: true
+}
+
+func ExampleKeyFromString_validKeyWithPrefix() {
+	key := "/my/prefix/is/long/namespaces/ns-name/services/service-name/endpoints/endpoint-name"
 
 	fmt.Println(KeyFromString(key).IsValid())
 	// Output: true

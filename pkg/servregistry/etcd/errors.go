@@ -18,13 +18,16 @@ package etcd
 
 import "errors"
 
+// These errors are thrown by the package when an incorrect value is provided
+// to some of its functions, or when something unexpected happens.
 var (
-	// ErrNilClient is returned when the etcd client is nil
+	// ErrNilClient is returned when the etcd client provided to
+	// NewServiceRegistryWithEtcd is nil
 	ErrNilClient error = errors.New("no etcd client provided")
 	// ErrNilObject is returned when a function is provided with a nil
 	// object.
 	ErrNilObject error = errors.New("no object provided")
 	// ErrUnknownObject is returned when the KeyBuilder is provided with an
-	// object it doesn't recognize.
+	// object that is not a namespace, service or endpoint.
 	ErrUnknownObject error = errors.New("object is unknown")
 )

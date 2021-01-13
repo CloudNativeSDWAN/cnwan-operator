@@ -24,6 +24,8 @@ import (
 )
 
 // GetEndp returns the endpoint, if it exists.
+//
+// Read the documentation for this method on servregistry's package.
 func (e *etcdServReg) GetEndp(nsName, servName, endpName string) (*sr.Endpoint, error) {
 	key, err := KeyFromServiceRegistryObject(&sr.Endpoint{
 		NsName: nsName, ServName: servName, Name: endpName,
@@ -44,6 +46,8 @@ func (e *etcdServReg) GetEndp(nsName, servName, endpName string) (*sr.Endpoint, 
 }
 
 // ListServ returns a list of services inside the provided namespace.
+//
+// Read the documentation for this method on servregistry's package.
 func (e *etcdServReg) ListEndp(nsName, servName string) (endpList []*sr.Endpoint, err error) {
 	key, keyErr := KeyFromServiceRegistryObject(&sr.Service{NsName: nsName, Name: servName})
 	if keyErr != nil {
@@ -69,6 +73,8 @@ func (e *etcdServReg) ListEndp(nsName, servName string) (endpList []*sr.Endpoint
 }
 
 // CreateEndp creates the endpoint.
+//
+// Read the documentation for this method on servregistry's package.
 func (e *etcdServReg) CreateEndp(endp *sr.Endpoint) (*sr.Endpoint, error) {
 	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
 	defer canc()
@@ -93,6 +99,8 @@ func (e *etcdServReg) UpdateEndp(endp *sr.Endpoint) (*sr.Endpoint, error) {
 }
 
 // DeleteEndp deletes the endpoint.
+//
+// Read the documentation for this method on servregistry's package.
 func (e *etcdServReg) DeleteEndp(nsName, servName, endpName string) error {
 	key, err := KeyFromServiceRegistryObject(&sr.Endpoint{
 		NsName: nsName, ServName: servName, Name: endpName,

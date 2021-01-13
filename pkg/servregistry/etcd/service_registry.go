@@ -53,8 +53,8 @@ func init() {
 // etcdServReg is a wrap around an etcd client that allows you to perform
 // service registry operations on etcd, such as storing, updating, deleting
 // or retrieving a namespace, service, or endpoint.
-// It is an implementation of `ServiceRegistry` defined in
-// github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/.
+// It is an implementation of ServiceRegistry defined in
+// https://github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry.
 type etcdServReg struct {
 	cli     *clientv3.Client
 	kv      clientv3.KV
@@ -62,17 +62,30 @@ type etcdServReg struct {
 	mainCtx context.Context
 }
 
-// NewServiceRegistryWithEtcd returns an instance of `ServiceRegistry` with
+// NewServiceRegistryWithEtcd returns an instance of ServiceRegistry as defined
+// by  with
 // ETCD as a backend.
+// https://pkg.go.dev/github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry#ServiceRegistry.
 //
 // If prefix is not nil, all data will be prefixed with the value you set on
-// `prefix`, i.e. `/my-prefix/my-data`. If you don't want any prefix, set the
-// value of `prefix` to an empty string or just `/` and all keys will be
-// prefixed by just `/`, i.e. `/my-key/`.
+// prefix, for example:
+//	/my-prefix/my-data.
+// If you don't want any prefix, set the value of prefix to an empty string or
+// just "/" and all keys will be prefixed by just "/".
+//
+// You may even specify a prefix with multiple slashes: for example, if you
+// have multiple clusters/environments, a key could be:
+// 	"cluster-1/service-registry".
+// Be aware that any leading AND trailing slashes will be removed to prevent
+// key paths errors, but will be inserted correctly automatically when calling
+// any of its methods.
+//
 // Be careful with this value as it can potentially overwrite existing data.
 //
 // If context is not nil, it will be used as the main context upon which all
 // queries to etcd will be based on.
+//
+// This method returns an error only if the client provided to it is nil.
 func NewServiceRegistryWithEtcd(ctx context.Context, cli *clientv3.Client, prefix *string) (sr.ServiceRegistry, error) {
 	if cli == nil {
 		return nil, ErrNilClient
