@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: cnwan-operator-system
+  name: cnwan-operator-role
+rules:
+- apiGroups: 
+  - ""
+  resources:
+  - "secrets"
+  verbs: 
+  - "get"
+  - "list"

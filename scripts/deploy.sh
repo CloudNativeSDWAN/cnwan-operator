@@ -77,6 +77,6 @@ kubectl create -f $DEPLOY_DIR/01_namespace.yaml
 kubectl create configmap cnwan-operator-settings -n cnwan-operator-system --from-file=$SETTINGS_YAML
 kubectl create secret generic cnwan-operator-service-handler-account -n cnwan-operator-system --from-file=$SERV_ACC
 kubectl create -f $DEPLOY_DIR/02_service_account.yaml,$DEPLOY_DIR/03_cluster_role.yaml,$DEPLOY_DIR/04_cluster_role_binding.yaml
-sed -e "s#{CONTAINER_IMAGE}#$IMG#" $DEPLOY_DIR/05_deployment.yaml.tpl > $DEPLOY_DIR/05_deployment_generated.yaml && kubectl create -f $DEPLOY_DIR/05_deployment_generated.yaml
+sed -e "s#{CONTAINER_IMAGE}#$IMG#" $DEPLOY_DIR/07_deployment.yaml.tpl > $DEPLOY_DIR/07_deployment_generated.yaml && kubectl create -f $DEPLOY_DIR/07_deployment_generated.yaml
 
 print_success
