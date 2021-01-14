@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2020, 2021 Cisco
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,24 +18,25 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 
+	"github.com/CloudNativeSDWAN/cnwan-operator/controllers"
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/utils"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
+	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
 	sd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/gcloud/servicedirectory"
-	"gopkg.in/yaml.v3"
-
 	"github.com/spf13/viper"
+	"go.etcd.io/etcd/clientv3"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	"github.com/CloudNativeSDWAN/cnwan-operator/controllers"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -66,6 +67,8 @@ func main() {
 	ctx, canc := context.WithCancel(context.Background())
 	defer canc()
 
+	var etcdClient *clientv3.Client
+	var servreg sr.ServiceRegistry
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	settingsPath := getSettingsPath()
@@ -103,12 +106,31 @@ func main() {
 	}
 	viper.Set(types.AllowedAnnotationsMap, allowedAnnotations)
 
-	// Create a handler for gcp service directory
-	servreg, err := getServiceDirectoryHandler(ctx, settings.ServiceRegistrySettings.ProjectID, settings.ServiceRegistrySettings.DefaultRegion)
-	if err != nil {
-		setupLog.Error(err, "fatal error encountered")
-		os.Exit(1)
+	//--------------------------------------
+	// Get the service registry
+	//--------------------------------------
+
+	if settings.ServiceRegistrySettings.EtcdSettings != nil {
+		_cli, err := getEtcdClient(settings.EtcdSettings)
+		if err != nil {
+			setupLog.Error(err, "error while establishing connection to the etcd cluster")
+			os.Exit(1)
+		}
+		etcdClient = _cli
+		defer etcdClient.Close()
+
+		servreg, _ = etcd.NewServiceRegistryWithEtcd(ctx, etcdClient, settings.EtcdSettings.Prefix)
 	}
+	if settings.ServiceRegistrySettings.ServiceDirectorySettings != nil {
+		// Create a handler for gcp service directory
+		_servreg, err := getServiceDirectoryHandler(ctx, settings.ServiceRegistrySettings.ProjectID, settings.ServiceRegistrySettings.DefaultRegion)
+		if err != nil {
+			setupLog.Error(err, "fatal error encountered")
+			os.Exit(1)
+		}
+		servreg = _servreg
+	}
+
 	srBroker, err := sr.NewBroker(servreg, opKey, opVal)
 	if err != nil {
 		setupLog.Error(err, "fatal error encountered")
@@ -203,4 +225,18 @@ func getSettings(fileName string) (*types.Settings, error) {
 	}
 
 	return &settings, nil
+}
+
+func getEtcdClient(settings *types.EtcdSettings) (*clientv3.Client, error) {
+	endps := []string{}
+
+	for _, endp := range settings.Endpoints {
+		endps = append(endps, fmt.Sprintf("%s:%d", endp.Host, *endp.Port))
+	}
+
+	cfg := clientv3.Config{
+		Endpoints: endps,
+	}
+
+	return clientv3.New(cfg)
 }
