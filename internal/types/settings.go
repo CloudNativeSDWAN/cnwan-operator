@@ -33,6 +33,13 @@ const (
 	// directory. It is currently only used to check if it is there and warn
 	// the user that it is deprecated.
 	DeprecatedGcloudServiceDirectoryKey = "gcloud.servicedirectory"
+	// CurrentNamespace identifies the namespace name in which we are running
+	// in, in case we are running inside the cluster.
+	CurrentNamespace = "currentnamespace"
+	// EtcdCredentialsSecretName is the name of the secret holding username
+	// and password to connect to the etcd cluster. If it exists, the cnwan
+	// operator expects this name.
+	EtcdCredentialsSecretName = "cnwan-operator-etcd-credentials"
 )
 
 // Settings of the application
