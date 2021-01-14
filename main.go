@@ -18,12 +18,14 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"io/ioutil"
 	"os"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
+	"github.com/CloudNativeSDWAN/cnwan-operator/internal/utils"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	sd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/gcloud/servicedirectory"
+	"gopkg.in/yaml.v3"
 
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
@@ -38,8 +40,11 @@ import (
 )
 
 const (
-	opKey = "owner"
-	opVal = "cnwan-operator"
+	opKey                string = "owner"
+	opVal                string = "cnwan-operator"
+	defaultSettingsPath  string = "./settings/settings.yaml"
+	defaultSdServAccPath string = "./credentials/gcloud-credentials.json"
+	defaultTimeout       int    = 30
 )
 
 var (
@@ -55,32 +60,43 @@ func init() {
 }
 
 func main() {
+	//--------------------------------------
+	// Inits and defaults
+	//--------------------------------------
 	ctx, canc := context.WithCancel(context.Background())
 	defer canc()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
+	settingsPath := getSettingsPath()
+
 	//--------------------------------------
 	// Load the settings
 	//--------------------------------------
 
-	viper.SetConfigName("settings")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath("./settings/")
-	err := viper.ReadInConfig()
+	settings, err := getSettings(settingsPath)
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.Error(err, "error while unmarshaling settings")
 		os.Exit(1)
 	}
+	setupLog.Info("settings file loaded successfully")
 
-	if err := validateSettings(); err != nil {
-		setupLog.Error(err, "unable to start manager")
+	settings, err = utils.ParseAndValidateSettings(settings)
+	if err != nil {
+		setupLog.Error(err, "error while unmarshaling options")
+		os.Exit(1)
+	}
+	setupLog.Info("settings parsed successfully")
+
+	viper.SetConfigFile(settingsPath)
+	if err := viper.ReadInConfig(); err != nil {
+		setupLog.Error(err, "error storing settings")
 		os.Exit(1)
 	}
 
 	// Load the allowed annotations and put into a map, for better
 	// check afterwards
-	annotations := viper.GetStringSlice(types.AllowedAnnotations)
+	annotations := settings.Service.Annotations
 	allowedAnnotations := map[string]bool{}
 	for _, ann := range annotations {
 		allowedAnnotations[ann] = true
@@ -88,14 +104,12 @@ func main() {
 	viper.Set(types.AllowedAnnotationsMap, allowedAnnotations)
 
 	// Create a handler for gcp service directory
-	credsPath := "./credentials/gcloud-credentials.json"
-	sdHandler, err := sd.NewHandler(ctx, viper.GetString(types.SDProject), viper.GetString(types.SDDefaultRegion), credsPath, 30)
+	servreg, err := getServiceDirectoryHandler(ctx, settings.ServiceRegistrySettings.ProjectID, settings.ServiceRegistrySettings.DefaultRegion)
 	if err != nil {
 		setupLog.Error(err, "fatal error encountered")
 		os.Exit(1)
 	}
-
-	srBroker, err := sr.NewBroker(sdHandler, opKey, opVal)
+	srBroker, err := sr.NewBroker(servreg, opKey, opVal)
 	if err != nil {
 		setupLog.Error(err, "fatal error encountered")
 		os.Exit(1)
@@ -142,18 +156,51 @@ func main() {
 	}
 }
 
-func validateSettings() error {
-	if len(viper.GetString(types.NamespaceListPolicy)) == 0 {
-		viper.Set(types.NamespaceListPolicy, types.AllowList)
+func getServiceDirectoryHandler(ctx context.Context, projectID, defaultRegion string) (sr.ServiceRegistry, error) {
+	// TODO: this will be heavily improved in future versions
+
+	credsPath := defaultSdServAccPath
+
+	// is specified on env?
+	if fromEnv := os.Getenv("CNWAN_OPERATOR_SETTINGS_PATH"); len(fromEnv) > 0 {
+		credsPath = fromEnv
 	}
 
-	if len(viper.GetString(types.SDDefaultRegion)) == 0 {
-		return fmt.Errorf("%s", "fatal: service directory region not provided")
+	sdHandler, err := sd.NewHandler(ctx, projectID, defaultRegion, credsPath, defaultTimeout)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(viper.GetString(types.SDProject)) == 0 {
-		return fmt.Errorf("%s", "fatal: service directory project name not provided")
+	return sdHandler, nil
+}
+
+func getSettingsPath() string {
+	args := os.Args
+
+	// is specified as first argument?
+	if len(args) > 1 {
+		return args[1]
 	}
 
-	return nil
+	// is specified on env?
+	if fromEnv := os.Getenv("CNWAN_OPERATOR_SETTINGS_PATH"); len(fromEnv) > 0 {
+		return fromEnv
+	}
+
+	// last resort: just try to load it from a default path...
+	return defaultSettingsPath
+}
+
+func getSettings(fileName string) (*types.Settings, error) {
+	file, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		return nil, err
+	}
+
+	var settings types.Settings
+	if err := yaml.Unmarshal(file, &settings); err != nil {
+		return nil, err
+	}
+
+	return &settings, nil
 }
