@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/controllers"
@@ -35,7 +36,7 @@ import (
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -54,7 +55,7 @@ const (
 )
 
 var (
-	scheme   = runtime.NewScheme()
+	scheme   = k8sruntime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
 
@@ -66,9 +67,16 @@ func init() {
 }
 
 func main() {
+	// TODO: on next version, this main will be completely changed with a
+	// better return code and exiting mechanism. Right now is fine but
+	// too cluttered.
+
 	//--------------------------------------
 	// Inits and defaults
 	//--------------------------------------
+	returnCode := 0
+	defer os.Exit(returnCode)
+
 	ctx, canc := context.WithCancel(context.Background())
 	defer canc()
 
@@ -90,22 +98,25 @@ func main() {
 
 	settings, err := getSettings(settingsPath)
 	if err != nil {
-		setupLog.Error(err, "error while unmarshaling settings")
-		os.Exit(1)
+		setupLog.Error(err, "unable to start manager")
+		returnCode = 1
+		runtime.Goexit()
 	}
 	setupLog.Info("settings file loaded successfully")
 
 	settings, err = utils.ParseAndValidateSettings(settings)
 	if err != nil {
 		setupLog.Error(err, "error while unmarshaling options")
-		os.Exit(1)
+		returnCode = 2
+		runtime.Goexit()
 	}
 	setupLog.Info("settings parsed successfully")
 
 	viper.SetConfigFile(settingsPath)
 	if err := viper.ReadInConfig(); err != nil {
 		setupLog.Error(err, "error storing settings")
-		os.Exit(1)
+		returnCode = 3
+		runtime.Goexit()
 	}
 
 	viper.Set(types.CurrentNamespace, nsName)
@@ -129,11 +140,11 @@ func main() {
 		_cli, err := getEtcdClient(settings.EtcdSettings)
 		if err != nil {
 			setupLog.Error(err, "error while establishing connection to the etcd cluster")
-			os.Exit(1)
+			returnCode = 4
+			runtime.Goexit()
 		}
 		etcdClient = _cli
 		defer etcdClient.Close()
-
 		servreg, servRegErr = etcd.NewServiceRegistryWithEtcd(ctx, etcdClient, settings.EtcdSettings.Prefix)
 	}
 	if settings.ServiceRegistrySettings.ServiceDirectorySettings != nil {
@@ -143,13 +154,15 @@ func main() {
 
 	if servRegErr != nil {
 		setupLog.Error(err, "fatal error encountered")
-		os.Exit(1)
+		returnCode = 5
+		runtime.Goexit()
 	}
 
 	srBroker, err := sr.NewBroker(servreg, opKey, opVal)
 	if err != nil {
 		setupLog.Error(err, "fatal error encountered")
-		os.Exit(1)
+		returnCode = 6
+		runtime.Goexit()
 	}
 
 	//--------------------------------------
@@ -163,7 +176,8 @@ func main() {
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
+		returnCode = 7
+		runtime.Goexit()
 	}
 
 	if err = (&controllers.ServiceReconciler{
@@ -173,7 +187,8 @@ func main() {
 		ServRegBroker: srBroker,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Service")
-		os.Exit(1)
+		returnCode = 8
+		runtime.Goexit()
 	}
 	if err = (&controllers.NamespaceReconciler{
 		Client:        mgr.GetClient(),
@@ -182,14 +197,16 @@ func main() {
 		ServRegBroker: srBroker,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
-		os.Exit(1)
+		returnCode = 9
+		runtime.Goexit()
 	}
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
+		returnCode = 10
+		runtime.Goexit()
 	}
 }
 
