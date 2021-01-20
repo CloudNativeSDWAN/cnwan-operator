@@ -29,7 +29,7 @@ The *CN-WAN Operator* reacts to changes that happen in your cluster and reflects
 To start up with CN-WAN Operator and etcd you can start with these links:
 
 * [Set up an example etcd cluster](./cluster_setup.md)
-* [Perform simple operations on etcd](#TODO: create this guide)
+* [Perform simple operations on etcd](./interact.md)
 * [Quick start with CN-WAN Operator and etcd](#TODO: create this guide)
 * [Configure CN-WAN Operator with etcd](#TODO: create this guide)
 
@@ -47,7 +47,7 @@ Take a look at [Service registry keys](#service-registry-keys) for a thourough e
 
 Values are the object that you want to store with that key. When you try to retrieve it from etcd by querying its key, etcd will try its best to print it as a string, but sometimes, especially when you are storing a complex objects, the result may be unintelligible: that is fine and means that probably it is intended for a software to *unmarshal* it into an object defined by its code.
 
-CN-WAN Operator works with objects defined in the [general service registry documentation](#TODO: Create the main documentation) and you can read them even with [manual operations](#TODO create manual operations guide).
+CN-WAN Operator works with objects defined in the [general service registry documentation](#TODO: Create the main documentation) and you can read them even with [manual operations](./interact.md).
 
 ## Path-like keys and hierarchy
 
