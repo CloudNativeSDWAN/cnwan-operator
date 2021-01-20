@@ -28,7 +28,7 @@ The *CN-WAN Operator* reacts to changes that happen in your cluster and reflects
 
 To start up with CN-WAN Operator and etcd you can start with these links:
 
-* [Set up an example etcd cluster](#TODO: create this guide)
+* [Set up an example etcd cluster](./cluster_setup.md)
 * [Perform simple operations on etcd](#TODO: create this guide)
 * [Quick start with CN-WAN Operator and etcd](#TODO: create this guide)
 * [Configure CN-WAN Operator with etcd](#TODO: create this guide)
