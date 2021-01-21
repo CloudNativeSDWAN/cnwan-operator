@@ -269,4 +269,4 @@ And you should see an empty response, meaning that no data was found under that 
 
 Another way to enable authentication is to use *TLS*: this is a very valid solution and much better than authenticating with username and password, though the CN-WAN Operator does not support *TLS* yet and thus it is not covered on this guide. Follow CN-WAN Operator to know when this feature will be released.
 
-You can now [perform some operations](./interact.md) manually to get familiar with etcd or [set up CN-WAN Operator](#TODO: make this guide) to use etcd as a service registry.
+You can now [perform some operations](./interact.md) manually to get familiar with etcd or [set up CN-WAN Operator](./configure_with_operator.md) to use etcd as a service registry.
