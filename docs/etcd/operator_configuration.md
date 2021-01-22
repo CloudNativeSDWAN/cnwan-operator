@@ -64,7 +64,7 @@ If present, `authentication` field accepts two values:
 * `WithUsernameAndPassword`
 * `WithTLS`
 
-If you don't include this CN-WAN Operator will authenticate to etcd as a guest user. Although the security aspects of this are out of scope of this guide, we recommend you to enable authentication mode: we have a guide on just that [here](./cluster_setup.md#make-it-more-secure).
+If you don't include this CN-WAN Operator will authenticate to etcd as a guest user. Although the security aspects of this are out of scope of this guide, we recommend you to enable authentication mode: we have a guide on just that [here](./demo_cluster_setup.md#make-it-more-secure).
 
 #### Authenticate with username and password
 

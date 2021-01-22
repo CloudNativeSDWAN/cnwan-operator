@@ -130,7 +130,7 @@ Please notice the values inside `annotations`:
 
 This means that the operator will register `traffic-profile` as metadata if it finds it among a [service's annotations list](../concepts.md#allowed-annotations).
 
-**Important**: if you **don't** have [authentication mode](./cluster_setup.md#make-it-more-secure) you can remove `authentication: WithUsernameAndPassword` entirely. We encourage you to read and learn more about [etcd settings](./configure_with_operator.md).
+**Important**: if you **don't** have [authentication mode](./demo_cluster_setup.md#make-it-more-secure) you can remove `authentication: WithUsernameAndPassword` entirely. We encourage you to read and learn more about [etcd settings](./operator_configuration.md).
 
 ### 4 - Deploy the operator
 
@@ -152,7 +152,7 @@ Log in to etcd and look at data there with `etcdctl` - modify `host:port` and `u
 etcdctl --endpoints http://host:port --user user:password get /service-registry/ --prefix
 ```
 
-`/service-registry` is the [prefix](./concepts.md#prefix) that all service registry objects will have on their key. This is the default value and it's there because we didn't [configure CN-WAN operator](./configure_with_operator.md) with a different prefix.
+`/service-registry` is the [prefix](./concepts.md#prefix) that all service registry objects will have on their key. This is the default value and it's there because we didn't [configure CN-WAN operator](./operator_configuration.md) with a different prefix.
 
 Now, watch for changes there:
 
@@ -186,7 +186,7 @@ Once again, you will see that the metadata for that service have changed accordi
 
 ## Where to go from here
 
-Well, that's it for a quickstart. Now we encourage you to learn more about CN-WAN Operator by taking a look at the [CN-WAN Operator docs](../docs) and [etcd docs](./docs).
+Well, that's it for a quickstart. Now we encourage you to learn more about CN-WAN Operator by taking a look at the [CN-WAN Operator docs](../../README.md#documentation) and [etcd docs](../../README.md#etcd-documentation).
 
 Also, make sure you read the [official documentation of CN-WAN](https://github.com/CloudNativeSDWAN/cnwan-docs) to learn how you can apply this simple quickstart to a real world scenario.
 

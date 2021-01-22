@@ -4,7 +4,7 @@ This guide will show you how you can interact with etcd and create example objec
 
 ## Requirements
 
-Before going further, make sure you have a working etcd cluster: if you don't have one, you can follow the [Cluster Setup](#../cluster_setup.md) guide.
+Before going further, make sure you have a working etcd cluster: if you don't have one, you can follow the [Cluster Setup](./demo_cluster_setup.md) guide.
 
 We will suppose that your cluster has the following:
 
@@ -222,4 +222,4 @@ Press enter and the other window will show you the `/service-registry/namespaces
 ## Next steps
 
 Congratulations: you just performed tasks that the CN-WAN Operator and [Reader](https://github.com/CloudNativeSDWAN/cnwan-reader) perform automatically for you.  
-So why don't you take a step further and [set up the CN-WAN Operator](./configure_with_operator.md) to do this for you? We'll see you there :)
+So why don't you take a step further and [set up the CN-WAN Operator](./operator_configuration.md) to do this for you? We'll see you there :)

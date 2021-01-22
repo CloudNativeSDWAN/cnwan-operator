@@ -19,8 +19,8 @@ If you are already using etcd for your own purposes or are exploring on doing so
 
 ## Service registry objects
 
-*Namespace*s, *Service*s and *Endpoint*s are the objects that will be stored on etcd.  
-Please take a look at the [general service registry documentation](#TODO: Create the main documentation) to learn more about them.
+The CN-WAN Operator will store *Namespace*s, *Service*s and *Endpoint*s on etcd.  
+Please take a look at the [general service registry documentation](../service_registry.md) to learn more about them.
 
 ## Usage with CN-WAN Operator
 
@@ -28,10 +28,10 @@ The *CN-WAN Operator* reacts to changes that happen in your cluster and reflects
 
 To start up with CN-WAN Operator and etcd you can start with these links:
 
-* [Set up an example etcd cluster](./cluster_setup.md)
+* [Set up an example etcd cluster](./demo_cluster_setup.md)
 * [Perform simple operations on etcd](./interact.md)
 * [Quick start with CN-WAN Operator and etcd](./quickstart.md)
-* [Configure CN-WAN Operator with etcd](./configure_with_operator.md)
+* [Configure CN-WAN Operator with etcd](./operator_configuration.md)
 
 Finally, we strongly recommend you to learn more about the [CN-WAN Operator](../concepts.md) and [how to configure it](../configuration.md).
 
@@ -47,7 +47,7 @@ Take a look at [Service registry keys](#service-registry-keys) for a thourough e
 
 Values are the object that you want to store with that key. When you try to retrieve it from etcd by querying its key, etcd will try its best to print it as a string, but sometimes, especially when you are storing a complex objects, the result may be unintelligible: that is fine and means that probably it is intended for a software to *unmarshal* it into an object defined by its code.
 
-CN-WAN Operator works with objects defined in the [general service registry documentation](#TODO: Create the main documentation) and you can read them even with [manual operations](./interact.md).
+CN-WAN Operator works with objects defined in the [general service registry documentation](../service_registry.md) and you can read them even with [manual operations](./interact.md).
 
 ## Path-like keys and hierarchy
 
