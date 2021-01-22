@@ -125,7 +125,7 @@ Please notice the values inside `annotations`:
 
 This means that the operator will register `traffic-profile` as metadata if it finds it among a [service's annotations list](./concepts.md#allowed-annotations).
 
-### 4 - Deploy the operator
+### 5 - Deploy the operator
 
 From the root directory of the project, execute
 
@@ -133,13 +133,13 @@ From the root directory of the project, execute
 ./scripts/deploy.sh
 ```
 
-### 5 - See it on Service Directory
+### 6 - See it on Service Directory
 
 Now, log in to Service Directory from the google cloud console and you will see a namespace that has the same name as the Kubernetes namespace where that service was found in.
 
 If you click on it, you will see a service: its metadata contain `traffic-profile: standard`. It will also contain an endpoint with data about the port and the address.
 
-### 6 - Update metadata
+### 7 - Update metadata
 
 Now you're basically done, but you can follow these additional steps to see more of the operator in action.
 
@@ -153,7 +153,7 @@ kubectl annotate service web-training traffic-profile=video --overwrite -n train
 
 The operator has updated the metadata in Service Directory accordingly.
 
-### 7 - Add new metadata
+### 8 - Add new metadata
 
 Suppose you have a CI/CD pipeline that for each PR builds a container with a new tag. Also, it updates the service that serves the pods running that container by specifying the new version. Today, you will be that pipeline:
 
