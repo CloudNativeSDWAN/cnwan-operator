@@ -30,7 +30,7 @@ To start up with CN-WAN Operator and etcd you can start with these links:
 
 * [Set up an example etcd cluster](./cluster_setup.md)
 * [Perform simple operations on etcd](./interact.md)
-* [Quick start with CN-WAN Operator and etcd](#TODO: create this guide)
+* [Quick start with CN-WAN Operator and etcd](./quickstart.md)
 * [Configure CN-WAN Operator with etcd](./configure_with_operator.md)
 
 Finally, we strongly recommend you to learn more about the [CN-WAN Operator](../concepts.md) and [how to configure it](../configuration.md).

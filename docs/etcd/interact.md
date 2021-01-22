@@ -222,4 +222,4 @@ Press enter and the other window will show you the `/service-registry/namespaces
 ## Next steps
 
 Congratulations: you just performed tasks that the CN-WAN Operator and [Reader](https://github.com/CloudNativeSDWAN/cnwan-reader) perform automatically for you.  
-So why don't you take a step further and [set up the CN-WAN Operator](#TODO: create the guide) to do this for you? We'll see you there :)
+So why don't you take a step further and [set up the CN-WAN Operator](./configure_with_operator.md) to do this for you? We'll see you there :)
