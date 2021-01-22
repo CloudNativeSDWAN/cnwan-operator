@@ -17,7 +17,6 @@ kubectl delete role cnwan-operator-role -n cnwan-operator-system
 kubectl delete clusterrolebinding cnwan-operator-cluster-rolebinding
 kubectl delete clusterrole cnwan-operator-cluster-role
 kubectl delete serviceaccount cnwan-operator-service-account -n cnwan-operator-system
-kubectl delete secret cnwan-operator-service-handler-account -n cnwan-operator-system
 kubectl delete configmap cnwan-operator-settings -n cnwan-operator-system
 kubectl delete namespace cnwan-operator-system
 
