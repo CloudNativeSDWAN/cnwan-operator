@@ -165,7 +165,7 @@ Once again, log in to Service Directory and see how the metadata for that servic
 
 ## Where to go from here
 
-Well, that's it for a quickstart. Now we encourage you to learn more about CN-WAN Operator by taking a look at the [docs](./docs).
+Well, that's it for a quickstart. Now we encourage you to learn more about CN-WAN Operator by taking a look at the [docs](./).
 
 Also, make sure you read the [official documentation of CN-WAN](https://github.com/CloudNativeSDWAN/cnwan-docs) to learn how you can apply this simple quickstart to a real world scenario.
 
