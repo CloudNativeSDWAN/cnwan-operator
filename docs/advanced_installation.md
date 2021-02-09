@@ -6,7 +6,7 @@ If you want to contribute only to the operator's code or otherwise don't have to
 
 This will require some additional dependencies and a knowledge of [Kustomize](https://kubernetes-sigs.github.io/kustomize/guides/).
 
-If you do want to contribute, please follow [Contributing](../README.MD#contributing) and our [Code of Conduct](../code-of-conduct.md) before doing so.
+If you do want to contribute, please follow [Contributing](../README.md#contributing) and our [Code of Conduct](../code-of-conduct.md) before doing so.
 
 ## Requirements
 
