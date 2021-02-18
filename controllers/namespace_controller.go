@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2020, 2021 Cisco
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,8 +28,11 @@ import (
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	ktypes "k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 // NamespaceReconciler reconciles a Namespace object
@@ -38,8 +41,10 @@ type NamespaceReconciler struct {
 	Log           logr.Logger
 	Scheme        *runtime.Scheme
 	nsLastConf    map[string]types.ListPolicy
+	cacheNsWatch  map[string]bool
 	lock          sync.Mutex
 	ServRegBroker *sr.Broker
+	*Utils
 }
 
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create;update;patch;delete
@@ -47,6 +52,8 @@ type NamespaceReconciler struct {
 
 // Reconcile checks the changes in a service and reflects those changes in the service registry
 func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+	// TODO: re-format this to only do the least amount of work now that we
+	// have predicates.
 	ctx := context.Background()
 	l := r.Log.WithValues("namespace", req.NamespacedName)
 
@@ -185,9 +192,55 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 // SetupWithManager ...
 func (r *NamespaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.cacheNsWatch = map[string]bool{}
 	r.nsLastConf = map[string]types.ListPolicy{}
+	predicates := predicate.Funcs{
+		CreateFunc: r.createPredicate,
+		UpdateFunc: r.updatePredicate,
+		DeleteFunc: r.deletePredicate,
+	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Namespace{}).
+		WithEventFilter(predicates).
 		Complete(r)
+}
+
+func (r *NamespaceReconciler) createPredicate(ev event.CreateEvent) bool {
+	if !r.ShouldWatchNs(ev.Meta.GetLabels()) {
+		return false
+	}
+
+	namespacedName := ktypes.NamespacedName{Namespace: ev.Meta.GetNamespace(), Name: ev.Meta.GetName()}.String()
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.cacheNsWatch[namespacedName] = true
+	return true
+}
+
+func (r *NamespaceReconciler) updatePredicate(ev event.UpdateEvent) bool {
+	wasWatched := r.ShouldWatchNs(ev.MetaOld.GetLabels())
+	isWatched := r.ShouldWatchNs(ev.MetaNew.GetLabels())
+
+	if isWatched == wasWatched {
+		return false
+	}
+
+	namespacedName := ktypes.NamespacedName{Namespace: ev.MetaNew.GetNamespace(), Name: ev.MetaNew.GetName()}.String()
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.cacheNsWatch[namespacedName] = isWatched
+	return true
+}
+
+func (r *NamespaceReconciler) deletePredicate(ev event.DeleteEvent) bool {
+	if !r.ShouldWatchNs(ev.Meta.GetLabels()) {
+		return false
+	}
+
+	namespacedName := ktypes.NamespacedName{Namespace: ev.Meta.GetNamespace(), Name: ev.Meta.GetName()}.String()
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.cacheNsWatch[namespacedName] = false
+	return true
 }
