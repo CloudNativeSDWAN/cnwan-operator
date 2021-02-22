@@ -4,6 +4,7 @@
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/CloudNativeSDWAN/cnwan-operator/Test)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/CloudNativeSDWAN/cnwan-operator)
 ![Docker Image Version (latest by date)](https://img.shields.io/docker/v/cnwan/cnwan-operator?label=docker%20version)
+[![DevNet published](https://static.production.devnetcloud.com/codeexchange/assets/images/devnet-published.svg)](https://developer.cisco.com/codeexchange/github/repo/CloudNativeSDWAN/cnwan-operator)
 
 # CN-WAN Operator
 
