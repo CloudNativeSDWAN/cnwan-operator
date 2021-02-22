@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
-func TestCreatePredicate(t *testing.T) {
+func TestNsCreatePredicate(t *testing.T) {
 	a := assert.New(t)
 	cases := []struct {
 		ev         event.CreateEvent
@@ -94,7 +94,7 @@ func TestCreatePredicate(t *testing.T) {
 	}
 }
 
-func TestDeletePredicate(t *testing.T) {
+func TestNsDeletePredicate(t *testing.T) {
 	a := assert.New(t)
 
 	cases := []struct {
@@ -162,7 +162,7 @@ func TestDeletePredicate(t *testing.T) {
 	}
 }
 
-func TestUpdatePredicate(t *testing.T) {
+func TestNsUpdatePredicate(t *testing.T) {
 	a := assert.New(t)
 
 	cases := []struct {
