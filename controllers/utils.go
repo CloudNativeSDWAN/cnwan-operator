@@ -25,6 +25,7 @@ import (
 
 // Utils contains the options that are used to set up and define
 // the behavior of the controllers and performs some utility functions
+// TODO: remove me
 type Utils struct {
 	AllowedAnnotations []string
 	CurrentNsPolicy    types.ListPolicy
