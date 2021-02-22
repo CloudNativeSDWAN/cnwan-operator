@@ -210,11 +210,17 @@ func main() {
 		runtime.Goexit()
 	}
 
+	ctrlUtils := &controllers.Utils{
+		AllowedAnnotations: viper.GetStringSlice(types.AllowedAnnotations),
+		CurrentNsPolicy:    types.ListPolicy(viper.GetString(types.NamespaceListPolicy)),
+	}
+
 	if err = (&controllers.ServiceReconciler{
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("Service"),
 		Scheme:        mgr.GetScheme(),
 		ServRegBroker: srBroker,
+		Utils:         ctrlUtils,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Service")
 		returnCode = 8
@@ -225,6 +231,7 @@ func main() {
 		Log:           ctrl.Log.WithName("controllers").WithName("Namespace"),
 		Scheme:        mgr.GetScheme(),
 		ServRegBroker: srBroker,
+		Utils:         ctrlUtils,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
 		returnCode = 9
