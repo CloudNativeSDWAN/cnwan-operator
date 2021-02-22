@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2020, 2021 Cisco
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"sync"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/utils"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
@@ -29,8 +31,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	ktypes "k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 // ServiceReconciler reconciles a Service object
@@ -39,6 +44,10 @@ type ServiceReconciler struct {
 	Log           logr.Logger
 	Scheme        *runtime.Scheme
 	ServRegBroker *sr.Broker
+	*Utils
+
+	cacheSrvWatch map[string]bool
+	lock          sync.Mutex
 }
 
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
@@ -135,7 +144,119 @@ func (r *ServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 // SetupWithManager ...
 func (r *ServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.cacheSrvWatch = map[string]bool{}
+	predicates := predicate.Funcs{
+		CreateFunc: r.createPredicate,
+		UpdateFunc: r.updatePredicate,
+		DeleteFunc: r.deletePredicate,
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Service{}).
+		WithEventFilter(predicates).
 		Complete(r)
+}
+
+func (r *ServiceReconciler) createPredicate(ev event.CreateEvent) bool {
+
+	srv, ok := ev.Object.(*corev1.Service)
+	if !ok {
+		return false
+	}
+	if !r.shouldWatchSrv(srv) {
+		return false
+	}
+
+	nsrv := ktypes.NamespacedName{Namespace: srv.Namespace, Name: srv.Name}.String()
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.cacheSrvWatch[nsrv] = true
+	return true
+}
+
+func (r *ServiceReconciler) updatePredicate(ev event.UpdateEvent) bool {
+	old, ok := ev.ObjectOld.(*corev1.Service)
+	if !ok {
+		return false
+	}
+	curr, ok := ev.ObjectNew.(*corev1.Service)
+	if !ok {
+		return false
+	}
+
+	wasWatched, shouldWatch := r.shouldWatchSrv(old), r.shouldWatchSrv(curr)
+	nsrv := ktypes.NamespacedName{Namespace: curr.Namespace, Name: curr.Name}.String()
+	watchAction := false
+	switch {
+	case !wasWatched && !shouldWatch:
+		return false
+	case !wasWatched && shouldWatch:
+		watchAction = true
+	case wasWatched && !shouldWatch:
+		watchAction = false
+	default:
+		changeOccurred := func() bool {
+			if !reflect.DeepEqual(r.FilterAnnotations(old.Annotations), r.FilterAnnotations(curr.Annotations)) {
+				return true
+			}
+
+			if !reflect.DeepEqual(old.Status.LoadBalancer.Ingress, curr.Status.LoadBalancer.Ingress) {
+				return true
+			}
+
+			return false
+		}()
+		if !changeOccurred {
+			// Nothing relevant to us changed
+			return false
+		}
+
+		watchAction = true
+	}
+
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.cacheSrvWatch[nsrv] = watchAction
+	return true
+}
+
+func (r *ServiceReconciler) deletePredicate(ev event.DeleteEvent) bool {
+	srv, ok := ev.Object.(*corev1.Service)
+	if !ok {
+		return false
+	}
+	if !r.shouldWatchSrv(srv) {
+		return false
+	}
+
+	nsrv := ktypes.NamespacedName{Namespace: srv.Namespace, Name: srv.Name}.String()
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.cacheSrvWatch[nsrv] = false
+	return true
+}
+
+func (r *ServiceReconciler) shouldWatchSrv(srv *corev1.Service) bool {
+	nsrv := ktypes.NamespacedName{Namespace: srv.Namespace, Name: srv.Name}
+	l := r.Log.WithValues("service", nsrv)
+	if srv.Spec.Type != corev1.ServiceTypeLoadBalancer {
+		return false
+	}
+
+	if len(srv.Status.LoadBalancer.Ingress) == 0 {
+		return false
+	}
+
+	filteredAnnotations := r.FilterAnnotations(srv.Annotations)
+	if len(filteredAnnotations) == 0 {
+		return false
+	}
+
+	var ns corev1.Namespace
+	if err := r.Get(context.Background(), types.NamespacedName{Name: srv.Namespace}, &ns); err != nil {
+		l.Error(err, "error while getting parent namespace from service")
+		return false
+	}
+
+	return r.ShouldWatchNs(ns.Labels)
 }
