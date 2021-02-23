@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/controllers"
+	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -51,6 +52,7 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = corev1.AddToScheme(scheme)
+	_ = discoveryv1beta1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -122,6 +124,11 @@ func main() {
 	}
 	if err = base.NamespaceReconciler().SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
+		os.Exit(1)
+	}
+	// TODO: enable me only if settings enable this feature
+	if err = base.EndpointSliceReconciler().SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "EndpointSlice")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

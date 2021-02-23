@@ -162,3 +162,11 @@ func (b *BaseReconciler) ServiceReconciler() *ServiceReconciler {
 		BaseReconciler: b,
 	}
 }
+
+// EndpointSliceReconciler returns a service reconciler starting from this
+// base reconciler.
+func (b *BaseReconciler) EndpointSliceReconciler() *EndpointSliceReconciler {
+	return &EndpointSliceReconciler{
+		BaseReconciler: b,
+	}
+}
