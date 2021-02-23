@@ -21,13 +21,8 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/CloudNativeSDWAN/cnwan-operator/internal/utils"
-	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
-
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ktypes "k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -38,11 +33,7 @@ import (
 
 // ServiceReconciler reconciles a Service object
 type ServiceReconciler struct {
-	client.Client
-	Log           logr.Logger
-	Scheme        *runtime.Scheme
-	ServRegBroker *sr.Broker
-	*Utils
+	*BaseReconciler
 
 	cacheSrvWatch map[string]bool
 	lock          sync.Mutex
@@ -54,7 +45,7 @@ type ServiceReconciler struct {
 // Reconcile checks the changes in a service and reflects those changes in the service registry
 func (r *ServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	l := r.Log.WithValues("service", req.NamespacedName)
+	l := r.Log.WithName("ServiceReconciler").WithValues("service", req.NamespacedName)
 
 	shouldWatch := func() bool {
 		r.lock.Lock()
@@ -93,7 +84,7 @@ func (r *ServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: req.Namespace, Annotations: map[string]string{}}}
-	service.Annotations = utils.FilterAnnotations(service.Annotations)
+	service.Annotations = r.filterAnnotations(service.Annotations)
 	nsData, servData, endpList, err := r.ServRegBroker.Reg.ExtractData(ns, &service)
 	if err != nil {
 		l.Error(err, "error while getting data from the namespace and service")
@@ -173,7 +164,7 @@ func (r *ServiceReconciler) updatePredicate(ev event.UpdateEvent) bool {
 		watchAction = false
 	default:
 		changeOccurred := func() bool {
-			if !reflect.DeepEqual(r.FilterAnnotations(old.Annotations), r.FilterAnnotations(curr.Annotations)) {
+			if !reflect.DeepEqual(r.filterAnnotations(old.Annotations), r.filterAnnotations(curr.Annotations)) {
 				return true
 			}
 
@@ -224,7 +215,7 @@ func (r *ServiceReconciler) shouldWatchSrv(srv *corev1.Service) bool {
 		return false
 	}
 
-	filteredAnnotations := r.FilterAnnotations(srv.Annotations)
+	filteredAnnotations := r.filterAnnotations(srv.Annotations)
 	if len(filteredAnnotations) == 0 {
 		return false
 	}
@@ -235,5 +226,5 @@ func (r *ServiceReconciler) shouldWatchSrv(srv *corev1.Service) bool {
 		return false
 	}
 
-	return r.ShouldWatchNs(ns.Labels)
+	return r.shouldWatchNs(ns.Labels)
 }

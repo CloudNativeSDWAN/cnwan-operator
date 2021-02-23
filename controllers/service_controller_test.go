@@ -44,10 +44,6 @@ func TestSrvUpdatePredicate(t *testing.T) {
 			},
 		})
 	}()
-	u := &Utils{
-		AllowedAnnotations: []string{"yes"},
-		CurrentNsPolicy:    types.AllowList,
-	}
 	cases := []struct {
 		old      *corev1.Service
 		curr     *corev1.Service
@@ -285,9 +281,13 @@ func TestSrvUpdatePredicate(t *testing.T) {
 	}
 	for i, currCase := range cases {
 		s := &ServiceReconciler{
-			Client:        cli,
-			Log:           ctrl.Log.WithName("test"),
-			Utils:         u,
+			BaseReconciler: &BaseReconciler{
+				Client:             cli,
+				Log:                ctrl.Log.WithName("test"),
+				AllowedAnnotations: map[string]bool{"yes": true},
+				CurrentNsPolicy:    types.AllowList,
+			},
+
 			cacheSrvWatch: map[string]bool{},
 		}
 

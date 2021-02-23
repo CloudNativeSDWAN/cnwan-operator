@@ -146,3 +146,19 @@ func (b *BaseReconciler) filterAnnotations(annotations map[string]string) map[st
 
 	return filtered
 }
+
+// NamespaceReconciler returns a namespace reconciler starting from this
+// base reconciler.
+func (b *BaseReconciler) NamespaceReconciler() *NamespaceReconciler {
+	return &NamespaceReconciler{
+		BaseReconciler: b,
+	}
+}
+
+// ServiceReconciler returns a service reconciler starting from this
+// base reconciler.
+func (b *BaseReconciler) ServiceReconciler() *ServiceReconciler {
+	return &ServiceReconciler{
+		BaseReconciler: b,
+	}
+}

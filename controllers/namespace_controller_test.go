@@ -24,10 +24,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ktypes "k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 func TestNsCreatePredicate(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	a := assert.New(t)
 	cases := []struct {
 		ev         event.CreateEvent
@@ -83,7 +86,10 @@ func TestNsCreatePredicate(t *testing.T) {
 	}
 	for i, currCase := range cases {
 		n := &NamespaceReconciler{
-			Utils:        &Utils{CurrentNsPolicy: currCase.currPolicy},
+			BaseReconciler: &BaseReconciler{
+				CurrentNsPolicy: currCase.currPolicy,
+				Log:             ctrl.Log.WithName("controllers"),
+			},
 			cacheNsWatch: map[string]bool{},
 		}
 
@@ -151,8 +157,8 @@ func TestNsDeletePredicate(t *testing.T) {
 	}
 	for i, currCase := range cases {
 		n := &NamespaceReconciler{
-			Utils:        &Utils{CurrentNsPolicy: currCase.currPolicy},
-			cacheNsWatch: map[string]bool{},
+			BaseReconciler: &BaseReconciler{CurrentNsPolicy: currCase.currPolicy},
+			cacheNsWatch:   map[string]bool{},
 		}
 
 		res := n.deletePredicate(currCase.ev)
@@ -293,8 +299,8 @@ func TestNsUpdatePredicate(t *testing.T) {
 	}
 	for i, currCase := range cases {
 		n := &NamespaceReconciler{
-			Utils:        &Utils{CurrentNsPolicy: currCase.currPolicy},
-			cacheNsWatch: map[string]bool{},
+			BaseReconciler: &BaseReconciler{CurrentNsPolicy: currCase.currPolicy},
+			cacheNsWatch:   map[string]bool{},
 		}
 
 		res := n.updatePredicate(currCase.ev)
