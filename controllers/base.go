@@ -20,11 +20,13 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/api/discovery/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ktypes "k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -145,6 +147,36 @@ func (b *BaseReconciler) filterAnnotations(annotations map[string]string) map[st
 	}
 
 	return filtered
+}
+
+func (b *BaseReconciler) shouldWatchEpSlice(epslice *v1beta1.EndpointSlice) bool {
+	srvName, exists := epslice.Labels[v1beta1.LabelServiceName]
+	if !exists {
+		return false
+	}
+
+	ctx, canc := context.WithTimeout(context.Background(), 30*time.Second)
+	defer canc()
+
+	var srv corev1.Service
+	if err := b.Get(ctx, ktypes.NamespacedName{Name: srvName, Namespace: epslice.Namespace}, &srv); err != nil {
+		b.Log.Error(err, "error while getting service from endpointslice", "endpointslice", epslice.Name)
+		return false
+	}
+	if !b.shouldWatchSrv(&srv) {
+		return false
+	}
+
+	enabled := srv.Labels[countPodsLabelKey]
+	if strings.ToLower(enabled) != enableVal {
+		return false
+	}
+
+	if epslice.AddressType != v1beta1.AddressTypeIPv4 {
+		return false
+	}
+
+	return true
 }
 
 // NamespaceReconciler returns a namespace reconciler starting from this

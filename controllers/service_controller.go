@@ -23,7 +23,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	ktypes "k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -202,29 +201,4 @@ func (r *ServiceReconciler) deletePredicate(ev event.DeleteEvent) bool {
 	defer r.lock.Unlock()
 	r.cacheSrvWatch[nsrv] = false
 	return true
-}
-
-func (r *ServiceReconciler) shouldWatchSrv(srv *corev1.Service) bool {
-	nsrv := ktypes.NamespacedName{Namespace: srv.Namespace, Name: srv.Name}
-	l := r.Log.WithValues("service", nsrv)
-	if srv.Spec.Type != corev1.ServiceTypeLoadBalancer {
-		return false
-	}
-
-	if len(srv.Status.LoadBalancer.Ingress) == 0 {
-		return false
-	}
-
-	filteredAnnotations := r.filterAnnotations(srv.Annotations)
-	if len(filteredAnnotations) == 0 {
-		return false
-	}
-
-	var ns corev1.Namespace
-	if err := r.Get(context.Background(), types.NamespacedName{Name: srv.Namespace}, &ns); err != nil {
-		l.Error(err, "error while getting parent namespace from service")
-		return false
-	}
-
-	return r.shouldWatchNs(ns.Labels)
 }

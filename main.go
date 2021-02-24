@@ -82,12 +82,8 @@ func main() {
 
 	// Load the allowed annotations and put into a map, for better
 	// check afterwards
+	// TODO: remove this on rebase with etcd
 	annotations := viper.GetStringSlice(types.AllowedAnnotations)
-	allowedAnnotations := map[string]bool{}
-	for _, ann := range annotations {
-		allowedAnnotations[ann] = true
-	}
-	viper.Set(types.AllowedAnnotationsMap, allowedAnnotations)
 
 	// Create a handler for gcp service directory
 	credsPath := "./credentials/gcloud-credentials.json"
