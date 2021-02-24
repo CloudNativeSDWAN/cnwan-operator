@@ -42,6 +42,8 @@ type BaseReconciler struct {
 	ServRegBroker      *sr.Broker
 	AllowedAnnotations map[string]bool
 	CurrentNsPolicy    types.ListPolicy
+
+	epsliceCounter *counter
 }
 
 // NewBaseReconciler returns a new instance of a base reconciler to be used
@@ -59,6 +61,7 @@ func NewBaseReconciler(cli client.Client, scheme *runtime.Scheme, broker *sr.Bro
 		ServRegBroker:      broker,
 		AllowedAnnotations: allowedAnnotations,
 		CurrentNsPolicy:    currNsPolicy,
+		epsliceCounter:     newCounter(),
 	}
 }
 

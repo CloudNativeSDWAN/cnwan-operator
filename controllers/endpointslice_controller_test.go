@@ -26,6 +26,7 @@ import (
 	"k8s.io/api/discovery/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	ktypes "k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakecli "sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -209,6 +210,71 @@ func TestEpSliceDeletePredicate(t *testing.T) {
 
 		res := eps.deletePredicate(currCase.ev)
 		if !a.Equal(currCase.expRes, res) || !a.Equal(currCase.expData, eps.epsDataActions) {
+			failed(i)
+		}
+	}
+}
+
+func TestReconcile(t *testing.T) {
+	a := assert.New(t)
+	cases := []struct {
+		dataActions  map[string]*epsData
+		srvCounts    map[string]map[string]int
+		expRes       ctrl.Result
+		expErr       error
+		expSrvCounts map[string]map[string]int
+	}{
+		{},
+		{
+			dataActions: map[string]*epsData{
+				"ns-name/name": {
+					count: 3,
+					srv:   "srv",
+				},
+			},
+			srvCounts: map[string]map[string]int{
+				"ns-name/srv": {
+					"another-name": 5,
+				},
+			},
+			expSrvCounts: map[string]map[string]int{
+				"ns-name/srv": {
+					"another-name": 5,
+					"name":         3,
+				},
+			},
+		},
+		{
+			dataActions: map[string]*epsData{
+				"ns-name/name": {
+					count: 3,
+					srv:   "srv",
+				},
+			},
+			srvCounts: map[string]map[string]int{},
+			expSrvCounts: map[string]map[string]int{
+				"ns-name/srv": {
+					"name": 3,
+				},
+			},
+		},
+	}
+	failed := func(i int) {
+		a.FailNow(fmt.Sprintf("case %d failed", i))
+	}
+	for i, currCase := range cases {
+		eps := &EndpointSliceReconciler{
+			BaseReconciler: &BaseReconciler{
+				Log: ctrl.Log.WithName("controllers"),
+				epsliceCounter: &counter{
+					counts: currCase.srvCounts,
+				},
+			},
+			epsDataActions: currCase.dataActions,
+		}
+
+		res, err := eps.Reconcile(ctrl.Request{NamespacedName: ktypes.NamespacedName{Namespace: "ns-name", Name: "name"}})
+		if !a.Equal(currCase.expRes, res) || !a.Equal(currCase.expErr, err) || !a.Equal(currCase.expSrvCounts, eps.epsliceCounter.counts) {
 			failed(i)
 		}
 	}

@@ -17,7 +17,7 @@
 package controllers
 
 import (
-	"context"
+	"fmt"
 	"sync"
 
 	"k8s.io/api/discovery/v1beta1"
@@ -45,17 +45,29 @@ type EndpointSliceReconciler struct {
 
 	lock           sync.Mutex
 	epsDataActions map[string]*epsData
-	srvCounts      map[string]map[string]int
 }
 
 // +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslice,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile keeps track counts in the endpointslice length
 func (r *EndpointSliceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
-	_ = r.Log.WithName("EndpointSliceReconciler").WithValues("endpointslice", req.NamespacedName)
+	l := r.Log.WithName("EndpointSliceReconciler").WithValues("endpointslice", req.NamespacedName)
+	namespacedName := req.NamespacedName.String()
+	data := func(nname string) *epsData {
+		r.lock.Lock()
+		defer r.lock.Unlock()
+		defer delete(r.epsDataActions, nname)
 
-	// TODO: implement me
+		return r.epsDataActions[nname]
+	}(namespacedName)
+	if data == nil {
+		l.Error(fmt.Errorf("no data exists"), "could not get endpointslice data for this endpointslice")
+		return ctrl.Result{}, nil
+	}
+
+	r.epsliceCounter.putSrvCount(req.Namespace, data.srv, req.Name, data.count)
+
+	// TODO: do something with the total count
 
 	return ctrl.Result{}, nil
 }
@@ -63,7 +75,6 @@ func (r *EndpointSliceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 // SetupWithManager sets this reconciler with the manager.
 func (r *EndpointSliceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.epsDataActions = map[string]*epsData{}
-	r.srvCounts = map[string]map[string]int{}
 	predicates := predicate.Funcs{
 		CreateFunc: r.createPredicate,
 		UpdateFunc: r.updatePredicate,
