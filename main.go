@@ -99,6 +99,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	countPodKey := ""
+	if registerCount := viper.Get(types.RegisterPodsCountKey); registerCount != nil {
+		key := viper.GetString(types.PodsCountAnnotationKey)
+		if len(key) == 0 {
+			setupLog.Error(fmt.Errorf("no annotation key provided"), "error while parsing watchPodsCount setting, will be disabled...")
+		} else {
+			countPodKey = key
+		}
+	}
+
 	//--------------------------------------
 	// Init manager
 	//--------------------------------------
@@ -113,7 +123,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	base := controllers.NewBaseReconciler(mgr.GetClient(), mgr.GetScheme(), srBroker, annotations, types.ListPolicy(viper.GetString(types.NamespaceListPolicy)))
+	base := controllers.NewBaseReconciler(mgr.GetClient(), mgr.GetScheme(), srBroker, annotations, types.ListPolicy(viper.GetString(types.NamespaceListPolicy)), countPodKey)
 	if err = base.ServiceReconciler().SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Service")
 		os.Exit(1)
@@ -122,11 +132,13 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
 		os.Exit(1)
 	}
-	// TODO: enable me only if settings enable this feature
-	if err = base.EndpointSliceReconciler().SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "EndpointSlice")
-		os.Exit(1)
+	if len(countPodKey) > 0 {
+		if err = base.EndpointSliceReconciler().SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "EndpointSlice")
+			os.Exit(1)
+		}
 	}
+
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
