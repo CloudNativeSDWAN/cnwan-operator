@@ -18,7 +18,9 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
@@ -90,8 +92,10 @@ func (r *ServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
-	// We don't support metadata on namespaces right now
 	nsData.Metadata = map[string]string{}
+	if strings.ToLower(service.Labels[countPodsLabelKey]) == enableVal {
+		servData.Metadata[r.CountPodKey] = fmt.Sprintf("%d", r.epsliceCounter.getSrvCount(service.Namespace, service.Name))
+	}
 
 	if _, err := r.ServRegBroker.ManageNs(nsData); err != nil {
 		l.WithValues("ns-name", nsData.Name).Error(err, "an error occurred while processing the namespace")
@@ -163,6 +167,10 @@ func (r *ServiceReconciler) updatePredicate(ev event.UpdateEvent) bool {
 		watchAction = false
 	default:
 		changeOccurred := func() bool {
+			if strings.ToLower(curr.Labels[countPodsLabelKey]) != strings.ToLower(old.Labels[countPodsLabelKey]) {
+				return true
+			}
+
 			if !reflect.DeepEqual(r.filterAnnotations(old.Annotations), r.filterAnnotations(curr.Annotations)) {
 				return true
 			}

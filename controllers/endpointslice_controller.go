@@ -45,6 +45,7 @@ type EndpointSliceReconciler struct {
 
 	lock           sync.Mutex
 	epsDataActions map[string]*epsData
+	srvRecon       *ServiceReconciler
 }
 
 // +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslice,verbs=get;list;watch;create;update;patch;delete
@@ -67,9 +68,24 @@ func (r *EndpointSliceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 
 	r.epsliceCounter.putSrvCount(req.Namespace, data.srv, req.Name, data.count)
 
-	// TODO: do something with the total count
+	if r.srvRecon == nil {
+		l.Error(fmt.Errorf("service reconciler is nil"), "could not reconcile service from endpointslice")
+		return ctrl.Result{}, nil
+	}
 
-	return ctrl.Result{}, nil
+	srvname := ktypes.NamespacedName{Namespace: req.Namespace, Name: data.srv}
+	r.srvRecon.lock.Lock()
+	r.srvRecon.cacheSrvWatch[srvname.String()] = true
+	r.srvRecon.lock.Unlock()
+
+	return r.srvRecon.Reconcile(ctrl.Request{NamespacedName: srvname})
+}
+
+// SetServiceReconciler sets the service reconciler, so that the endpointslice
+// reconciler can refer to it.
+func (r *EndpointSliceReconciler) SetServiceReconciler(srvrecon *ServiceReconciler) *EndpointSliceReconciler {
+	r.srvRecon = srvrecon
+	return r
 }
 
 // SetupWithManager sets this reconciler with the manager.

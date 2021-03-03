@@ -124,16 +124,18 @@ func main() {
 	}
 
 	base := controllers.NewBaseReconciler(mgr.GetClient(), mgr.GetScheme(), srBroker, annotations, types.ListPolicy(viper.GetString(types.NamespaceListPolicy)), countPodKey)
-	if err = base.ServiceReconciler().SetupWithManager(mgr); err != nil {
+	srvReconciler := base.ServiceReconciler()
+	nsReconciler := base.NamespaceReconciler()
+	if err = srvReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Service")
 		os.Exit(1)
 	}
-	if err = base.NamespaceReconciler().SetupWithManager(mgr); err != nil {
+	if err = nsReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
 		os.Exit(1)
 	}
 	if len(countPodKey) > 0 {
-		if err = base.EndpointSliceReconciler().SetupWithManager(mgr); err != nil {
+		if err = base.EndpointSliceReconciler().SetServiceReconciler(srvReconciler).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "EndpointSlice")
 			os.Exit(1)
 		}

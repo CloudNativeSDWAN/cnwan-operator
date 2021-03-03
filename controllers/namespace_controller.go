@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
@@ -72,7 +74,11 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				l.WithValues("serv-name", servData.Name).Error(err, "error while extracting data from the namespace and service")
 				return ctrl.Result{}, nil
 			}
+
 			nsData.Metadata = map[string]string{}
+			if strings.ToLower(serv.Labels[countPodsLabelKey]) == enableVal {
+				servData.Metadata[r.CountPodKey] = fmt.Sprintf("%d", r.epsliceCounter.getSrvCount(serv.Namespace, serv.Name))
+			}
 
 			if _, err := r.ServRegBroker.ManageNs(nsData); err != nil {
 				l.WithValues("ns-name", nsData.Name).Error(err, "error while processing namespace change")
