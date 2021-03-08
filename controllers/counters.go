@@ -50,6 +50,27 @@ func (c *counter) getSrvCount(nsName, srvName string) int {
 	return totalCount
 }
 
+func (c *counter) resetCounterTo(nsName, srvName string, data map[string]int) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	fullName := ktypes.NamespacedName{Namespace: nsName, Name: srvName}.String()
+	c.counts[fullName] = data
+}
+
+func (c *counter) getSrvData(nsName, srvName string) map[string]int {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	fullName := ktypes.NamespacedName{Namespace: nsName, Name: srvName}.String()
+	val, exists := c.counts[fullName]
+	if !exists {
+		return map[string]int{}
+	}
+
+	return val
+}
+
 func (c *counter) putSrvCount(nsName, srvName, epSliceName string, count int) {
 	c.lock.Lock()
 	defer c.lock.Unlock()

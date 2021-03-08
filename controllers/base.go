@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
@@ -33,6 +34,29 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+type window struct {
+	values []*windowValue
+	lock   sync.Mutex
+}
+
+func (w *window) getHighest() int {
+	highest := 0
+	for _, val := range w.values {
+		if val.totalCount > highest {
+			highest = val.totalCount
+		}
+	}
+
+	return highest
+}
+
+type windowValue struct {
+	epsliceName  string
+	epsliceCount int
+	totalCount   int
+	timer        *time.Timer
+}
+
 // BaseReconciler is the base controller/reconciler upon which all other
 // controllers will be based.
 type BaseReconciler struct {
@@ -45,6 +69,7 @@ type BaseReconciler struct {
 	CountPodKey        string
 
 	epsliceCounter *counter
+	srvWindows     map[string]*window
 }
 
 // NewBaseReconciler returns a new instance of a base reconciler to be used
@@ -64,6 +89,7 @@ func NewBaseReconciler(cli client.Client, scheme *runtime.Scheme, broker *sr.Bro
 		CurrentNsPolicy:    currNsPolicy,
 		CountPodKey:        countPodKey,
 		epsliceCounter:     newCounter(),
+		srvWindows:         map[string]*window{},
 	}
 }
 

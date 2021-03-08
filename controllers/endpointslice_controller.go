@@ -19,6 +19,7 @@ package controllers
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"k8s.io/api/discovery/v1beta1"
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
@@ -66,19 +67,83 @@ func (r *EndpointSliceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		return ctrl.Result{}, nil
 	}
 
-	r.epsliceCounter.putSrvCount(req.Namespace, data.srv, req.Name, data.count)
-
-	if r.srvRecon == nil {
-		l.Error(fmt.Errorf("service reconciler is nil"), "could not reconcile service from endpointslice")
-		return ctrl.Result{}, nil
+	srvname := ktypes.NamespacedName{Namespace: req.Namespace, Name: data.srv}
+	wind, exists := r.srvWindows[srvname.String()]
+	if !exists {
+		r.srvWindows[srvname.String()] = &window{values: []*windowValue{}}
+		wind = r.srvWindows[srvname.String()]
 	}
 
-	srvname := ktypes.NamespacedName{Namespace: req.Namespace, Name: data.srv}
-	r.srvRecon.lock.Lock()
-	r.srvRecon.cacheSrvWatch[srvname.String()] = true
-	r.srvRecon.lock.Unlock()
+	wind.lock.Lock()
+	defer wind.lock.Unlock()
 
-	return r.srvRecon.Reconcile(ctrl.Request{NamespacedName: srvname})
+	countBeforeUpd := r.epsliceCounter.getSrvCount(srvname.Namespace, srvname.Name)
+	r.epsliceCounter.putSrvCount(req.Namespace, srvname.Name, req.Name, data.count)
+	newCount := r.epsliceCounter.getSrvCount(srvname.Namespace, srvname.Name)
+
+	if len(wind.values) > 0 {
+		if newCount > wind.getHighest() {
+			l.Info("new count detected and is the highest in the window, updating service registry...", "highest", wind.getHighest(), "new-count", newCount)
+			r.srvRecon.cacheSrvWatch[srvname.String()] = true
+			r.srvRecon.Reconcile(ctrl.Request{NamespacedName: srvname})
+		} else {
+			l.Info("new count detected, but not highest in window: performing cooldown...", "highest", wind.getHighest(), "new-count", newCount)
+		}
+	} else {
+		if newCount > countBeforeUpd {
+			l.Info("new count detected and window is empty, updating service registry...", "old-val", countBeforeUpd, "new-val", newCount)
+			r.srvRecon.cacheSrvWatch[srvname.String()] = true
+			r.srvRecon.Reconcile(ctrl.Request{NamespacedName: srvname})
+		} else {
+			l.Info("new count detected, but not higher than current value, performing cooldown...", "old-val", countBeforeUpd, "new-val", newCount)
+		}
+	}
+
+	wind.values = append(wind.values, &windowValue{
+		epsliceName:  req.Name,
+		epsliceCount: data.count,
+		totalCount:   newCount,
+		timer: time.AfterFunc(time.Minute, func() {
+			r.exitWindow(srvname)
+		}),
+	})
+
+	return ctrl.Result{}, nil
+}
+
+func (r *EndpointSliceReconciler) exitWindow(srv ktypes.NamespacedName) {
+	l := r.Log.WithName("EndpointSliceReconciler").WithValues("Window", srv)
+
+	wind := r.srvWindows[srv.String()]
+	wind.lock.Lock()
+	defer wind.lock.Unlock()
+
+	if len(wind.values) == 0 {
+		l.V(2).Info("window is empty, returning...")
+		return
+	}
+
+	oldestVal := wind.values[0]
+	oldestVal.timer.Stop()
+	defer func() {
+		wind.values = wind.values[1:]
+	}()
+
+	highestVal := r.epsliceCounter.getSrvCount(srv.Namespace, srv.Name)
+	for i := 1; i < len(wind.values); i++ {
+		if wind.values[i].totalCount > highestVal {
+			highestVal = wind.values[i].totalCount
+		}
+	}
+
+	if oldestVal.totalCount <= highestVal && len(wind.values) > 1 {
+		l.Info("highest value isn't changed, returning...", "exiting-value", oldestVal.totalCount, "highest", highestVal)
+		return
+	}
+
+	l.Info("updating service registry...", "highest-value", highestVal)
+	r.srvRecon.cacheSrvWatch[srv.String()] = true
+	r.srvRecon.Reconcile(ctrl.Request{NamespacedName: srv})
 }
 
 // SetServiceReconciler sets the service reconciler, so that the endpointslice
