@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2020, 2021 Cisco
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,27 +19,24 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
-	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
-	"github.com/CloudNativeSDWAN/cnwan-operator/internal/utils"
-	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
-	"github.com/go-logr/logr"
-	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ktypes "k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 // NamespaceReconciler reconciles a Namespace object
 type NamespaceReconciler struct {
-	client.Client
-	Log           logr.Logger
-	Scheme        *runtime.Scheme
-	nsLastConf    map[string]types.ListPolicy
-	lock          sync.Mutex
-	ServRegBroker *sr.Broker
+	*BaseReconciler
+
+	cacheNsWatch map[string]bool
+	lock         sync.Mutex
 }
 
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create;update;patch;delete
@@ -48,114 +45,40 @@ type NamespaceReconciler struct {
 // Reconcile checks the changes in a service and reflects those changes in the service registry
 func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	l := r.Log.WithValues("namespace", req.NamespacedName)
+	l := r.Log.WithName("NamespaceReconciler").WithValues("namespace", req.NamespacedName)
 
-	// Get the namespace
-	var ns corev1.Namespace
-	deleted := false
-
-	err := r.Get(ctx, req.NamespacedName, &ns)
-	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			l.Error(err, "unable to fetch the namespace")
-			// we'll ignore not-found errors, since they can't be fixed by an immediate
-			// requeue (we'll need to wait for a new notification), and we can get them
-			// on deleted requests.
-			return ctrl.Result{}, client.IgnoreNotFound(err)
-		}
-
-		l.V(0).Info("namespace was deleted")
-		ns.Name = req.Name
-		ns.Namespace = req.Namespace
-		deleted = false
-	}
-
-	if r.ServRegBroker == nil {
-		l.Error(fmt.Errorf("%s", "service registry broker is nil"), "cannot handle namespace")
-		return ctrl.Result{}, nil
-	}
-
-	change, nsList := func(nsData corev1.Namespace) (bool, types.ListPolicy) {
+	shouldWatch := func() bool {
 		r.lock.Lock()
 		defer r.lock.Unlock()
-
-		currPolicy := types.ListPolicy(viper.GetString(types.NamespaceListPolicy))
-		previousList, existed := r.nsLastConf[nsData.Name]
-		var nsList types.ListPolicy
-
-		if currPolicy == types.AllowList {
-			// Defaults for an allowlist
-			nsList = types.BlockList
-			if len(previousList) == 0 {
-				previousList = types.BlockList
-			}
-
-			if _, exists := nsData.Labels[types.AllowedKey]; exists {
-				nsList = types.AllowList
-			}
-		}
-		if currPolicy == types.BlockList {
-			// Defaults for a blocklist
-			nsList = types.AllowList
-			if len(previousList) == 0 {
-				previousList = types.AllowList
-			}
-
-			if _, exists := nsData.Labels[types.BlockedKey]; exists {
-				nsList = types.BlockList
-			}
+		defer delete(r.cacheNsWatch, req.NamespacedName.String())
+		val, exists := r.cacheNsWatch[req.NamespacedName.String()]
+		if !exists {
+			val = false
 		}
 
-		// Update
-		r.nsLastConf[ns.Name] = nsList
-
-		if !existed {
-			// If we have no data about previous configuration,
-			// then we don't need to do anything, as this namespace
-			// will be created as services are created.
-			// We update the conf even if it is not the case.
-			return false, currPolicy
-		}
-
-		return nsList != previousList, nsList
-	}(ns)
-
-	if !change {
-		// Nothing to do here
-		return ctrl.Result{}, nil
-	}
-
-	// Change is needed
-	if nsList == types.AllowList {
-		l.V(0).Info("namespace needs to be allowed")
-	} else {
-		l.V(0).Info("namespace needs to be blocked")
-	}
+		return val
+	}()
 
 	var servList corev1.ServiceList
-
-	if err := r.List(ctx, &servList, &client.ListOptions{Namespace: ns.Name}); err != nil {
+	if err := r.List(ctx, &servList, &client.ListOptions{Namespace: req.Name}); err != nil {
 		l.Error(err, "error while getting services")
 		return ctrl.Result{}, err
 	}
 
 	// First, check the services
 	for _, serv := range servList.Items {
-		if nsList == types.BlockList || deleted {
-			if err := r.ServRegBroker.RemoveServ(serv.Namespace, serv.Name, true); err != nil {
-				l.Error(err, "error while deleting service")
-			}
-		} else {
-
-			// Get the data in our simpler format
-			// Note: as of now, we are not copying any annotations from a namespace
-			serv.Annotations = utils.FilterAnnotations(serv.Annotations)
-			nsData, servData, endpList, err := r.ServRegBroker.Reg.ExtractData(&ns, &serv)
+		if shouldWatch {
+			serv.Annotations = r.filterAnnotations(serv.Annotations)
+			nsData, servData, endpList, err := r.ServRegBroker.Reg.ExtractData(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: req.Name, Namespace: req.Namespace}}, &serv)
 			if err != nil {
 				l.WithValues("serv-name", servData.Name).Error(err, "error while extracting data from the namespace and service")
 				return ctrl.Result{}, nil
 			}
+
 			nsData.Metadata = map[string]string{}
+			if strings.ToLower(serv.Labels[countPodsLabelKey]) == enableVal {
+				servData.Metadata[r.CountPodKey] = fmt.Sprintf("%d", r.epsliceCounter.getSrvCount(serv.Namespace, serv.Name))
+			}
 
 			if _, err := r.ServRegBroker.ManageNs(nsData); err != nil {
 				l.WithValues("ns-name", nsData.Name).Error(err, "error while processing namespace change")
@@ -171,12 +94,10 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 					continue
 				}
 			}
-		}
-	}
-
-	if nsList == types.BlockList || deleted {
-		if err := r.ServRegBroker.RemoveNs(ns.Name, true); err != nil {
-			l.Error(err, "error while deleting service")
+		} else {
+			if err := r.ServRegBroker.RemoveServ(serv.Namespace, serv.Name, true); err != nil {
+				l.Error(err, "error while deleting service")
+			}
 		}
 	}
 
@@ -185,9 +106,54 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 // SetupWithManager ...
 func (r *NamespaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.nsLastConf = map[string]types.ListPolicy{}
+	r.cacheNsWatch = map[string]bool{}
+	predicates := predicate.Funcs{
+		CreateFunc: r.createPredicate,
+		UpdateFunc: r.updatePredicate,
+		DeleteFunc: r.deletePredicate,
+	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Namespace{}).
+		WithEventFilter(predicates).
 		Complete(r)
+}
+
+func (r *NamespaceReconciler) createPredicate(ev event.CreateEvent) bool {
+	if !r.shouldWatchNs(ev.Meta.GetLabels()) {
+		return false
+	}
+
+	namespacedName := ktypes.NamespacedName{Namespace: ev.Meta.GetNamespace(), Name: ev.Meta.GetName()}.String()
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.cacheNsWatch[namespacedName] = true
+	return true
+}
+
+func (r *NamespaceReconciler) updatePredicate(ev event.UpdateEvent) bool {
+	wasWatched := r.shouldWatchNs(ev.MetaOld.GetLabels())
+	isWatched := r.shouldWatchNs(ev.MetaNew.GetLabels())
+
+	if isWatched == wasWatched {
+		return false
+	}
+
+	namespacedName := ktypes.NamespacedName{Namespace: ev.MetaNew.GetNamespace(), Name: ev.MetaNew.GetName()}.String()
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.cacheNsWatch[namespacedName] = isWatched
+	return true
+}
+
+func (r *NamespaceReconciler) deletePredicate(ev event.DeleteEvent) bool {
+	if !r.shouldWatchNs(ev.Meta.GetLabels()) {
+		return false
+	}
+
+	namespacedName := ktypes.NamespacedName{Namespace: ev.Meta.GetNamespace(), Name: ev.Meta.GetName()}.String()
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.cacheNsWatch[namespacedName] = false
+	return true
 }

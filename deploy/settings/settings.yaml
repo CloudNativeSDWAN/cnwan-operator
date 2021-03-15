@@ -6,3 +6,5 @@ namespace:
   listPolicy: allowlist
 service:
   annotations: []
+  registerPodsCount:
+    annotationKey: "count"

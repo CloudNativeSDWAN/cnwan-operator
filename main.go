@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2020, 2021 Cisco
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/controllers"
+	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -51,6 +52,7 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = corev1.AddToScheme(scheme)
+	_ = discoveryv1beta1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -80,12 +82,8 @@ func main() {
 
 	// Load the allowed annotations and put into a map, for better
 	// check afterwards
+	// TODO: remove this on rebase with etcd
 	annotations := viper.GetStringSlice(types.AllowedAnnotations)
-	allowedAnnotations := map[string]bool{}
-	for _, ann := range annotations {
-		allowedAnnotations[ann] = true
-	}
-	viper.Set(types.AllowedAnnotationsMap, allowedAnnotations)
 
 	// Create a handler for gcp service directory
 	credsPath := "./credentials/gcloud-credentials.json"
@@ -99,6 +97,16 @@ func main() {
 	if err != nil {
 		setupLog.Error(err, "fatal error encountered")
 		os.Exit(1)
+	}
+
+	countPodKey := ""
+	if registerCount := viper.Get(types.RegisterPodsCountKey); registerCount != nil {
+		key := viper.GetString(types.PodsCountAnnotationKey)
+		if len(key) == 0 {
+			setupLog.Error(fmt.Errorf("no annotation key provided"), "error while parsing watchPodsCount setting, will be disabled...")
+		} else {
+			countPodKey = key
+		}
 	}
 
 	//--------------------------------------
@@ -115,24 +123,24 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.ServiceReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Service"),
-		Scheme:        mgr.GetScheme(),
-		ServRegBroker: srBroker,
-	}).SetupWithManager(mgr); err != nil {
+	base := controllers.NewBaseReconciler(mgr.GetClient(), mgr.GetScheme(), srBroker, annotations, types.ListPolicy(viper.GetString(types.NamespaceListPolicy)), countPodKey)
+	srvReconciler := base.ServiceReconciler()
+	nsReconciler := base.NamespaceReconciler()
+	if err = srvReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Service")
 		os.Exit(1)
 	}
-	if err = (&controllers.NamespaceReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Namespace"),
-		Scheme:        mgr.GetScheme(),
-		ServRegBroker: srBroker,
-	}).SetupWithManager(mgr); err != nil {
+	if err = nsReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
 		os.Exit(1)
 	}
+	if len(countPodKey) > 0 {
+		if err = base.EndpointSliceReconciler().SetServiceReconciler(srvReconciler).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "EndpointSlice")
+			os.Exit(1)
+		}
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")

@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2020, 2021 Cisco
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,11 +27,18 @@ const (
 	AllowedAnnotations = "service.annotations"
 	// AllowedAnnotationsMap is the key for the allowed annotations map setting
 	AllowedAnnotationsMap = "service.annotationsmap"
+	// RegisterPodsCountKey is the key for the registerPodsCount setting
+	RegisterPodsCountKey = "service.registerpodscount"
+	// PodsCountAnnotationKey is the key for the annotationKey under
+	// registerPodsCount setting
+	PodsCountAnnotationKey = "service.registerpodscount.annotationkey"
 )
 
 // Settings of the application
 type Settings struct {
+	// TODO: this is not complete and need rebase with etcd branch.
 	Namespace NamespaceSettings `yaml:"namespace"`
+	Service   ServiceSettings   `yaml:"service"`
 	Gcloud    *GcloudSettings   `yaml:"gcloud"`
 }
 
@@ -69,4 +76,15 @@ const (
 // NamespaceSettings includes settings about namespaces
 type NamespaceSettings struct {
 	ListPolicy ListPolicy `yaml:"listPolicy"`
+}
+
+// ServiceSettings includes settings about namespaces
+type ServiceSettings struct {
+	// TODO: this is not complete and need rebase with etcd branch.
+	RegisterPodsCount *PodsCountSettings `yaml:"registerPodsCount"`
+}
+
+// PodsCountSettings contains settings about the pods counting feature
+type PodsCountSettings struct {
+	AnnotationKey string `yaml:"annotationKey"`
 }
