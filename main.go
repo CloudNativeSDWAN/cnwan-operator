@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2020, 2021 Cisco
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,31 +19,43 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"runtime"
+	"time"
 
+	"github.com/CloudNativeSDWAN/cnwan-operator/controllers"
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
+	"github.com/CloudNativeSDWAN/cnwan-operator/internal/utils"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
+	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
 	sd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/gcloud/servicedirectory"
-
 	"github.com/spf13/viper"
+	"go.etcd.io/etcd/clientv3"
+	"go.uber.org/zap/zapcore"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	"github.com/CloudNativeSDWAN/cnwan-operator/controllers"
 	// +kubebuilder:scaffold:imports
 )
 
 const (
-	opKey = "owner"
-	opVal = "cnwan-operator"
+	opKey                string = "owner"
+	opVal                string = "cnwan-operator"
+	defaultSettingsPath  string = "./settings/settings.yaml"
+	defaultSdServAccPath string = "./credentials/gcloud-credentials.json"
+	defaultTimeout       int    = 30
+	defaultNsName        string = "cnwan-operator-system"
 )
 
 var (
-	scheme   = runtime.NewScheme()
+	scheme   = k8sruntime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
 
@@ -55,50 +67,102 @@ func init() {
 }
 
 func main() {
+	// TODO: on next version, this main will be completely changed with a
+	// better return code and exiting mechanism. Right now is fine but
+	// too cluttered.
+
+	//--------------------------------------
+	// Inits and defaults
+	//--------------------------------------
+	returnCode := 0
+	defer os.Exit(returnCode)
+
 	ctx, canc := context.WithCancel(context.Background())
 	defer canc()
 
+	var etcdClient *clientv3.Client
+	var servreg sr.ServiceRegistry
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	nsName := os.Getenv("CNWAN_OPERATOR_NAMESPACE")
+	if len(nsName) == 0 {
+		setupLog.Info("CNWAN_OPERATOR_NAMESPACE environment variable does not exist: using default value", "default", defaultNsName)
+		nsName = defaultNsName
+	}
+
+	settingsPath := getSettingsPath()
 
 	//--------------------------------------
 	// Load the settings
 	//--------------------------------------
 
-	viper.SetConfigName("settings")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath("./settings/")
-	err := viper.ReadInConfig()
+	settings, err := getSettings(settingsPath)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
+		returnCode = 1
+		runtime.Goexit()
+	}
+	setupLog.Info("settings file loaded successfully")
+
+	settings, err = utils.ParseAndValidateSettings(settings)
+	if err != nil {
+		setupLog.Error(err, "error while unmarshaling options")
+		returnCode = 2
+		runtime.Goexit()
+	}
+	setupLog.Info("settings parsed successfully")
+
+	viper.SetConfigFile(settingsPath)
+	if err := viper.ReadInConfig(); err != nil {
+		setupLog.Error(err, "error storing settings")
+		returnCode = 3
+		runtime.Goexit()
 	}
 
-	if err := validateSettings(); err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
-	}
+	viper.Set(types.CurrentNamespace, nsName)
 
 	// Load the allowed annotations and put into a map, for better
 	// check afterwards
-	annotations := viper.GetStringSlice(types.AllowedAnnotations)
+	annotations := settings.Service.Annotations
 	allowedAnnotations := map[string]bool{}
 	for _, ann := range annotations {
 		allowedAnnotations[ann] = true
 	}
 	viper.Set(types.AllowedAnnotationsMap, allowedAnnotations)
 
-	// Create a handler for gcp service directory
-	credsPath := "./credentials/gcloud-credentials.json"
-	sdHandler, err := sd.NewHandler(ctx, viper.GetString(types.SDProject), viper.GetString(types.SDDefaultRegion), credsPath, 30)
-	if err != nil {
-		setupLog.Error(err, "fatal error encountered")
-		os.Exit(1)
+	//--------------------------------------
+	// Get the service registry
+	//--------------------------------------
+
+	var servRegErr error
+	if settings.ServiceRegistrySettings.EtcdSettings != nil {
+		setupLog.Info("using etcd as a service registry...")
+		_cli, err := getEtcdClient(settings.EtcdSettings)
+		if err != nil {
+			setupLog.Error(err, "error while establishing connection to the etcd cluster")
+			returnCode = 4
+			runtime.Goexit()
+		}
+		etcdClient = _cli
+		defer etcdClient.Close()
+		servreg, servRegErr = etcd.NewServiceRegistryWithEtcd(ctx, etcdClient, settings.EtcdSettings.Prefix)
+	}
+	if settings.ServiceRegistrySettings.ServiceDirectorySettings != nil {
+		setupLog.Info("using gcloud service directory...")
+		servreg, servRegErr = getServiceDirectoryHandler(ctx, settings.ServiceRegistrySettings.ProjectID, settings.ServiceRegistrySettings.DefaultRegion)
 	}
 
-	srBroker, err := sr.NewBroker(sdHandler, opKey, opVal)
+	if servRegErr != nil {
+		setupLog.Error(err, "fatal error encountered")
+		returnCode = 5
+		runtime.Goexit()
+	}
+
+	srBroker, err := sr.NewBroker(servreg, opKey, opVal)
 	if err != nil {
 		setupLog.Error(err, "fatal error encountered")
-		os.Exit(1)
+		returnCode = 6
+		runtime.Goexit()
 	}
 
 	//--------------------------------------
@@ -112,7 +176,8 @@ func main() {
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
+		returnCode = 7
+		runtime.Goexit()
 	}
 
 	if err = (&controllers.ServiceReconciler{
@@ -122,7 +187,8 @@ func main() {
 		ServRegBroker: srBroker,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Service")
-		os.Exit(1)
+		returnCode = 8
+		runtime.Goexit()
 	}
 	if err = (&controllers.NamespaceReconciler{
 		Client:        mgr.GetClient(),
@@ -131,29 +197,137 @@ func main() {
 		ServRegBroker: srBroker,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
-		os.Exit(1)
+		returnCode = 9
+		runtime.Goexit()
 	}
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
+		returnCode = 10
+		runtime.Goexit()
 	}
 }
 
-func validateSettings() error {
-	if len(viper.GetString(types.NamespaceListPolicy)) == 0 {
-		viper.Set(types.NamespaceListPolicy, types.AllowList)
+func getServiceDirectoryHandler(ctx context.Context, projectID, defaultRegion string) (sr.ServiceRegistry, error) {
+	// TODO: this will be heavily improved in future versions
+
+	credsPath := defaultSdServAccPath
+
+	// is specified on env?
+	if fromEnv := os.Getenv("CNWAN_OPERATOR_SETTINGS_PATH"); len(fromEnv) > 0 {
+		credsPath = fromEnv
 	}
 
-	if len(viper.GetString(types.SDDefaultRegion)) == 0 {
-		return fmt.Errorf("%s", "fatal: service directory region not provided")
+	sdHandler, err := sd.NewHandler(ctx, projectID, defaultRegion, credsPath, defaultTimeout)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(viper.GetString(types.SDProject)) == 0 {
-		return fmt.Errorf("%s", "fatal: service directory project name not provided")
+	return sdHandler, nil
+}
+
+func getSettingsPath() string {
+	args := os.Args
+
+	// is specified as first argument?
+	if len(args) > 1 {
+		return args[1]
 	}
 
-	return nil
+	// is specified on env?
+	if fromEnv := os.Getenv("CNWAN_OPERATOR_SETTINGS_PATH"); len(fromEnv) > 0 {
+		return fromEnv
+	}
+
+	// last resort: just try to load it from a default path...
+	return defaultSettingsPath
+}
+
+func getSettings(fileName string) (*types.Settings, error) {
+	file, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		return nil, err
+	}
+
+	var settings types.Settings
+	if err := yaml.Unmarshal(file, &settings); err != nil {
+		return nil, err
+	}
+
+	return &settings, nil
+}
+
+func getEtcdClient(settings *types.EtcdSettings) (*clientv3.Client, error) {
+	endps := []string{}
+
+	for _, endp := range settings.Endpoints {
+		endps = append(endps, fmt.Sprintf("%s:%d", endp.Host, *endp.Port))
+	}
+	cfg := clientv3.Config{
+		Endpoints: endps,
+	}
+
+	if settings.Authentication == types.EtcdAuthWithNothing {
+		return clientv3.New(cfg)
+	}
+
+	k8sconf := ctrl.GetConfigOrDie()
+	clientset, err := kubernetes.NewForConfig(k8sconf)
+	if err != nil {
+		return nil, err
+	}
+
+	if settings.Authentication == types.EtcdAuthWithUsernamePassw {
+		cfg, err := getEtcdConfWithCredentials(clientset)
+		if err != nil {
+			return nil, err
+		}
+
+		cfg.Endpoints = endps
+		return clientv3.New(*cfg)
+	}
+
+	// TODO: support for TLS: if authentication is through TLS if Username and Password are both nil, then look
+	// for the secrets containing the client's certificate and and key.
+	return nil, fmt.Errorf("unsupported etcd authentication method")
+}
+
+func getEtcdConfWithCredentials(clientset *kubernetes.Clientset) (*clientv3.Config, error) {
+	nsName := viper.GetString(types.CurrentNamespace)
+
+	ctx, canc := context.WithTimeout(context.Background(), time.Duration(15)*time.Second)
+	defer canc()
+
+	// Get username and password
+	secret, err := clientset.CoreV1().Secrets(nsName).Get(ctx, types.EtcdCredentialsSecretName, v1.GetOptions{})
+	if err != nil {
+		setupLog.Error(err, "error while trying to get secret with etcd credentials, skipping...")
+		return nil, err
+	}
+
+	// get it
+	data := secret.Data
+
+	unameVal, unameExists := data["username"]
+	passVal, passExist := data["password"]
+
+	if !unameExists && !passExist {
+		return nil, fmt.Errorf("username and password could not be found")
+	}
+
+	if len(unameVal) == 0 && len(passVal) == 0 {
+		setupLog.V(int(zapcore.WarnLevel)).Info("username and password are both empty")
+	}
+
+	cfg := &clientv3.Config{}
+	if len(unameVal) > 0 {
+		cfg.Username = string(unameVal)
+	}
+	if len(passVal) > 0 {
+		cfg.Password = string(passVal)
+	}
+
+	return cfg, nil
 }

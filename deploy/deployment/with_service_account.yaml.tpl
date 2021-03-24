@@ -47,6 +47,11 @@ spec:
               readOnly: true
               mountPath: /credentials
           imagePullPolicy: Always
+          env:
+          - name: CNWAN_OPERATOR_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
       restartPolicy: Always
       serviceAccountName: cnwan-operator-service-account
       serviceAccount: cnwan-operator-service-account

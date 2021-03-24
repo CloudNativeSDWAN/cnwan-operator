@@ -4,7 +4,6 @@
 
 * [How it Works](#how-it-works)
 * [Supported Service Types](#supported-service-types)
-* [Service Registry](#service-registry)
 * [Metadata](#metadata)
 * [Annotations vs Labels](#annotations-vs-labels)
 * [Ownership](#ownership)
@@ -25,15 +24,9 @@ Currently, only services of type `LoadBalancer` are supported, and all other typ
 
 Please make sure your cluster supports load balancers before deploying the operator: most managed Kubernetes platforms do support them, but in case you are not running a managed Kubernetes you may use [MetalLB](https://metallb.universe.tf/) or explore other load balancer solutions.
 
-## Service Registry
-
-A service registry is basically a database of services: each registered service provides information about its instances, addresses, ports and other data. Often times, *metadata* can be registered as well, which provide additional data about the service.
-
-Therefore, a client can log in to the service registry and *discover* registered services to know how to connect to them and get data about them. Sounds familiar? That's because it is very similar to how DNS works, but the service registry pattern is a [key concept of microservices](https://auth0.com/blog/an-introduction-to-microservices-part-3-the-service-registry/).
-
 ## Metadata
 
-When the CN-WAN Operator registers/modifies a service in the service registry, it will also register some metadata with it, if the service registry allows it. Think of metadata as a collection of `key: value` pairs that provide more information about the service. For example, you may want to label a service with metadata `version: 2.1`.
+When the CN-WAN Operator registers/modifies a service in the service registry, it will also register some metadata with it, if the service registry allows it. Think of metadata as a collection of `key: value` pairs that provide more information about the service. For example, you may want to label a service with metadata `version: v.2.2.1`.
 
 You can define the metadata you wish to be registered in a service by **annotating** the corresponding Kubernetes Service. For example:
 
@@ -42,6 +35,8 @@ kubectl annotate service my-service version=2.1
 ```
 
 The operator will see this annotation and, [if you enable it](#allowed-annotations), it will be kept and inserted among the service's metadata when it is published in the service registry.
+
+More information and examples [here](./service_registry.md).
 
 ## Annotations vs Labels
 

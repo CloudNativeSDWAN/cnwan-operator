@@ -1,8 +1,17 @@
-gcloud:
-  serviceDirectory:
-    region: <region>
-    project: <project>
 namespace:
   listPolicy: allowlist
 service:
   annotations: []
+serviceRegistry:
+  etcd:
+    prefix: <prefix>
+    authentication: <your-authentication-type>
+    endpoints:
+    - host: <host-1>
+      port: <port-1>
+    - host: <host-2>
+      port: <port-2>
+  gcpServiceDirectory:
+    defaultRegion: <region>
+    projectID: <project>
+

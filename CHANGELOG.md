@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] (2021-01-22)
+
+## Added
+
+- `etcd` package that wraps around an etcd client
+- `KeyBuilder` for easily building an etcd key
+- A `Role` for reading secrets on the cluster
+- A `RoleBinding` to bind the above role to Operator's service account
+- `etcd` documentation on folder `docs/etcd`
+- `service_registry.md` documentation about service registry and its objects
+- `update.md` documentation
+- `fakeKV` and `fakeTXN` to mock etcd key-value and transactions
+- namespace name as environment variable
+- `serviceRegistry` field in settings
+- new utility functions in `utils`
+- go report badge on readme.md
+
+## Changed
+
+- `Service directory` documentation is moved to its own folder on `docs/gcp_service_directory`
+- main now uses `Goexit` for safer exit, but whole function will be changed in future
+- different exit codes depending on the error
+- service registry objects now contain struct tags
+- new settings format which deprecates the old one
+- `gcloud` in settings moved to `serviceRegistry.gcpServiceDirectory`
+- `deploy.sh` and `remove.sh` adapted to work with etcd and work as flag-enabled CLIs
+- git and docker badges changed with latest semver instead of latest date
+
 ## [0.2.1] (2020-10-19)
 
 ## Added

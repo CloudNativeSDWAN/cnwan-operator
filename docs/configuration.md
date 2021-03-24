@@ -5,40 +5,33 @@ This section will guide you through the steps you need to take to configure the 
 ## Table of Contents
 
 * [Format](#format)
-* [Google Cloud Settings](#google-cloud-settings)
 * [Set the Namespace List Policy](#set-the-namespace-list-policy)
 * [Allow Annotations](#allow-annotations)
-* [Deploy](#deploy)
-* [Update](#update)
+* [Service registry settings](#service-registry-settings)
+* [Deploy settings](#deploy-settings)
+* [Update settings](#update-settings)
 
 ## Format
 
 The CN-WAN Operator can be configured with the following YAML format.
 
 ```yaml
-gcloud:
-  serviceDirectory:
-    region: <region>
-    project: <project>
 namespace:
   listPolicy: allowlist
 service:
   annotations: []
-```
-
-## Google Cloud Settings
-
-Under `gcloud` you can specify Google Cloud data. For example, you can specify the project and the region where Service Directory is enabled and you want to be managed.
-
-You can modify `region` and `project` with the appropriate values.
-
-For example:
-
-```yaml
-gcloud:
-  serviceDirectory:
-    region: us-central1
-    project: this-is-my-project
+serviceRegistry:
+  etcd:
+    prefix: <prefix>
+    authentication: <your-authentication-type>
+    endpoints:
+    - host: <host-1>
+      port: <port-1>
+    - host: <host-2>
+      port: <port-2>
+  gcpServiceDirectory:
+    defaultRegion: <region>
+    projectID: <project>
 ```
 
 ## Set the Namespace List Policy
@@ -105,11 +98,20 @@ name-with-no-prefix: simple-value
 
 Finally, if you leave this empty - as `annotations: []`, then no service will match this and, therefore, no service will be registered.
 
-## Deploy
+## Service registry settings
+
+Under `serviceRegistry` you define which service registry to use and how the operator should connect to it or manage its objects.
+
+As of now, only one of `etcd` or `gcpServiceDirectory` is allowed, and therefore you should remove the one that you don't use. Please follow one of the following guides to learn how to configure the Operator with the chosen service registry:
+
+* [etcd](./etcd/operator_configuration.md)
+* [service directory](./gcp_service_directory/configure_with_operator.md)
+
+## Deploy settings
 
 To deploy these settings you will have to follow either [Basic Installation](./basic_installation.md) or [Advanced Installation](./advanced_installation.md).
 
-## Update
+## Update settings
 
 To update the settings, you can run
 
