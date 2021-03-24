@@ -4,8 +4,7 @@ This guide will help you set up an example etcd cluster that you can use with CN
 
 In the first part, *Create the etcd cluster*, we will install and start etcd. The second part, *Make it more secure*, is not mandatory but **highly** suggested.
 
-**IMPORTANT NOTE**: this guide will only help you create a **demo** cluster so that you can quickly have a working example to use with the CN-WAN Operator and is not intended to be used in production.  
-We strongly encourage you to follow more thorough guides if you want to use etcd in production.
+**IMPORTANT NOTE**: this guide will only help you create a **demo** cluster so that you can quickly have a working example to use with the CN-WAN Operator and is not intended to be used in production. We strongly encourage you to follow more thorough guides if you want to use etcd in production.
 
 ## Create the etcd cluster
 
@@ -71,6 +70,7 @@ Before going any further, we once again remind you that this is a **demo** clust
 ### Start etcd *with* docker
 
 Skip this part if you installed etcd *without* Docker.
+
 Start etcd as:
 
 ```bash
@@ -192,7 +192,7 @@ etcdctl get /
 and `Error: etcdserver: user name is empty` should appear. Now try to do the same operation as the root user:
 
 ```bash
-etcdctl --user root:<password> get / 
+etcdctl --user root:<password> get /
 ```
 
 and... nothing appears. Well, this is correct: your cluster doesn't contain any data yet, so nothing is found.
@@ -247,7 +247,7 @@ Now, try to perform one of the following operations as the `cnwan-operator` user
 ```bash
 # Get resource / as the cnwan-operator user
 etcdctl --user cnwan-operator:<password> \
-get / 
+get /
 
 # Get the list of users as cnwan-operator user
 etcdctl --user cnwan-operator:<password> \

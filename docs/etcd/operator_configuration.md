@@ -45,15 +45,13 @@ serviceRegistry:
       port: <port-2>
 ```
 
-`namespace` and `service` settings are covered in the [main documentation](../configuration.md).  
-Let's now only focus on `serviceRegistry` options.
+`namespace` and `service` settings are covered in the [main documentation](../configuration.md). Let's now only focus on `serviceRegistry` options.
 
 ## etcd settings
 
 ### Prefix
 
-Set the `prefix` to whatever value you want/need and all object keys will start with it.  
-In case you omit or leave it empty the CN-WAN Operator will use `/service-registry` as a default prefix. If you don't want any prefix just write `/`.
+Set the `prefix` to whatever value you want/need and all object keys will start with it. In case you omit or leave it empty the CN-WAN Operator will use `/service-registry` as a default prefix. If you don't want any prefix just write `/`.
 
 If you haven't already, please read our [etcd concepts documentation](./concepts.md) to learn more about keys and prefixes.
 

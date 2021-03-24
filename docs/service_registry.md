@@ -34,8 +34,7 @@ As we said on the main documentation, the CN-WAN Operator currently supports *Go
 
 ## Objects
 
-Let's now cover the objects that the CN-WAN Operator will work with. Keep in mind that some products, i.e. Google Service Directory, may work with objects that have the same names but different formats. Nonetheless, the CN-WAN Operator will provide you with data that always look like the ones included in this guide.  
-Even more, some service registries may not even provide some of those objects: in case you want to use those, the CN-WAN Operator will try to abstract them as best as it can while still using the service registry's own format.
+Let's now cover the objects that the CN-WAN Operator will work with. Keep in mind that some products, i.e. Google Service Directory, may work with objects that have the same names but different formats. Nonetheless, the CN-WAN Operator will provide you with data that always look like the ones included in this guide. Even more, some service registries may not even provide some of those objects: in case you want to use those, the CN-WAN Operator will try to abstract them as best as it can while still using the service registry's own format.
 
 We will give examples in a *YAML* format since it is the one that CN-WAN adopts as default, along with a formal description of the objects with their types so that - as long as you respect field names, hierarchies and types - you can marshal and unmarshal them in your application as well.
 

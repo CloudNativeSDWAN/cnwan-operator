@@ -19,8 +19,7 @@ If you are already using etcd for your own purposes or are exploring on doing so
 
 ## Service registry objects
 
-The CN-WAN Operator will store *Namespace*s, *Service*s and *Endpoint*s on etcd.  
-Please take a look at the [general service registry documentation](../service_registry.md) to learn more about them.
+The CN-WAN Operator will store *Namespace*s, *Service*s and *Endpoint*s on etcd. Please take a look at the [general service registry documentation](../service_registry.md) to learn more about them.
 
 ## Usage with CN-WAN Operator
 
@@ -63,15 +62,13 @@ As you can see from the examples above, there is a clear hierarchy structure whe
 
 ## Prefix
 
-A *prefix* is just a regular key in etcd. If you want to insert new objects and they all fall under the same object type, i.e. `/environments`, you can use that as a prefix -- or, *base path*.  
-This will allow you to have a nice separation or scope for your objects and will prevent you from writing typos or long keys. For example, with respect to the previous section:
+A *prefix* is just a regular key in etcd. If you want to insert new objects and they all fall under the same object type, i.e. `/environments`, you can use that as a prefix -- or, *base path*. This will allow you to have a nice separation or scope for your objects and will prevent you from writing typos or long keys. For example, with respect to the previous section:
 
 * if you are inserting application objects, you may want to specify `/environments/testing/applications` as prefix
 * if you are inserting rbac roles: `/authentication/rbac/roles`
 * if you are inserting service registry objects: `/service-registry`
 
-Focusing on this last example, the CN-WAN Operator will put all objects under `/service-registry` if you don't provide another one.  
-As we said, the prefix is just a regular key and therefore can have a value, though CN-WAN Operator will neither create it nor put values in there, but you are free to do that if you want: i.e. you can put the name of the team that is in charge of managing your *Kubernetes* cluster just to make a very simple example.
+Focusing on this last example, the CN-WAN Operator will put all objects under `/service-registry` if you don't provide another one. As we said, the prefix is just a regular key and therefore can have a value, though CN-WAN Operator will neither create it nor put values in there, but you are free to do that if you want: i.e. you can put the name of the team that is in charge of managing your *Kubernetes* cluster just to make a very simple example.
 
 If you pass an empty string as prefix to the CN-WAN Operator or just pass `/`, then objects will only have `/` as base path. Be careful with what you set as prefix as this may potentially overwrite existing data.
 
@@ -96,7 +93,6 @@ service-registry                    | /service-registry
 
 On top level we have our prefix, or base path: `/service-registry`. Once again, the CN-WAN Operator will not actually create this key and value, and you can specify whatever you want here: in the graph above it is included only to make the hierarchy more evident.
 
-After that, you can see that each object "inherits" the full key of its parent object and includes its object type in plural form.  
-This will make it organized and prevent overrides when two objects have the same name but different object type.
+After that, you can see that each object "inherits" the full key of its parent object and includes its object type in plural form. This will make it organized and prevent overrides when two objects have the same name but different object type.
 
 Notice how the service `payroll` is contained in both `production` and `testing`: the key format on the right leaves no room for confusion nor overrides.

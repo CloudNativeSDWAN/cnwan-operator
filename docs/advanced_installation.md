@@ -105,12 +105,12 @@ Before deploying the operator you will need to configure it.
 
 ### Settings
 
-Modify the file `config/manager/settings.yaml` with the appropriate values.  
-You will need to modify what's below `settings.yaml: |` and follow [Configuration](./configuration.md) if you haven't already.
+Modify the file `config/manager/settings.yaml` with the appropriate values. You will need to modify what's below `settings.yaml: |` and follow [Configuration](./configuration.md) if you haven't already.
 
 ### Credentials
 
-Skip this step if you are not using Google Service Directory.
+*Skip this step if you are not using Google Service Directory.*
+
 Copy the contents of you Service Account and paste to `config/manager/serviceHandlerSecret.yaml` below `gcloud-credentials.json: |-`.
 
 The file must look like this:

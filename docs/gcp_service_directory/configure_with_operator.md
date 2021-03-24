@@ -40,8 +40,7 @@ serviceRegistry:
     projectID: <project>
 ```
 
-`namespace` and `service` settings are covered in the [main documentation](../configuration.md).  
-Let's now only focus on `serviceRegistry` options.
+`namespace` and `service` settings are covered in the [main documentation](../configuration.md). Let's now only focus on `serviceRegistry` options.
 
 ## Service Directory settings
 

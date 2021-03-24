@@ -33,8 +33,7 @@ Now, try to do
 etcdctl get /service-registry --prefix
 ```
 
-And you should see an empty response because the service registry is currently empty.  
-`--prefix` tells etcd to get all objects that a key *starting* with the provided key.
+And you should see an empty response because the service registry is currently empty. `--prefix` tells etcd to get all objects that a key *starting* with the provided key.
 
 ### Create a namespace
 
@@ -48,8 +47,7 @@ metadata:
 
 Now, since this is a *namespace*, its key will be `/namespaces/production`.
 
-Remember though that we want prefix `/service-registry` to be there for all service registry objects: therefore its full key will be `/service-registry/namespaces/production`.
-If you haven't already, please read the [Service registry keys section](./concepts.md#service-registry-keys) for more information.
+Remember though that we want prefix `/service-registry` to be there for all service registry objects: therefore its full key will be `/service-registry/namespaces/production`. If you haven't already, please read the [service registry keys section](./concepts.md#service-registry-keys) for more information.
 
 Now, let's insert it on etcd:
 
@@ -202,8 +200,7 @@ On the new terminal, execute the following command, which will *watch* for chang
 etcdctl watch /service-registry/ --prefix
 ```
 
-Now, leave that window there and switch to the previous one again.  
-You just realized that the *training* service cointains video training session: `standard` is probably not a good *traffic profile* choice there. Let's change it to `video`:
+Now, leave that window there and switch to the previous one again. You just realized that the *training* service contains video training session: `standard` is probably not a good *traffic profile* choice there. Let's change it to `video`:
 
 ```bash
 cat << EOF | etcdctl put /service-registry/namespaces/production/services/training
@@ -221,5 +218,4 @@ Press enter and the other window will show you the `/service-registry/namespaces
 
 ## Next steps
 
-Congratulations: you just performed tasks that the CN-WAN Operator and [Reader](https://github.com/CloudNativeSDWAN/cnwan-reader) perform automatically for you.  
-So why don't you take a step further and [set up the CN-WAN Operator](./operator_configuration.md) to do this for you? We'll see you there :)
+Congratulations: you just performed tasks that the CN-WAN Operator and [Reader](https://github.com/CloudNativeSDWAN/cnwan-reader) perform automatically for you. So why don't you take a step further and [set up the CN-WAN Operator](./operator_configuration.md) to do this for you? We'll see you there :)
