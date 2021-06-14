@@ -257,7 +257,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				Namespace: types.NamespaceSettings{
 					ListPolicy: types.AllowList,
 				},
-				Service: *&types.ServiceSettings{
+				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
@@ -273,7 +273,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				Namespace: types.NamespaceSettings{
 					ListPolicy: types.AllowList,
 				},
-				Service: *&types.ServiceSettings{
+				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
@@ -297,7 +297,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				Namespace: types.NamespaceSettings{
 					ListPolicy: types.AllowList,
 				},
-				Service: *&types.ServiceSettings{
+				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{},
@@ -306,7 +306,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				Namespace: types.NamespaceSettings{
 					ListPolicy: types.AllowList,
 				},
-				Service: *&types.ServiceSettings{
+				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
@@ -329,7 +329,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				Namespace: types.NamespaceSettings{
 					ListPolicy: types.AllowList,
 				},
-				Service: *&types.ServiceSettings{
+				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
@@ -343,7 +343,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				Namespace: types.NamespaceSettings{
 					ListPolicy: types.AllowList,
 				},
-				Service: *&types.ServiceSettings{
+				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
@@ -360,7 +360,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				Namespace: types.NamespaceSettings{
 					ListPolicy: types.AllowList,
 				},
-				Service: *&types.ServiceSettings{
+				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
@@ -377,7 +377,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				Namespace: types.NamespaceSettings{
 					ListPolicy: types.AllowList,
 				},
-				Service: *&types.ServiceSettings{
+				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
@@ -400,7 +400,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				Namespace: types.NamespaceSettings{
 					ListPolicy: types.AllowList,
 				},
-				Service: *&types.ServiceSettings{
+				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
@@ -414,7 +414,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				Namespace: types.NamespaceSettings{
 					ListPolicy: types.AllowList,
 				},
-				Service: *&types.ServiceSettings{
+				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
@@ -423,6 +423,100 @@ func TestParseAndValidateSettings(t *testing.T) {
 						DefaultRegion: "new",
 					},
 				},
+			},
+		},
+		{
+			id: "successful-with-cloud-cfg",
+			arg: &types.Settings{
+				Gcloud: &types.GcloudSettings{
+					ServiceDirectory: &types.DeprecatedServiceDirectorySettings{
+						ProjectName:   "old",
+						DefaultRegion: "old",
+					},
+				},
+				Namespace: types.NamespaceSettings{
+					ListPolicy: types.AllowList,
+				},
+				Service: types.ServiceSettings{
+					Annotations: []string{"one", "two"},
+				},
+				ServiceRegistrySettings: &types.ServiceRegistrySettings{
+					ServiceDirectorySettings: &types.ServiceDirectorySettings{
+						ProjectID:     "new",
+						DefaultRegion: "new",
+					},
+				},
+				CloudMetadata: &types.CloudMetadata{
+					SubNetwork: func() *string {
+						test := "subnetwork"
+						return &test
+					}(),
+					Network: func() *string {
+						test := "network"
+						return &test
+					}(),
+				},
+			},
+			expRes: &types.Settings{
+				Namespace: types.NamespaceSettings{
+					ListPolicy: types.AllowList,
+				},
+				Service: types.ServiceSettings{
+					Annotations: []string{"one", "two"},
+				},
+				ServiceRegistrySettings: &types.ServiceRegistrySettings{
+					ServiceDirectorySettings: &types.ServiceDirectorySettings{
+						ProjectID:     "new",
+						DefaultRegion: "new",
+					},
+				},
+				CloudMetadata: func() *types.CloudMetadata {
+					nname := "network"
+					snname := "subnetwork"
+					return &types.CloudMetadata{
+						SubNetwork: &snname,
+						Network:    &nname,
+					}
+				}(),
+			},
+		},
+		{
+			id: "successful-with-empty-cloud-cfg",
+			arg: &types.Settings{
+				Gcloud: &types.GcloudSettings{
+					ServiceDirectory: &types.DeprecatedServiceDirectorySettings{
+						ProjectName:   "old",
+						DefaultRegion: "old",
+					},
+				},
+				Namespace: types.NamespaceSettings{
+					ListPolicy: types.AllowList,
+				},
+				Service: types.ServiceSettings{
+					Annotations: []string{"one", "two"},
+				},
+				ServiceRegistrySettings: &types.ServiceRegistrySettings{
+					ServiceDirectorySettings: &types.ServiceDirectorySettings{
+						ProjectID:     "new",
+						DefaultRegion: "new",
+					},
+				},
+				CloudMetadata: &types.CloudMetadata{},
+			},
+			expRes: &types.Settings{
+				Namespace: types.NamespaceSettings{
+					ListPolicy: types.AllowList,
+				},
+				Service: types.ServiceSettings{
+					Annotations: []string{"one", "two"},
+				},
+				ServiceRegistrySettings: &types.ServiceRegistrySettings{
+					ServiceDirectorySettings: &types.ServiceDirectorySettings{
+						ProjectID:     "new",
+						DefaultRegion: "new",
+					},
+				},
+				CloudMetadata: nil,
 			},
 		},
 	}

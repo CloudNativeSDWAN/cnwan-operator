@@ -14,4 +14,7 @@ serviceRegistry:
   gcpServiceDirectory:
     defaultRegion: <region>
     projectID: <project>
+cloudMetadata:
+  network: auto
+  subNetwork: auto
 

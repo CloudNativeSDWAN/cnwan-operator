@@ -87,6 +87,22 @@ func ParseAndValidateSettings(settings *types.Settings) (*types.Settings, error)
 	}
 
 	finalSettings := &types.Settings{}
+	if settings.CloudMetadata != nil {
+		clCfg := settings.CloudMetadata
+		finalCfg := &types.CloudMetadata{}
+
+		if clCfg.Network != nil && *clCfg.Network != "" {
+			finalCfg.Network = clCfg.Network
+		}
+		if clCfg.SubNetwork != nil && *clCfg.SubNetwork != "" {
+			finalCfg.SubNetwork = clCfg.SubNetwork
+		}
+
+		if finalCfg.Network != nil || finalCfg.SubNetwork != nil {
+			finalSettings.CloudMetadata = finalCfg
+		}
+	}
+
 	if settings.Namespace.ListPolicy != types.AllowList && settings.Namespace.ListPolicy != types.BlockList {
 		// Probably we could revert to using a default value here, but I think
 		// it's better not to confuse the user with unexpected behaviors and
