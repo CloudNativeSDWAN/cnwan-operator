@@ -49,7 +49,7 @@ func (b *Broker) ManageNs(nsData *Namespace) (regNs *Namespace, err error) {
 	if nsData.Metadata == nil {
 		nsData.Metadata = map[string]string{}
 	}
-	nsData.Metadata[b.opKey] = b.opVal
+	nsData.Metadata[b.opMetaPair.Key] = b.opMetaPair.Value
 	l := b.log.WithName("ManageNs").WithValues("ns-name", nsData.Name)
 
 	// -- Do stuff
@@ -75,7 +75,7 @@ func (b *Broker) ManageNs(nsData *Namespace) (regNs *Namespace, err error) {
 		regNs = nsData
 	}
 
-	if by, exists := regNs.Metadata[b.opKey]; by != b.opVal || !exists {
+	if by, exists := regNs.Metadata[b.opMetaPair.Key]; by != b.opMetaPair.Value || !exists {
 		// If the namespace is not owned (as in, managed by) us, then it's
 		// better not to touch it.
 		l.V(0).Info("namespace is not owned by the operator and thus will not be updated")
@@ -152,7 +152,7 @@ func (b *Broker) RemoveNs(nsName string, forceNotEmpty bool) (err error) {
 	servs := []string{}
 	hasNotOwned := false
 	for _, serv := range listServ {
-		if by, exists := serv.Metadata[b.opKey]; by != b.opVal || !exists {
+		if by, exists := serv.Metadata[b.opMetaPair.Key]; by != b.opMetaPair.Value || !exists {
 			l.V(0).Info("namespace contains services not owned by the operator")
 			hasNotOwned = true
 			continue
@@ -174,7 +174,7 @@ func (b *Broker) RemoveNs(nsName string, forceNotEmpty bool) (err error) {
 		return ErrNsNotOwnedServs
 	}
 
-	if by, exists := regNs.Metadata[b.opKey]; by != b.opVal || !exists {
+	if by, exists := regNs.Metadata[b.opMetaPair.Key]; by != b.opMetaPair.Value || !exists {
 		// If the namespace is not owned (as in, managed by) us, then it's
 		// better not to touch it.
 		l.V(0).Info("WARNING: namespace is not owned by the operator and will not be removed from service registry")

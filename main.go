@@ -158,7 +158,7 @@ func main() {
 		runtime.Goexit()
 	}
 
-	srBroker, err := sr.NewBroker(servreg, opKey, opVal)
+	srBroker, err := sr.NewBroker(servreg, sr.MetadataPair{Key: opKey, Value: opVal})
 	if err != nil {
 		setupLog.Error(err, "fatal error encountered")
 		returnCode = 6

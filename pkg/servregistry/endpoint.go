@@ -69,7 +69,7 @@ func (b *Broker) ManageServEndps(nsName, servName string, endpsData []*Endpoint)
 		if endpsMap[endp.Name].Metadata == nil {
 			endpsMap[endp.Name].Metadata = map[string]string{}
 		}
-		endpsMap[endp.Name].Metadata[b.opKey] = b.opVal
+		endpsMap[endp.Name].Metadata[b.opMetaPair.Key] = b.opMetaPair.Value
 	}
 	endpErrs = map[string]error{}
 
@@ -88,7 +88,7 @@ func (b *Broker) ManageServEndps(nsName, servName string, endpsData []*Endpoint)
 
 		endpData, exists := endpsMap[regEndp.Name]
 
-		if owner, ownerExists := regEndp.Metadata[b.opKey]; owner != b.opVal || !ownerExists {
+		if owner, ownerExists := regEndp.Metadata[b.opMetaPair.Key]; owner != b.opMetaPair.Value || !ownerExists {
 			l.V(0).Info("endpoint is not managed by the cnwan operator and is going to be ignored")
 			endpErrs[regEndp.Name] = ErrEndpNotOwnedByOp
 			delete(endpsMap, regEndp.Name)

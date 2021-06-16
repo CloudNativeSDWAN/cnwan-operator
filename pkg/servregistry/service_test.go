@@ -26,7 +26,7 @@ func TestManageServ(t *testing.T) {
 	// prepare
 	nsName, servName := "ns", "serv"
 	var f *fakeServReg
-	b, _ := NewBroker(f, "", "")
+	b, _ := NewBroker(f, MetadataPair{})
 
 	resetFake := func() {
 		f = newFakeStruct()
@@ -93,11 +93,11 @@ func TestManageServ(t *testing.T) {
 		defer resetFake()
 		assert := a.New(tt)
 
-		one := &Service{Name: "one", NsName: nsName, Metadata: map[string]string{b.opKey: "someone-else", "key": "val"}}
+		one := &Service{Name: "one", NsName: nsName, Metadata: map[string]string{b.opMetaPair.Key: "someone-else", "key": "val"}}
 		two := &Service{Name: "two", NsName: nsName, Metadata: map[string]string{"key": "val"}}
 		f.servList = map[string]*Service{one.Name: one, two.Name: two}
 
-		oneChange := &Service{Name: "one", NsName: nsName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val-1"}}
+		oneChange := &Service{Name: "one", NsName: nsName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val-1"}}
 		twoChange := &Service{Name: "two", NsName: nsName, Metadata: map[string]string{"key": "val-1"}}
 
 		regServ, err := b.ManageServ(oneChange)
@@ -118,8 +118,8 @@ func TestManageServ(t *testing.T) {
 		assert := a.New(tt)
 
 		// should return nil because an error in updating
-		shouldErr := &Service{Name: "update-error", NsName: nsName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
-		changeErr := &Service{Name: "update-error", NsName: nsName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val-1"}}
+		shouldErr := &Service{Name: "update-error", NsName: nsName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
+		changeErr := &Service{Name: "update-error", NsName: nsName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val-1"}}
 		f.servList[shouldErr.Name] = shouldErr
 
 		regServ, err := b.ManageServ(changeErr)
@@ -128,8 +128,8 @@ func TestManageServ(t *testing.T) {
 		assert.Empty(f.updatedServ)
 
 		// no error so it should return the new value
-		shouldOk := &Service{Name: "update", NsName: nsName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
-		okChange := &Service{Name: "update", NsName: nsName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val-1"}}
+		shouldOk := &Service{Name: "update", NsName: nsName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
+		okChange := &Service{Name: "update", NsName: nsName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val-1"}}
 		f.servList[shouldOk.Name] = shouldOk
 
 		regServ, err = b.ManageServ(okChange)
@@ -147,7 +147,7 @@ func TestManageServ(t *testing.T) {
 
 		// should return nil because an error in creating
 		// (this also happens if someone else creates this)
-		shouldErr := &Service{Name: "create-error", NsName: nsName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		shouldErr := &Service{Name: "create-error", NsName: nsName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
 		regServ, err := b.ManageServ(shouldErr)
 		assert.Nil(regServ)
 		assert.Error(err)
@@ -158,7 +158,7 @@ func TestManageServ(t *testing.T) {
 		regServ, err = b.ManageServ(shouldOk)
 		assert.Equal(shouldOk.Name, regServ.Name)
 		assert.Equal(shouldOk.NsName, regServ.NsName)
-		assert.Equal(map[string]string{b.opKey: b.opVal, "key": "val"}, regServ.Metadata)
+		assert.Equal(map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}, regServ.Metadata)
 		assert.NoError(err)
 
 		assert.Empty(f.updatedServ)
@@ -176,7 +176,7 @@ func TestRemoveServ(t *testing.T) {
 	// prepare
 	nsName, servName := "ns", "serv"
 	var f *fakeServReg
-	b, _ := NewBroker(f, "", "")
+	b, _ := NewBroker(f, MetadataPair{})
 
 	resetFake := func() {
 		f = newFakeStruct()
@@ -225,7 +225,7 @@ func TestRemoveServ(t *testing.T) {
 		defer resetFake()
 		assert := a.New(tt)
 
-		one := &Service{Name: "one", NsName: nsName, Metadata: map[string]string{b.opKey: "someone-else", "key": "val"}}
+		one := &Service{Name: "one", NsName: nsName, Metadata: map[string]string{b.opMetaPair.Key: "someone-else", "key": "val"}}
 		two := &Service{Name: "two", NsName: nsName, Metadata: map[string]string{"key": "val"}}
 		f.servList[one.Name] = one
 		f.servList[two.Name] = two
@@ -253,7 +253,7 @@ func TestRemoveServ(t *testing.T) {
 		assert.NoError(err)
 
 		// successful
-		toDel := &Service{Name: "to-del", NsName: nsName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		toDel := &Service{Name: "to-del", NsName: nsName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
 		f.servList[toDel.Name] = toDel
 		err = b.RemoveServ(nsName, "to-del", false)
 		assert.NoError(err)
@@ -269,21 +269,21 @@ func TestRemoveServ(t *testing.T) {
 			Name:     "one",
 			ServName: servName,
 			NsName:   nsName,
-			Metadata: map[string]string{b.opKey: b.opVal, "key": "val"},
+			Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"},
 		}
 		twoOwned := &Endpoint{
 			Name:     "two",
 			ServName: servName,
 			NsName:   nsName,
-			Metadata: map[string]string{b.opKey: b.opVal, "key": "val"},
+			Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"},
 		}
 		threeNotOwned := &Endpoint{
 			Name:     "three",
 			ServName: servName,
 			NsName:   nsName,
-			Metadata: map[string]string{b.opKey: "someone-else", "key": "val"},
+			Metadata: map[string]string{b.opMetaPair.Key: "someone-else", "key": "val"},
 		}
-		servDel := &Service{Name: servName, NsName: nsName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		servDel := &Service{Name: servName, NsName: nsName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
 		f.servList[servDel.Name] = servDel
 
 		// error in listing
@@ -320,7 +320,7 @@ func TestRemoveServ(t *testing.T) {
 		assert.NoError(err)
 
 		// error occurs in deleting service
-		shouldErr := &Service{Name: "delete-error", NsName: nsName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		shouldErr := &Service{Name: "delete-error", NsName: nsName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
 		f.servList[shouldErr.Name] = shouldErr
 		f.deletedEndp = []string{}
 		f.deletedServ = []string{}

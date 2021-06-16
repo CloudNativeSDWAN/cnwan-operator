@@ -24,3 +24,6 @@ bin
 *~
 deploy/settings/*.json
 deploy/*_generated.yaml
+
+# All backup file, including bak1, bak2 and whatever
+*.bak*

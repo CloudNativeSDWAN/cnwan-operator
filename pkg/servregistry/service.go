@@ -58,7 +58,7 @@ func (b *Broker) ManageServ(servData *Service) (regServ *Service, err error) {
 	if servData.Metadata == nil {
 		servData.Metadata = map[string]string{}
 	}
-	servData.Metadata[b.opKey] = b.opVal
+	servData.Metadata[b.opMetaPair.Key] = b.opMetaPair.Value
 	l := b.log.WithName("ManageServ").WithValues("serv-name", servData.Name)
 
 	// -- Do stuff
@@ -84,7 +84,7 @@ func (b *Broker) ManageServ(servData *Service) (regServ *Service, err error) {
 		regServ = servData
 	}
 
-	if by, exists := regServ.Metadata[b.opKey]; by != b.opVal || !exists {
+	if by, exists := regServ.Metadata[b.opMetaPair.Key]; by != b.opMetaPair.Value || !exists {
 		// If the service is not owned (as in, managed by) us, then it's
 		// better not to touch it.
 		l.V(0).Info("service is not owned by the operator and thus will not be updated")
@@ -163,7 +163,7 @@ func (b *Broker) RemoveServ(nsName, servName string, forceNotEmpty bool) (err er
 	endps := []string{}
 	hasNotOwned := false
 	for _, endp := range listEndp {
-		if by, exists := endp.Metadata[b.opKey]; by != b.opVal || !exists {
+		if by, exists := endp.Metadata[b.opMetaPair.Key]; by != b.opMetaPair.Value || !exists {
 			hasNotOwned = true
 			continue
 		}
@@ -184,7 +184,7 @@ func (b *Broker) RemoveServ(nsName, servName string, forceNotEmpty bool) (err er
 		return ErrServNotOwnedEndps
 	}
 
-	if by, exists := regServ.Metadata[b.opKey]; by != b.opVal || !exists {
+	if by, exists := regServ.Metadata[b.opMetaPair.Key]; by != b.opMetaPair.Value || !exists {
 		// If the service is not owned (as in, managed by) us, then it's
 		// better not to touch it.
 		l.V(0).Info("WARNING: service is not owned by the operator and will not be removed from service registry")

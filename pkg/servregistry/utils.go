@@ -28,7 +28,7 @@ func (b *Broker) deepEqualMetadata(src, dst map[string]string) bool {
 	de := map[string]string{}
 
 	for key, val := range src {
-		if key == b.opKey && val == b.opVal {
+		if key == b.opMetaPair.Key && val == b.opMetaPair.Value {
 			// Don't copy this one
 			continue
 		}
@@ -36,7 +36,7 @@ func (b *Broker) deepEqualMetadata(src, dst map[string]string) bool {
 	}
 
 	for key, val := range dst {
-		if key == b.opKey && val == b.opVal {
+		if key == b.opMetaPair.Key && val == b.opMetaPair.Value {
 			// Don't copy this one
 			continue
 		}
