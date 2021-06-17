@@ -16,6 +16,8 @@
 
 // Package cluster contains code that gets information about the cluster where
 // we are running and if it is a managed cluster, e.g. GKE or EKS.
+// For example: VPC, SubNetwork, Cluster Name, etc.
 //
-// Code gets information like VPC, SubNetwork, Cluster Name, etc.
+// Additionally, it also retrieves common objects from Kubernetes, e.g.:
+// ConfigMap and Secrets.
 package cluster
