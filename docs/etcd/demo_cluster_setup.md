@@ -1,14 +1,64 @@
 # Set up a demo etcd installation
 
-This guide will help you set up an example etcd cluster that you can use with CN-WAN Operator. For the scope of this demo and keep things simple, the etcd cluster will consist of only one node - or instance.
-
-In the first part, *Create the etcd cluster*, we will install and start etcd. The second part, *Make it more secure*, is not mandatory but **highly** suggested.
-
 **IMPORTANT NOTE**: this guide will only help you create a **demo** cluster so that you can quickly have a working example to use with the CN-WAN Operator and is not intended to be used in production. We strongly encourage you to follow more thorough guides if you want to use etcd in production.
 
-## Create the etcd cluster
+If you want to install etcd on Kubernetes, follow [the first section](#quick-install-on-kubernetes). For a standalone installation using a binary or docker jump to [Standalone installation](#standalone-installation). The section [Make it more secure](#make-it-more-secure), is not mandatory but **highly** suggested.
 
-This section will guide you through installing, setting up and start a demo etcd cluster made up of only one node.
+## Quick install on Kubernetes
+
+Since the operator runs on Kubernetes, it's safe to assume you have a Kubernetes cluster available, and the simplest way to get up and running quickly with etcd is to install it on the same Kubernetes cluster where you will run the operator. Please note that this etcd installation is separate from the etcd service that comes bundled with Kubernetes.
+
+If you prefer to use a binary on your favorite OS or docker instead, jump to the next section.
+
+We will use *Helm* to install etcd on Kubernetes. The `bitnami` Helm repo holds a chart that is well maintained, so let's add that repo:
+
+```bash
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+```
+
+Check customization options for the `bitnami/etcd` chart:
+
+```bash
+helm show values bitnami/etcd | less
+```
+
+Custom options can be added to a `values.yaml` file, or specified on the command line. The following commands will create a separate namespace `etcd` and use Helm to install etcd into that namespace, exposing the etcd Service using a LoadBalancer, enabling RBAC authentication for etcd and creating a root user with password `dem0-pwd`:
+
+```bash
+kubectl create namespace etcd
+helm install etcd bitnami/etcd --namespace etcd --set service.type=LoadBalancer,auth.rbac.enabled=true,auth.rbac.rootPassword=dem0-pwd
+```
+
+The notes printed after the helm chart installation are very thorough on how to use your shiny new etcd installation. First, you should run a pod with the etcdctl client:
+
+```bash
+kubectl run etcd-client --restart='Never' --image docker.io/bitnami/etcd --env ROOT_PASSWORD=$(kubectl get secret --namespace etcd etcd -o jsonpath="{.data.etcd-root-password}" | base64 --decode) --env ETCDCTL_ENDPOINTS="etcd.etcd.svc.cluster.local:2379" --namespace etcd --command -- sleep infinity
+```
+
+And then create a local shell alias for the etcdctl command on the pod:
+
+```bash
+alias etcdctl="kubectl exec -it etcd-client -n etcd -- etcdctl"
+```
+
+Now try to insert value "test" with key `/test`:
+
+```bash
+etcdctl --user root:<password> put /test "test"
+```
+
+Now try to read it
+
+```bash
+etcdctl --user root:<password> get /test
+```
+
+From this moment on you can either continue working using the root account (see section [Next steps](#next-steps)), or following the *Create new user and role* section and updating the above alias accordingly.
+
+## Standalone installation
+
+This section will guide you through installing, setting up and start a demo etcd cluster made up of only one node (for demo purposes, and for keeping things simple).
 
 Please note that while it will create a ready-to-use and working cluster, we **strongly** encourage you to read etcd's [official documentation](https://etcd.io/docs/latest/) to learn how to make it more robust, resilient and secure in case you want to use it in production.
 
@@ -110,6 +160,8 @@ docker exec etcd-gcr-v3.4.14 /bin/sh -c "/usr/local/bin/etcdctl version"
 Before going any further, we once again remind you that this is a **demo** cluster: if you intend to use etcd in production we encourage you to explore how to install etcd in a better way, make it more robust, etc.
 
 ## Make it more secure
+
+**NOTE:** If you installed on Kubernetes you can skip to [Create new user and role](#create-new-user-and-role).
 
 While technically only being a demo, this section is not strictly required, but will be very useful for you in case you want to use this solution in production.
 

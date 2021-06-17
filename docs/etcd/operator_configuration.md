@@ -105,7 +105,7 @@ This being said, you don't need enter *all* the nodes there of course, but make 
 
 If you are using etcd's default port `2379`, you can go ahead and omit `port`.
 
-If you followed our [Demo Cluster Setup](./demo_cluster_setup.md) you would have only one endpoint, which is the address you chose there -- `ETCD_IP`.
+If you followed our [Demo Cluster Setup](./demo_cluster_setup.md) you would have only one endpoint, which is the address you chose there -- `ETCD_IP`, or if you installed into Kubernetes, `etcd.etcd`.
 
 ## Full example
 
