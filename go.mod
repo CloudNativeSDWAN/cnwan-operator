@@ -8,7 +8,6 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/googleapis/gax-go v1.0.3
 	github.com/grpc-ecosystem/grpc-gateway v1.14.6 // indirect
-	github.com/jmespath/go-jmespath/internal/testify v1.5.1
 	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.3
 	github.com/spf13/viper v1.7.1

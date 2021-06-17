@@ -59,6 +59,10 @@ func (b *Broker) ManageServ(servData *Service) (regServ *Service, err error) {
 		servData.Metadata = map[string]string{}
 	}
 	servData.Metadata[b.opMetaPair.Key] = b.opMetaPair.Value
+	for _, metaPair := range b.persistentMeta {
+		servData.Metadata[metaPair.Key] = metaPair.Value
+	}
+
 	l := b.log.WithName("ManageServ").WithValues("serv-name", servData.Name)
 
 	// -- Do stuff

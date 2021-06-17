@@ -22,17 +22,20 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/controllers"
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/utils"
+	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/cluster"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
 	sd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/gcloud/servicedirectory"
 	"github.com/spf13/viper"
 	"go.etcd.io/etcd/clientv3"
 	"go.uber.org/zap/zapcore"
+	"google.golang.org/api/option"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -130,6 +133,27 @@ func main() {
 	}
 	viper.Set(types.AllowedAnnotationsMap, allowedAnnotations)
 
+	persistentMeta := []sr.MetadataPair{}
+	if settings.CloudMetadata != nil {
+		// No need to check for network and subnetwork nil as it was already
+		// validate previously.
+		netCfg, err := getNetworkCfg(settings.CloudMetadata.Network, settings.CloudMetadata.SubNetwork)
+		if err != nil {
+			setupLog.Error(err, "could not get cloud network information, skipping...")
+		} else {
+			setupLog.Info("got network configuration", "cnwan.io/network", netCfg.NetworkName, "cnwan.io/sub-network", netCfg.SubNetworkName)
+			if runningIn := cluster.WhereAmIRunning(); runningIn != cluster.UnknownCluster {
+				persistentMeta = append(persistentMeta, sr.MetadataPair{Key: "cnwan.io/platform", Value: string(runningIn)})
+			}
+			if netCfg.NetworkName != "" {
+				persistentMeta = append(persistentMeta, sr.MetadataPair{Key: "cnwan.io/network", Value: netCfg.NetworkName})
+			}
+			if netCfg.NetworkName != "" {
+				persistentMeta = append(persistentMeta, sr.MetadataPair{Key: "cnwan.io/sub-network", Value: netCfg.SubNetworkName})
+			}
+		}
+	}
+
 	//--------------------------------------
 	// Get the service registry
 	//--------------------------------------
@@ -158,7 +182,7 @@ func main() {
 		runtime.Goexit()
 	}
 
-	srBroker, err := sr.NewBroker(servreg, sr.MetadataPair{Key: opKey, Value: opVal})
+	srBroker, err := sr.NewBroker(servreg, sr.MetadataPair{Key: opKey, Value: opVal}, persistentMeta...)
 	if err != nil {
 		setupLog.Error(err, "fatal error encountered")
 		returnCode = 6
@@ -330,4 +354,46 @@ func getEtcdConfWithCredentials(clientset *kubernetes.Clientset) (*clientv3.Conf
 	}
 
 	return cfg, nil
+}
+
+func getNetworkCfg(network, subnetwork *string) (netCfg *cluster.NetworkConfiguration, err error) {
+	netCfg = &cluster.NetworkConfiguration{}
+	if network != nil {
+		netCfg.NetworkName = *network
+	}
+	if subnetwork != nil {
+		netCfg.SubNetworkName = *subnetwork
+	}
+
+	if strings.ToLower(netCfg.NetworkName) == "auto" || strings.ToLower(netCfg.SubNetworkName) == "auto" {
+		var res *cluster.NetworkConfiguration
+		runningIn := cluster.WhereAmIRunning()
+		if runningIn == cluster.UnknownCluster {
+			return nil, fmt.Errorf("could not get information about the managed cluster: unsupported or no permissions to do so")
+		}
+
+		if runningIn == cluster.GKECluster {
+			sa, err := cluster.GetGoogleServiceAccountSecret(context.Background())
+			if err != nil {
+				return nil, err
+			}
+
+			res, err = cluster.GetNetworkFromGKE(context.Background(), option.WithCredentialsJSON(sa))
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// TODO: implement EKS on future versions. Code is ready but just not
+		// included in this iteration.
+
+		if strings.ToLower(netCfg.NetworkName) == "auto" {
+			netCfg.NetworkName = res.NetworkName
+		}
+		if strings.ToLower(netCfg.SubNetworkName) == "auto" {
+			netCfg.SubNetworkName = res.SubNetworkName
+		}
+	}
+
+	return
 }
