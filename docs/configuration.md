@@ -7,6 +7,7 @@ This section will guide you through the steps you need to take to configure the 
 * [Format](#format)
 * [Set the Namespace List Policy](#set-the-namespace-list-policy)
 * [Allow Annotations](#allow-annotations)
+* [Cloud Metadata](#cloud-metadata)
 * [Service registry settings](#service-registry-settings)
 * [Deploy settings](#deploy-settings)
 * [Update settings](#update-settings)
@@ -32,6 +33,9 @@ serviceRegistry:
   gcpServiceDirectory:
     defaultRegion: <region>
     projectID: <project>
+cloudMetadata:
+  network: auto
+  subNetwork: auto
 ```
 
 ## Set the Namespace List Policy
@@ -97,6 +101,37 @@ name-with-no-prefix: simple-value
 ```
 
 Finally, if you leave this empty - as `annotations: []`, then no service will match this and, therefore, no service will be registered.
+
+## Cloud Metadata
+
+Cloud Metadata can be registered automatically through the `cloudMetadata` setting.
+
+You can provide manual values by entering the information you want like this:
+
+```yaml
+cloudMetadata:
+  network: my-vpc-id
+  subNetwork: my-subnet-id
+```
+
+or automatically as:
+
+```yaml
+cloudMetadata:
+  network: auto
+  subNetwork: auto
+```
+
+and the Operator will try to detect such information on its own. You can remove a field, e.g. `subNetwork`, from the settings if you don't want that to be registered.
+
+These values will be registered on a service metadata as:
+
+```text
+cnwan.io/network: <name-or-id>
+cnwan.io/sub-network: <name-or-id>
+```
+
+Additionally, `cnwan.io/platform: <name>` will also be included if the operator detects you are running in a managed cluster.
 
 ## Service registry settings
 

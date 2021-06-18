@@ -10,6 +10,7 @@
 * [Namespace Lists](#namespace-lists)
 * [Namespace List Policy](#namespace-list-policy)
 * [Allowed Annotations](#allowed-annotations)
+* [Cloud Metadata](#cloud-metadata)
 * [Deploy](#deploy)
 
 ## How it Works
@@ -129,6 +130,14 @@ As we said in [Metadata](#metadata), *annotations* are treated as metadata. To a
 If a service does not have **at least** one of the allowed annotations, then it will be ignored by the operator or be removed from the service registry, if present.
 
 You can define which annotations are allowed by setting up [configurations](./configuration.md#allow-annotations).
+
+## Cloud Metadata
+
+As the name suggests, *Cloud Metadata* are data that contain information about the Kubernetes cluster that is hosting the operator and the services that are going to be registered.
+Such data can be the *Network*, *Subnetwork*, etc. The operator is able to retrieve some values automatically, depending on the Kubernetes platform, e.g. *GKE* or *EKS* but you can also provide some values manually through configuration.
+These values will be stored in all registered services to be consumed by anyone interested in them, e.g. the CN-WAN Reader and the CN-WAN Adaptor.
+
+To learn how to define them look at this [section](./configuration.md#cloud-metadata).
 
 ## Deploy
 
