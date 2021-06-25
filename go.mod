@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	cloud.google.com/go v0.72.0
+	github.com/aws/aws-sdk-go v1.38.60
 	github.com/go-logr/logr v0.1.0
 	github.com/googleapis/gax-go v1.0.3
 	github.com/grpc-ecosystem/grpc-gateway v1.14.6 // indirect
@@ -14,6 +15,7 @@ require (
 	go.etcd.io/etcd v0.0.0-20191023171146-3cf2f69b5738
 	go.uber.org/zap v1.10.0
 	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5 // indirect
+	golang.org/x/tools v0.1.0 // indirect
 	google.golang.org/api v0.36.0
 	google.golang.org/genproto v0.0.0-20201210142538-e3217bee35cc
 	google.golang.org/grpc v1.34.0

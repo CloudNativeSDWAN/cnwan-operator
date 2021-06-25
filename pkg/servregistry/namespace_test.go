@@ -25,7 +25,7 @@ import (
 func TestManageNs(t *testing.T) {
 	// prepare
 	var f *fakeServReg
-	b, _ := NewBroker(f, "", "")
+	b, _ := NewBroker(f, MetadataPair{})
 
 	resetFake := func() {
 		f = newFakeStruct()
@@ -85,11 +85,11 @@ func TestManageNs(t *testing.T) {
 		defer resetFake()
 		assert := a.New(tt)
 
-		one := &Namespace{Name: "one", Metadata: map[string]string{b.opKey: "someone-else", "key": "val"}}
+		one := &Namespace{Name: "one", Metadata: map[string]string{b.opMetaPair.Key: "someone-else", "key": "val"}}
 		two := &Namespace{Name: "two", Metadata: map[string]string{"key": "val"}}
 
-		oneChange := &Namespace{Name: "one", Metadata: map[string]string{b.opKey: b.opVal, "key": "val-1"}}
-		twoChange := &Namespace{Name: "two", Metadata: map[string]string{b.opKey: b.opVal, "key": "val-1"}}
+		oneChange := &Namespace{Name: "one", Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val-1"}}
+		twoChange := &Namespace{Name: "two", Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val-1"}}
 		f.nsList[one.Name] = one
 		f.nsList[two.Name] = two
 
@@ -111,8 +111,8 @@ func TestManageNs(t *testing.T) {
 		assert := a.New(tt)
 
 		// should return nil because an error in updating
-		shouldErr := &Namespace{Name: "update-error", Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
-		changeErr := &Namespace{Name: "update-error", Metadata: map[string]string{b.opKey: b.opVal, "key": "val-1"}}
+		shouldErr := &Namespace{Name: "update-error", Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
+		changeErr := &Namespace{Name: "update-error", Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val-1"}}
 		f.nsList[shouldErr.Name] = shouldErr
 
 		regNs, err := b.ManageNs(changeErr)
@@ -120,8 +120,8 @@ func TestManageNs(t *testing.T) {
 		assert.Error(err)
 
 		// no error so it should return the new value
-		shouldOk := &Namespace{Name: "update", Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
-		changeOk := &Namespace{Name: "update", Metadata: map[string]string{b.opKey: b.opVal, "key": "val-1"}}
+		shouldOk := &Namespace{Name: "update", Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
+		changeOk := &Namespace{Name: "update", Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val-1"}}
 		f.nsList[shouldOk.Name] = shouldOk
 
 		regNs, err = b.ManageNs(changeOk)
@@ -138,7 +138,7 @@ func TestManageNs(t *testing.T) {
 
 		// should return nil because an error in creating
 		// (this also happens if someone else creates this)
-		create := &Namespace{Name: "create-error", Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		create := &Namespace{Name: "create-error", Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
 		regNs, err := b.ManageNs(create)
 		assert.Nil(regNs)
 		assert.Error(err)
@@ -147,7 +147,7 @@ func TestManageNs(t *testing.T) {
 		create = &Namespace{Name: "create", Metadata: map[string]string{"key": "val"}}
 		regNs, err = b.ManageNs(create)
 		assert.Equal(create.Name, regNs.Name)
-		assert.Equal(map[string]string{b.opKey: b.opVal, "key": "val"}, regNs.Metadata)
+		assert.Equal(map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}, regNs.Metadata)
 		assert.NoError(err)
 
 		assert.Empty(f.updatedNs)
@@ -164,7 +164,7 @@ func TestRemoveNs(t *testing.T) {
 	// prepare
 	nsName := "ns"
 	var f *fakeServReg
-	b, _ := NewBroker(f, "", "")
+	b, _ := NewBroker(f, MetadataPair{})
 
 	resetFake := func() {
 		f = newFakeStruct()
@@ -209,7 +209,7 @@ func TestRemoveNs(t *testing.T) {
 		defer resetFake()
 		assert := a.New(tt)
 
-		one := &Namespace{Name: "not-owned", Metadata: map[string]string{b.opKey: "someone-else", "key": "val"}}
+		one := &Namespace{Name: "not-owned", Metadata: map[string]string{b.opMetaPair.Key: "someone-else", "key": "val"}}
 		two := &Namespace{Name: "not-owned", Metadata: map[string]string{"key": "val"}}
 		f.nsList[one.Name] = one
 		f.nsList[two.Name] = two
@@ -233,14 +233,14 @@ func TestRemoveNs(t *testing.T) {
 		assert.NoError(err)
 
 		// unknown error
-		toDel := &Namespace{Name: "delete-error", Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		toDel := &Namespace{Name: "delete-error", Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
 		f.nsList[toDel.Name] = toDel
 		err = b.RemoveNs("delete-error", false)
 		assert.NotEqual(ErrServRegNotProvided, err)
 		assert.NotEqual(ErrNsNameNotProvided, err)
 
 		// successful
-		present := &Namespace{Name: "owned", Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		present := &Namespace{Name: "owned", Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
 		f.nsList[present.Name] = present
 		err = b.RemoveNs("owned", false)
 		assert.NoError(err)
@@ -254,20 +254,20 @@ func TestRemoveNs(t *testing.T) {
 
 		oneOwned := &Service{
 			Name:     "one",
-			Metadata: map[string]string{b.opKey: b.opVal, "key": "val"},
+			Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"},
 			NsName:   nsName,
 		}
 		twoOwned := &Service{
 			Name:     "two",
-			Metadata: map[string]string{b.opKey: b.opVal, "key": "val"},
+			Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"},
 			NsName:   nsName,
 		}
 		threeNotOwned := &Service{
 			Name:     "three",
-			Metadata: map[string]string{b.opKey: "someone-else", "key": "val"},
+			Metadata: map[string]string{b.opMetaPair.Key: "someone-else", "key": "val"},
 			NsName:   nsName,
 		}
-		nsDel := &Namespace{Name: nsName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		nsDel := &Namespace{Name: nsName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
 		f.nsList[nsDel.Name] = nsDel
 
 		// error in listing
@@ -293,7 +293,7 @@ func TestRemoveNs(t *testing.T) {
 		assert.Contains(f.deletedServ, twoOwned.Name)
 
 		// error occurs in deleting namespace
-		shouldErr := &Namespace{Name: "delete-error", Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		shouldErr := &Namespace{Name: "delete-error", Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
 		f.nsList[shouldErr.Name] = shouldErr
 		f.deletedServ = []string{}
 		f.deletedNs = []string{}

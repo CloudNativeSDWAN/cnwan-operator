@@ -50,7 +50,8 @@ type Settings struct {
 
 	// DEPRECATED: include this under serviceRegistry instead of here.
 	// TODO: remove this on v0.6.0
-	Gcloud *GcloudSettings `yaml:"gcloud"`
+	Gcloud        *GcloudSettings `yaml:"gcloud"`
+	CloudMetadata *CloudMetadata  `yaml:"cloudMetadata"`
 }
 
 // GcloudSettings holds gcloud settings
@@ -141,4 +142,13 @@ type EtcdSettings struct {
 type EtcdEndpoint struct {
 	Host string `yaml:"host"`
 	Port *int   `yaml:"port"`
+}
+
+// CloudMetadata contains data and configuration about the cloud provider
+// that is hosting the cluster, if any.
+type CloudMetadata struct {
+	// Network name
+	Network *string `yaml:"network"`
+	// SubNetwork name
+	SubNetwork *string `yaml:"subNetwork"`
 }

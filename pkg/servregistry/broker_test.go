@@ -323,18 +323,18 @@ func TestNewBroker(t *testing.T) {
 	// prepare
 	var f *fakeServReg
 	assert := a.New(t)
-	b, err := NewBroker(nil, "", "")
+	b, err := NewBroker(nil, MetadataPair{})
 
 	assert.Nil(b)
 	assert.Equal(ErrServRegNotProvided, err)
 
-	b, err = NewBroker(f, "", "")
+	b, err = NewBroker(f, MetadataPair{})
 	assert.NotNil(b)
 	assert.NoError(err)
-	assert.Equal(b.opKey, defOpKey)
-	assert.Equal(b.opVal, defOpVal)
+	assert.Equal(b.opMetaPair.Key, defOpKey)
+	assert.Equal(b.opMetaPair.Value, defOpVal)
 
-	b, err = NewBroker(f, "test", "testing")
-	assert.Equal(b.opKey, "test")
-	assert.Equal(b.opVal, "testing")
+	b, err = NewBroker(f, MetadataPair{Key: "test", Value: "testing"})
+	assert.Equal(b.opMetaPair.Key, "test")
+	assert.Equal(b.opMetaPair.Value, "testing")
 }

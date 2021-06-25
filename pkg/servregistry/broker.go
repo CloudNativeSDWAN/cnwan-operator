@@ -40,16 +40,25 @@ type Broker struct {
 	Reg ServiceRegistry
 	log logr.Logger
 
-	opKey string
-	opVal string
-	lock  sync.Mutex
+	opMetaPair     MetadataPair
+	persistentMeta []MetadataPair
+	lock           sync.Mutex
+}
+
+// MetadataPair represents a key-value pair that is/will be registered in a
+// service registry.
+type MetadataPair struct {
+	// Key of the metadata
+	Key string
+	// Value of the metadata
+	Value string
 }
 
 // NewBroker returns a new instance of service registry broker.
 //
 // An error is returned in case no service registry where to perform operations
 // is provided.
-func NewBroker(reg ServiceRegistry, opKey, opVal string) (*Broker, error) {
+func NewBroker(reg ServiceRegistry, opMetaPair MetadataPair, persMeta ...MetadataPair) (*Broker, error) {
 	// Validation and inits
 	l := zap.New(zap.UseDevMode(true)).WithName("ServiceRegistryBroker")
 
@@ -57,17 +66,17 @@ func NewBroker(reg ServiceRegistry, opKey, opVal string) (*Broker, error) {
 		return nil, ErrServRegNotProvided
 	}
 
-	if len(opKey) == 0 {
-		opKey = defOpKey
+	if opMetaPair.Key == "" {
+		opMetaPair.Key = defOpKey
 	}
-	if len(opVal) == 0 {
-		opVal = defOpVal
+	if opMetaPair.Value == "" {
+		opMetaPair.Value = defOpVal
 	}
 
 	return &Broker{
-		log:   l,
-		Reg:   reg,
-		opKey: opKey,
-		opVal: opVal,
+		log:            l,
+		Reg:            reg,
+		opMetaPair:     opMetaPair,
+		persistentMeta: persMeta,
 	}, nil
 }

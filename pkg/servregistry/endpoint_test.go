@@ -26,7 +26,7 @@ func TestManageServEndps(t *testing.T) {
 	// prepare
 	nsName, servName := "ns", "serv"
 	var f *fakeServReg
-	b, _ := NewBroker(f, "", "")
+	b, _ := NewBroker(f, MetadataPair{})
 
 	resetFake := func() {
 		f = newFakeStruct()
@@ -73,10 +73,10 @@ func TestManageServEndps(t *testing.T) {
 		defer resetFake()
 		assert := a.New(tt)
 
-		oneNotOwned := &Endpoint{Name: "one", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opKey: "someone-else", "key": "val"}}
+		oneNotOwned := &Endpoint{Name: "one", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opMetaPair.Key: "someone-else", "key": "val"}}
 		twoNotOwned := &Endpoint{Name: "two", NsName: nsName, ServName: servName, Metadata: map[string]string{"key": "val"}}
-		oneChange := &Endpoint{Name: "one", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
-		twoChange := &Endpoint{Name: "two", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		oneChange := &Endpoint{Name: "one", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
+		twoChange := &Endpoint{Name: "two", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
 		f.endpList[oneNotOwned.Name] = oneNotOwned
 		f.endpList[twoNotOwned.Name] = twoNotOwned
 
@@ -97,8 +97,8 @@ func TestManageServEndps(t *testing.T) {
 		assert := a.New(tt)
 
 		// an error occurs while deleting one of them
-		oneOwned := &Endpoint{Name: "one-owned", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
-		errored := &Endpoint{Name: "delete-error", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		oneOwned := &Endpoint{Name: "one-owned", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
+		errored := &Endpoint{Name: "delete-error", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
 		f.endpList[oneOwned.Name] = oneOwned
 		f.endpList[errored.Name] = errored
 
@@ -121,28 +121,28 @@ func TestManageServEndps(t *testing.T) {
 
 		// an error occurs while updating one of them
 		no := &Endpoint{Name: "no", NsName: nsName, ServName: servName, Address: "1.1.1.1", Port: 1010,
-			Metadata: map[string]string{b.opKey: b.opVal, "key": "val"},
+			Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"},
 		}
 		metad := &Endpoint{Name: "metad", NsName: nsName, ServName: servName, Address: "10.10.10.10", Port: 8080,
-			Metadata: map[string]string{b.opKey: b.opVal, "key": "val"},
+			Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"},
 		}
 		adr := &Endpoint{Name: "adr", NsName: nsName, ServName: servName, Address: "11.11.11.11", Port: 8181,
-			Metadata: map[string]string{b.opKey: b.opVal, "key": "val"},
+			Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"},
 		}
 		por := &Endpoint{Name: "por", NsName: nsName, ServName: servName, Address: "12.12.12.12", Port: 8282,
-			Metadata: map[string]string{b.opKey: b.opVal, "key": "val"},
+			Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"},
 		}
 		metadChange := &Endpoint{Name: "metad", NsName: nsName, ServName: servName, Address: "10.10.10.10", Port: 8080,
-			Metadata: map[string]string{b.opKey: b.opVal, "key": "val-1"},
+			Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val-1"},
 		}
 		adrChange := &Endpoint{Name: "adr", NsName: nsName, ServName: servName, Address: "12.12.12.12", Port: 8181,
-			Metadata: map[string]string{b.opKey: b.opVal, "key": "val"},
+			Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"},
 		}
 		porChange := &Endpoint{Name: "por", NsName: nsName, ServName: servName, Address: "12.12.12.12", Port: 2828,
-			Metadata: map[string]string{b.opKey: b.opVal, "key": "val"},
+			Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"},
 		}
-		errored := &Endpoint{Name: "update-error", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
-		erroredChange := &Endpoint{Name: "update-error", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val-1"}}
+		errored := &Endpoint{Name: "update-error", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
+		erroredChange := &Endpoint{Name: "update-error", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val-1"}}
 
 		f.endpList[no.Name] = no
 		f.endpList[metad.Name] = metad
@@ -177,9 +177,9 @@ func TestManageServEndps(t *testing.T) {
 		create := &Endpoint{Name: "create", NsName: nsName, ServName: servName, Address: "1.1.1.1", Port: 1010,
 			Metadata: map[string]string{"key": "val"},
 		}
-		createErr := &Endpoint{Name: "create-error", Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
-		exists := &Endpoint{Name: "exists", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
-		del := &Endpoint{Name: "del", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opKey: b.opVal, "key": "val"}}
+		createErr := &Endpoint{Name: "create-error", Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
+		exists := &Endpoint{Name: "exists", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
+		del := &Endpoint{Name: "del", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
 		f.endpList[exists.Name] = exists
 		f.endpList[del.Name] = del
 
@@ -195,10 +195,10 @@ func TestManageServEndps(t *testing.T) {
 		assert.Contains(f.createdEndp, createNil.Name)
 		assert.Equal(create.Name, f.endpList[create.Name].Name)
 		assert.Equal(create.ServName, f.endpList[create.Name].ServName)
-		assert.Equal(map[string]string{b.opKey: b.opVal, "key": "val"}, f.endpList[create.Name].Metadata)
+		assert.Equal(map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}, f.endpList[create.Name].Metadata)
 		assert.Equal(createNil.Name, f.endpList[createNil.Name].Name)
 		assert.Equal(createNil.ServName, f.endpList[createNil.Name].ServName)
-		assert.Equal(map[string]string{b.opKey: b.opVal}, f.endpList[createNil.Name].Metadata)
+		assert.Equal(map[string]string{b.opMetaPair.Key: b.opMetaPair.Value}, f.endpList[createNil.Name].Metadata)
 		assert.Equal(create.NsName, f.endpList[create.Name].NsName)
 
 		// assert that nothing was updated
