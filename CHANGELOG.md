@@ -5,9 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] (2021-06-25)
+
+### Added
+
+- Package `cluster` which contains code that performs operations on the cluster
+    that hosts the operator.
+- Automatic cloud metadata pull from GCP and AWS (although the latter is not
+    being fully used yet).
+- Get network and subnetwork data from GCP and AWS.
+- Automatically retrieve Google service account `Secret` from Kubernetes
+    without mounting).
+- `cloudMetadata` field in settings.
+- Documentation on how to install `etcd` on the cluster.
+
+### Changed
+
+- Broker now has *persistent metadata* that are **always** inserted in services
+    annotations/metadata on the service registry.
+- `.gitignore` now also includes `*.bak*` files.
+- Fixed some code typos such as `&*`.
+
 ## [0.3.0] (2021-01-22)
 
-## Added
+### Added
 
 - `etcd` package that wraps around an etcd client
 - `KeyBuilder` for easily building an etcd key
@@ -22,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - new utility functions in `utils`
 - go report badge on readme.md
 
-## Changed
+### Changed
 
 - `Service directory` documentation is moved to its own folder on `docs/gcp_service_directory`
 - main now uses `Goexit` for safer exit, but whole function will be changed in future
@@ -35,19 +56,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.1] (2020-10-19)
 
-## Added
+### Added
 
 - A service account, so that the operator does not use the default one anymore
 - Folder `deploy` containing pre-built yaml files, for an easier and
 quicker deployment.
 - Scripts `deploy.sh` and `remove.sh` to automate some commands.
 
-## Changed
+### Changed
 
 - RBAC is changed: role only asks for the bare minimum permissions it needs.
 - Version format.
 
-## Removed
+### Removed
 
 - Annotations list in `config/manager/settings.yaml` is now empty.
 - Leader election and metrics server
