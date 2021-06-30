@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2020, 2021 Cisco
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,14 +33,13 @@ import (
 type fakeRegClient struct {
 }
 
-func getFakeHandler() *servDir {
-	return &servDir{
-		project: "project",
-		region:  "us",
-		context: context.Background(),
-		client:  &fakeRegClient{},
-		log:     zap.New(zap.UseDevMode(true)),
-		timeout: 2,
+func getFakeHandler() *Handler {
+	return &Handler{
+		ProjectID:     "project",
+		DefaultRegion: "us",
+		Context:       context.Background(),
+		Client:        &fakeRegClient{},
+		Log:           zap.New(zap.UseDevMode(true)),
 	}
 }
 
