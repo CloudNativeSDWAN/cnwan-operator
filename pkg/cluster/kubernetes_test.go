@@ -105,3 +105,69 @@ func TestGetGoogleServiceAccountSecret(t *testing.T) {
 		kcli = nil
 	}
 }
+
+func TestGetEtcdCredentialsSecret(t *testing.T) {
+
+	anyErr := fmt.Errorf("any")
+	cases := []struct {
+		kcli    kubernetes.Interface
+		expUser string
+		expPass string
+		expErr  error
+	}{
+		{
+			kcli:   fake.NewSimpleClientset(),
+			expErr: anyErr,
+		},
+		{
+			kcli: func() kubernetes.Interface {
+				sec := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      defaultEtcdCredentialsSecretName,
+						Namespace: defaultK8sNamespace,
+					},
+				}
+				return fake.NewSimpleClientset(sec)
+			}(),
+			expUser: "",
+			expPass: "",
+		},
+		{
+			kcli: func() kubernetes.Interface {
+				sec := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      defaultEtcdCredentialsSecretName,
+						Namespace: defaultK8sNamespace,
+					},
+					Data: map[string][]byte{
+						"username": []byte("test"),
+						"password": []byte("test-1"),
+					},
+				}
+				return fake.NewSimpleClientset(sec)
+			}(),
+			expUser: "test",
+			expPass: "test-1",
+		},
+	}
+
+	for i, currCase := range cases {
+		a := assert.New(t)
+		kcli = currCase.kcli
+		user, pass, err := GetEtcdCredentialsSecret(context.Background())
+
+		if currCase.expErr == anyErr {
+			if err == nil {
+				a.FailNow("case failed: was expecting error but no error occurred", "i", i)
+			}
+
+			continue
+		}
+
+		if !a.Equal(currCase.expUser, user) || !a.Equal(currCase.expPass, pass) || !a.Equal(currCase.expErr, err) {
+			a.FailNow("case failed", "i", i)
+		}
+
+		kcli = nil
+	}
+}

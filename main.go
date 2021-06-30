@@ -18,11 +18,9 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"runtime"
-	"time"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/controllers"
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
@@ -33,12 +31,9 @@ import (
 	sd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/gcloud/servicedirectory"
 	"github.com/spf13/viper"
 	"go.etcd.io/etcd/clientv3"
-	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -156,7 +151,6 @@ func main() {
 	// Get the service registry
 	//--------------------------------------
 
-	var servRegErr error
 	if settings.ServiceRegistrySettings.EtcdSettings != nil {
 		setupLog.Info("using etcd as a service registry...")
 		_cli, err := getEtcdClient(settings.EtcdSettings)
@@ -167,7 +161,7 @@ func main() {
 		}
 		etcdClient = _cli
 		defer etcdClient.Close()
-		servreg, servRegErr = etcd.NewServiceRegistryWithEtcd(ctx, etcdClient, settings.EtcdSettings.Prefix)
+		servreg = etcd.NewServiceRegistryWithEtcd(ctx, etcdClient, settings.EtcdSettings.Prefix)
 	}
 	if settings.ServiceRegistrySettings.ServiceDirectorySettings != nil {
 		setupLog.Info("using gcloud service directory...")
@@ -188,12 +182,6 @@ func main() {
 		}
 
 		servreg = &sd.Handler{ProjectID: sdSettings.ProjectID, DefaultRegion: sdSettings.DefaultRegion, Log: setupLog.WithName("ServiceDirectory"), Context: ctx, Client: cli}
-	}
-
-	if servRegErr != nil {
-		setupLog.Error(err, "fatal error encountered")
-		returnCode = 5
-		runtime.Goexit()
 	}
 
 	srBroker, err := sr.NewBroker(servreg, sr.MetadataPair{Key: opKey, Value: opVal}, persistentMeta...)
@@ -277,77 +265,4 @@ func getSettings(fileName string) (*types.Settings, error) {
 	}
 
 	return &settings, nil
-}
-
-func getEtcdClient(settings *types.EtcdSettings) (*clientv3.Client, error) {
-	endps := []string{}
-
-	for _, endp := range settings.Endpoints {
-		endps = append(endps, fmt.Sprintf("%s:%d", endp.Host, *endp.Port))
-	}
-	cfg := clientv3.Config{
-		Endpoints: endps,
-	}
-
-	if settings.Authentication == types.EtcdAuthWithNothing {
-		return clientv3.New(cfg)
-	}
-
-	k8sconf := ctrl.GetConfigOrDie()
-	clientset, err := kubernetes.NewForConfig(k8sconf)
-	if err != nil {
-		return nil, err
-	}
-
-	if settings.Authentication == types.EtcdAuthWithUsernamePassw {
-		cfg, err := getEtcdConfWithCredentials(clientset)
-		if err != nil {
-			return nil, err
-		}
-
-		cfg.Endpoints = endps
-		return clientv3.New(*cfg)
-	}
-
-	// TODO: support for TLS: if authentication is through TLS if Username and Password are both nil, then look
-	// for the secrets containing the client's certificate and and key.
-	return nil, fmt.Errorf("unsupported etcd authentication method")
-}
-
-func getEtcdConfWithCredentials(clientset *kubernetes.Clientset) (*clientv3.Config, error) {
-	nsName := viper.GetString(types.CurrentNamespace)
-
-	ctx, canc := context.WithTimeout(context.Background(), time.Duration(15)*time.Second)
-	defer canc()
-
-	// Get username and password
-	secret, err := clientset.CoreV1().Secrets(nsName).Get(ctx, types.EtcdCredentialsSecretName, v1.GetOptions{})
-	if err != nil {
-		setupLog.Error(err, "error while trying to get secret with etcd credentials, skipping...")
-		return nil, err
-	}
-
-	// get it
-	data := secret.Data
-
-	unameVal, unameExists := data["username"]
-	passVal, passExist := data["password"]
-
-	if !unameExists && !passExist {
-		return nil, fmt.Errorf("username and password could not be found")
-	}
-
-	if len(unameVal) == 0 && len(passVal) == 0 {
-		setupLog.V(int(zapcore.WarnLevel)).Info("username and password are both empty")
-	}
-
-	cfg := &clientv3.Config{}
-	if len(unameVal) > 0 {
-		cfg.Username = string(unameVal)
-	}
-	if len(passVal) > 0 {
-		cfg.Password = string(passVal)
-	}
-
-	return cfg, nil
 }

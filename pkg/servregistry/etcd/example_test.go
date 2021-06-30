@@ -45,7 +45,7 @@ func ExampleNewServiceRegistryWithEtcd() {
 	// NewServiceRegistryWithEtcd returns an error only when the client is
 	// nil: this is not our case and that's why we do not check the error
 	// here.
-	servreg, _ := NewServiceRegistryWithEtcd(mainCtx, cli, nil)
+	servreg := NewServiceRegistryWithEtcd(mainCtx, cli, nil)
 
 	// Do something with the service registry...
 	_ = servreg
@@ -78,7 +78,7 @@ func ExampleNewServiceRegistryWithEtcd_withPrefix() {
 	// NewServiceRegistryWithEtcd returns an error only when the client is
 	// nil: this is not our case and that's why we do not check the error
 	// here.
-	servreg, _ := NewServiceRegistryWithEtcd(mainCtx, cli, &prefix)
+	servreg := NewServiceRegistryWithEtcd(mainCtx, cli, &prefix)
 
 	// Do something with the service registry...
 	_ = servreg
@@ -111,7 +111,7 @@ func ExampleNewServiceRegistryWithEtcd_withEmptyPrefix() {
 	// NewServiceRegistryWithEtcd returns an error only when the client is
 	// nil: this is not our case and that's why we do not check the error
 	// here.
-	servreg, _ := NewServiceRegistryWithEtcd(mainCtx, cli, &prefix)
+	servreg := NewServiceRegistryWithEtcd(mainCtx, cli, &prefix)
 
 	// Do something with the service registry...
 	_ = servreg

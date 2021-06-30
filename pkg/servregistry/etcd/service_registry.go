@@ -25,17 +25,11 @@ import (
 	"time"
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
-	"github.com/go-logr/logr"
 	clientv3 "go.etcd.io/etcd/clientv3"
 	namespace "go.etcd.io/etcd/clientv3/namespace"
 	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-)
-
-var (
-	log logr.Logger
 )
 
 const (
@@ -46,16 +40,12 @@ const (
 	defaultTimeout time.Duration = time.Duration(15) * time.Second
 )
 
-func init() {
-	log = zap.New(zap.UseDevMode(true)).WithName("etcd")
-}
-
-// etcdServReg is a wrap around an etcd client that allows you to perform
+// EtcdServReg is a wrap around an etcd client that allows you to perform
 // service registry operations on etcd, such as storing, updating, deleting
 // or retrieving a namespace, service, or endpoint.
 // It is an implementation of ServiceRegistry defined in
 // https://github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry.
-type etcdServReg struct {
+type EtcdServReg struct {
 	cli     *clientv3.Client
 	kv      clientv3.KV
 	prefix  string
@@ -86,30 +76,20 @@ type etcdServReg struct {
 // queries to etcd will be based on.
 //
 // This method returns an error only if the client provided to it is nil.
-func NewServiceRegistryWithEtcd(ctx context.Context, cli *clientv3.Client, prefix *string) (sr.ServiceRegistry, error) {
-	if cli == nil {
-		return nil, ErrNilClient
-	}
-
-	c := context.Background()
-	if ctx != nil {
-		c = ctx
-	}
-
+func NewServiceRegistryWithEtcd(ctx context.Context, cli *clientv3.Client, prefix *string) *EtcdServReg {
 	// Use the default prefix (/service-registry),
 	// unless the prefix is not nil, in which case we use that one.
 	pref := parsePrefix(prefix)
-	kv := namespace.NewKV(cli.KV, pref)
 
-	return &etcdServReg{
+	return &EtcdServReg{
 		cli:     cli,
-		kv:      kv,
+		kv:      namespace.NewKV(cli.KV, pref),
 		prefix:  pref,
-		mainCtx: c,
-	}, nil
+		mainCtx: ctx,
+	}
 }
 
-func (e *etcdServReg) ExtractData(ns *corev1.Namespace, serv *corev1.Service) (*sr.Namespace, *sr.Service, []*sr.Endpoint, error) {
+func (e *EtcdServReg) ExtractData(ns *corev1.Namespace, serv *corev1.Service) (*sr.Namespace, *sr.Service, []*sr.Endpoint, error) {
 	// NOTE: on future versions, this function will be removed from service
 	// registry and moved to the broker instead: it's not this package's job
 	// to convert structs.
@@ -180,7 +160,7 @@ func (e *etcdServReg) ExtractData(ns *corev1.Namespace, serv *corev1.Service) (*
 	return namespaceData, serviceData, endpointsData, nil
 }
 
-func (e *etcdServReg) getOne(ctx context.Context, key *KeyBuilder) (interface{}, error) {
+func (e *EtcdServReg) getOne(ctx context.Context, key *KeyBuilder) (interface{}, error) {
 	// This function is not exported and thus is only for internal purpose
 	// only: any checks and validations are performed by the caller
 	// and not here.
@@ -220,7 +200,7 @@ func (e *etcdServReg) getOne(ctx context.Context, key *KeyBuilder) (interface{},
 	}
 }
 
-func (e *etcdServReg) getList(ctx context.Context, key *KeyBuilder, each func([]byte)) error {
+func (e *EtcdServReg) getList(ctx context.Context, key *KeyBuilder, each func([]byte)) error {
 	var objectsToFind ObjectType
 	var suffix string
 	if key == nil {
@@ -262,7 +242,7 @@ func (e *etcdServReg) getList(ctx context.Context, key *KeyBuilder, each func([]
 	return nil
 }
 
-func (e *etcdServReg) put(ctx context.Context, object interface{}, update bool) error {
+func (e *EtcdServReg) put(ctx context.Context, object interface{}, update bool) error {
 	if object == nil {
 		return ErrNilObject
 	}
@@ -329,7 +309,7 @@ func (e *etcdServReg) put(ctx context.Context, object interface{}, update bool) 
 	return sr.ErrNotFound
 }
 
-func (e *etcdServReg) delete(ctx context.Context, key *KeyBuilder) error {
+func (e *EtcdServReg) delete(ctx context.Context, key *KeyBuilder) error {
 	condition := clientv3.Compare(clientv3.CreateRevision(key.String()), ">", 0)
 
 	// We need to remove all children elements.

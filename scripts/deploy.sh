@@ -188,7 +188,7 @@ fi;
 
 if [ "$SR" == "etcd" ]; then
     if [ \( ! -z "$ETCD_PASSWORD" \) -a \( ! -z "$ETCD_USERNAME" \) ]; then
-        kubectl create secret generic cnwan-operator-etcd-credentials -n cnwan-operator-system --from-literal=username=$ETCD_USERNAME --from-literal=password=$ETCD_PASSWORD
+        kubectl create secret generic etcd-credentials -n cnwan-operator-system --from-literal=username=$ETCD_USERNAME --from-literal=password=$ETCD_PASSWORD
     fi;
 fi;
 

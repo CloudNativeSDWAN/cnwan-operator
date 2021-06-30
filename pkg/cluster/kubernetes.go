@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -29,6 +29,7 @@ import (
 const (
 	defaultK8sNamespace                   string = "cnwan-operator-system"
 	defaultGoogleServiceAccountSecretName string = "google-service-account"
+	defaultEtcdCredentialsSecretName      string = "etcd-credentials"
 )
 
 var (
@@ -53,17 +54,26 @@ func getK8sClientSet() (kubernetes.Interface, error) {
 	return kcli, nil
 }
 
-// GetGoogleServiceAccountSecret tries to retrieve the Google Service Account
-// secret from Kubernetes, so that it could be used to login to Google Cloud
-// services such as Service Directory or to pull cloud metadata/configuration.
-func GetGoogleServiceAccountSecret(ctx context.Context) ([]byte, error) {
+func getSecret(ctx context.Context, name string) (*corev1.Secret, error) {
 	cli, err := getK8sClientSet()
 	if err != nil {
 		return nil, err
 	}
 
 	// TODO: May change this on future to use a different namespace.
-	secret, err := cli.CoreV1().Secrets(defaultK8sNamespace).Get(ctx, defaultGoogleServiceAccountSecretName, metav1.GetOptions{})
+	secret, err := cli.CoreV1().Secrets(defaultK8sNamespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return secret, nil
+}
+
+// GetGoogleServiceAccountSecret tries to retrieve the Google Service Account
+// secret from Kubernetes, so that it could be used to login to Google Cloud
+// services such as Service Directory or to pull cloud metadata/configuration.
+func GetGoogleServiceAccountSecret(ctx context.Context) ([]byte, error) {
+	secret, err := getSecret(ctx, defaultGoogleServiceAccountSecretName)
 	if err != nil {
 		return nil, err
 	}
@@ -82,4 +92,15 @@ func GetGoogleServiceAccountSecret(ctx context.Context) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+// GetEtcdCredentials tries to retrieve the etcd credentials secret from
+// Kubernetes, so that it could be used to start an etcd client.
+func GetEtcdCredentialsSecret(ctx context.Context) (string, string, error) {
+	secret, err := getSecret(ctx, defaultEtcdCredentialsSecretName)
+	if err != nil {
+		return "", "", err
+	}
+
+	return string(secret.Data["username"]), string(secret.Data["password"]), nil
 }

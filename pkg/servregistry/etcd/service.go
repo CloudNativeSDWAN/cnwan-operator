@@ -24,7 +24,7 @@ import (
 )
 
 // GetServ returns the service if exists.
-func (e *etcdServReg) GetServ(nsName, servName string) (*sr.Service, error) {
+func (e *EtcdServReg) GetServ(nsName, servName string) (*sr.Service, error) {
 	key, err := KeyFromServiceRegistryObject(&sr.Service{NsName: nsName, Name: servName})
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func (e *etcdServReg) GetServ(nsName, servName string) (*sr.Service, error) {
 }
 
 // ListServ returns a list of services inside the provided namespace.
-func (e *etcdServReg) ListServ(nsName string) (servList []*sr.Service, err error) {
+func (e *EtcdServReg) ListServ(nsName string) (servList []*sr.Service, err error) {
 	if !KeyFromNames(nsName).IsValid() {
 		return nil, sr.ErrNsNameNotProvided
 	}
@@ -66,7 +66,7 @@ func (e *etcdServReg) ListServ(nsName string) (servList []*sr.Service, err error
 }
 
 // CreateServ creates the service.
-func (e *etcdServReg) CreateServ(serv *sr.Service) (*sr.Service, error) {
+func (e *EtcdServReg) CreateServ(serv *sr.Service) (*sr.Service, error) {
 	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
 	defer canc()
 
@@ -78,7 +78,7 @@ func (e *etcdServReg) CreateServ(serv *sr.Service) (*sr.Service, error) {
 }
 
 // UpdateServ updates the service.
-func (e *etcdServReg) UpdateServ(serv *sr.Service) (*sr.Service, error) {
+func (e *EtcdServReg) UpdateServ(serv *sr.Service) (*sr.Service, error) {
 	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
 	defer canc()
 
@@ -90,7 +90,7 @@ func (e *etcdServReg) UpdateServ(serv *sr.Service) (*sr.Service, error) {
 }
 
 // DeleteServ deletes the service.
-func (e *etcdServReg) DeleteServ(nsName, servName string) error {
+func (e *EtcdServReg) DeleteServ(nsName, servName string) error {
 	key, err := KeyFromServiceRegistryObject(&sr.Service{NsName: nsName, Name: servName})
 	if err != nil {
 		return err

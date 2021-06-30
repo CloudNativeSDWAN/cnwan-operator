@@ -20,10 +20,12 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	sd "cloud.google.com/go/servicedirectory/apiv1"
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/cluster"
+	"go.etcd.io/etcd/clientv3"
 	"google.golang.org/api/option"
 )
 
@@ -129,4 +131,43 @@ func parseAndResetGSDSettings(gcSettings *types.ServiceDirectorySettings) (*type
 	}
 
 	return newSettings, nil
+}
+
+func getEtcdClient(settings *types.EtcdSettings) (*clientv3.Client, error) {
+	endps := []string{}
+
+	for _, endp := range settings.Endpoints {
+		endps = append(endps, fmt.Sprintf("%s:%d", endp.Host, *endp.Port))
+	}
+	cfg := clientv3.Config{
+		Endpoints: endps,
+	}
+
+	if settings.Authentication == types.EtcdAuthWithNothing {
+		return clientv3.New(cfg)
+	}
+
+	ctx, canc := context.WithTimeout(context.Background(), time.Duration(15)*time.Second)
+	defer canc()
+
+	if settings.Authentication == types.EtcdAuthWithUsernamePassw {
+		user, pass, err := cluster.GetEtcdCredentialsSecret(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(user) > 0 {
+			cfg.Username = string(user)
+		}
+		if len(pass) > 0 {
+			cfg.Password = string(pass)
+		}
+
+		cfg.Endpoints = endps
+		return clientv3.New(cfg)
+	}
+
+	// TODO: support for TLS: if authentication is through TLS if Username and Password are both nil, then look
+	// for the secrets containing the client's certificate and and key.
+	return nil, fmt.Errorf("unsupported etcd authentication method")
 }
