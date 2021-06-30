@@ -21,9 +21,9 @@ import (
 	"errors"
 	"strings"
 
-	sd "cloud.google.com/go/servicedirectory/apiv1beta1"
+	sd "cloud.google.com/go/servicedirectory/apiv1"
 	gax "github.com/googleapis/gax-go"
-	sdpb "google.golang.org/genproto/googleapis/cloud/servicedirectory/v1beta1"
+	sdpb "google.golang.org/genproto/googleapis/cloud/servicedirectory/v1"
 	iampb "google.golang.org/genproto/googleapis/iam/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

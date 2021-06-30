@@ -22,11 +22,9 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"sync"
 	"time"
 
-	sd "cloud.google.com/go/servicedirectory/apiv1beta1"
-	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
+	sd "cloud.google.com/go/servicedirectory/apiv1"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"github.com/go-logr/logr"
 	"google.golang.org/api/option"
@@ -35,14 +33,12 @@ import (
 )
 
 type servDir struct {
-	project     string
-	region      string
-	client      regClient
-	log         logr.Logger
-	context     context.Context
-	resMetadata map[string]string
-	timeout     time.Duration
-	lock        sync.Mutex
+	project string
+	region  string
+	client  regClient
+	log     logr.Logger
+	context context.Context
+	timeout time.Duration
 }
 
 // NewHandler creates a handler for service directory. The handler will set up
@@ -54,7 +50,7 @@ type servDir struct {
 //
 // It returns an instance of ServiceRegistry, or nil and an error in case
 // something went wrong
-func NewHandler(ctx context.Context, project, region, credsPath string, timeout int) (servregistry.ServiceRegistry, error) {
+func NewHandler(ctx context.Context, project, region, credsPath string, timeout int) (sr.ServiceRegistry, error) {
 	// -- Init
 	s := &servDir{
 		context: ctx,

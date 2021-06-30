@@ -23,7 +23,7 @@ import (
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"google.golang.org/api/iterator"
-	sdpb "google.golang.org/genproto/googleapis/cloud/servicedirectory/v1beta1"
+	sdpb "google.golang.org/genproto/googleapis/cloud/servicedirectory/v1"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -45,7 +45,7 @@ func (s *servDir) GetServ(nsName, servName string) (*sr.Service, error) {
 		serv := &sr.Service{
 			Name:     servName,
 			NsName:   nsName,
-			Metadata: sdServ.Metadata,
+			Metadata: sdServ.Annotations,
 		}
 		if serv.Metadata == nil {
 			serv.Metadata = map[string]string{}
@@ -109,7 +109,7 @@ func (s *servDir) ListServ(nsName string) (servList []*sr.Service, err error) {
 		serv := &sr.Service{
 			Name:     splitName[len(splitName)-1],
 			NsName:   nsName,
-			Metadata: nextServ.Metadata,
+			Metadata: nextServ.Annotations,
 		}
 		if serv.Metadata == nil {
 			serv.Metadata = map[string]string{}
@@ -135,8 +135,8 @@ func (s *servDir) CreateServ(serv *sr.Service) (*sr.Service, error) {
 	defer canc()
 
 	servToCreate := &sdpb.Service{
-		Name:     serv.Name,
-		Metadata: serv.Metadata,
+		Name:        serv.Name,
+		Annotations: serv.Metadata,
 	}
 
 	req := &sdpb.CreateServiceRequest{
@@ -183,8 +183,8 @@ func (s *servDir) UpdateServ(serv *sr.Service) (*sr.Service, error) {
 	defer canc()
 
 	servToUpd := &sdpb.Service{
-		Name:     s.getResourcePath(servDirPath{namespace: serv.NsName, service: serv.Name}),
-		Metadata: serv.Metadata,
+		Name:        s.getResourcePath(servDirPath{namespace: serv.NsName, service: serv.Name}),
+		Annotations: serv.Metadata,
 	}
 
 	req := &sdpb.UpdateServiceRequest{

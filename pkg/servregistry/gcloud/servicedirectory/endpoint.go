@@ -23,7 +23,7 @@ import (
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"google.golang.org/api/iterator"
-	sdpb "google.golang.org/genproto/googleapis/cloud/servicedirectory/v1beta1"
+	sdpb "google.golang.org/genproto/googleapis/cloud/servicedirectory/v1"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -46,7 +46,7 @@ func (s *servDir) GetEndp(nsName, servName, endpName string) (*sr.Endpoint, erro
 			Name:     endpName,
 			NsName:   nsName,
 			ServName: servName,
-			Metadata: sdEndp.Metadata,
+			Metadata: sdEndp.Annotations,
 		}
 		if endp.Metadata == nil {
 			endp.Metadata = map[string]string{}
@@ -111,7 +111,7 @@ func (s *servDir) ListEndp(nsName, servName string) (endpList []*sr.Endpoint, er
 			Name:     splitName[len(splitName)-1],
 			ServName: servName,
 			NsName:   nsName,
-			Metadata: nextEndp.Metadata,
+			Metadata: nextEndp.Annotations,
 		}
 		if endp.Metadata == nil {
 			endp.Metadata = map[string]string{}
@@ -137,10 +137,10 @@ func (s *servDir) CreateEndp(endp *sr.Endpoint) (*sr.Endpoint, error) {
 	defer canc()
 
 	endpToCreate := &sdpb.Endpoint{
-		Name:     endp.Name,
-		Metadata: endp.Metadata,
-		Address:  endp.Address,
-		Port:     endp.Port,
+		Name:        endp.Name,
+		Annotations: endp.Metadata,
+		Address:     endp.Address,
+		Port:        endp.Port,
 	}
 
 	req := &sdpb.CreateEndpointRequest{
@@ -188,10 +188,10 @@ func (s *servDir) UpdateEndp(endp *sr.Endpoint) (*sr.Endpoint, error) {
 	defer canc()
 
 	endpToUpd := &sdpb.Endpoint{
-		Name:     endpPath,
-		Metadata: endp.Metadata,
-		Address:  endp.Address,
-		Port:     endp.Port,
+		Name:        endpPath,
+		Annotations: endp.Metadata,
+		Address:     endp.Address,
+		Port:        endp.Port,
 	}
 
 	req := &sdpb.UpdateEndpointRequest{
