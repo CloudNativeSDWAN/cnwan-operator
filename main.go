@@ -30,6 +30,7 @@ import (
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/cluster"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
+	sd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/gcloud/servicedirectory"
 	"github.com/spf13/viper"
 	"go.etcd.io/etcd/clientv3"
 	"go.uber.org/zap/zapcore"
@@ -186,8 +187,7 @@ func main() {
 			runtime.Goexit()
 		}
 
-		// TODO: get new handler
-		_ = sdSettings
+		servreg = &sd.Handler{ProjectID: sdSettings.ProjectID, DefaultRegion: sdSettings.DefaultRegion, Log: setupLog.WithName("ServiceDirectory"), Context: ctx, Client: cli}
 	}
 
 	if servRegErr != nil {
