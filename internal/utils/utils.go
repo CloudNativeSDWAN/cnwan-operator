@@ -26,11 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-const (
-	hashFormat string = "%s:%d"
-	hashChars  int    = 10
-)
-
 var (
 	log = zap.New(zap.UseDevMode(false))
 )
@@ -81,6 +76,7 @@ func FilterAnnotations(annotations map[string]string) map[string]string {
 //
 // In case of any errors, the settings returned is nil and the error
 // occurred is returned.
+// TODO: remove this in favor a independent ConfigMaps/Secrets validation.
 func ParseAndValidateSettings(settings *types.Settings) (*types.Settings, error) {
 	if settings == nil {
 		return nil, fmt.Errorf("no settings provided")
@@ -163,10 +159,7 @@ func ParseAndValidateSettings(settings *types.Settings) (*types.Settings, error)
 		return finalSettings, nil
 	}
 
-	if err := parseServDirSettings(settings.ServiceDirectorySettings); err != nil {
-		return nil, err
-	}
-	// Nothing more to check
+	// service directory settings is parsed on another function now.
 	finalSettings.ServiceDirectorySettings = settings.ServiceDirectorySettings
 	settings = finalSettings
 
@@ -220,16 +213,4 @@ func parseEtcdSettings(settings *types.EtcdSettings) (*types.EtcdSettings, error
 	}
 
 	return finalSettings, nil
-}
-
-func parseServDirSettings(settings *types.ServiceDirectorySettings) error {
-	if len(settings.DefaultRegion) == 0 {
-		return fmt.Errorf("default region not provided for service directory")
-	}
-
-	if len(settings.ProjectID) == 0 {
-		return fmt.Errorf("project ID not provided for service directory")
-	}
-
-	return nil
 }

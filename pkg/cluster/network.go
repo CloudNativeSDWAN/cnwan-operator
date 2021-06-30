@@ -19,6 +19,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	gcpmetadata "cloud.google.com/go/compute/metadata"
@@ -54,6 +55,9 @@ func init() {
 	iAmIn = WhereAmIRunning()
 }
 
+// WhereAmIRunning attempts to detect the platform where the CN-WAN Operator is
+// running and returns the name of the platform if found, otherwise it returns
+// UnknownCluster.
 func WhereAmIRunning() ClusterManager {
 	if iAmIn != "" {
 		return iAmIn
@@ -81,6 +85,7 @@ func amIInGKE() bool {
 	return gcpmetadata.OnGCE()
 }
 
+// GetNetworkFromGKE returns the network from GKE.
 func GetNetworkFromGKE(ctx context.Context, opts ...gcoption.ClientOption) (*NetworkConfiguration, error) {
 	if iAmIn != GKECluster {
 		return nil, fmt.Errorf("not running in GKE or no permissions to get metadata from GKE")
@@ -122,6 +127,7 @@ func GetNetworkFromGKE(ctx context.Context, opts ...gcoption.ClientOption) (*Net
 	return &NetworkConfiguration{cluster.Network, cluster.Subnetwork}, nil
 }
 
+// GetNetworkFromEKS returns the network from EKS.
 func GetNetworkFromEKS(ctx context.Context, cfgs ...*aws.Config) (*NetworkConfiguration, error) {
 	if iAmIn != EKSCluster {
 		return nil, fmt.Errorf("not running in EKS or no permissions to get metadata from EKS")
@@ -160,4 +166,30 @@ func GetNetworkFromEKS(ctx context.Context, cfgs ...*aws.Config) (*NetworkConfig
 
 	inst := out.Reservations[0].Instances[0]
 	return &NetworkConfiguration{aws.StringValue(inst.VpcId), aws.StringValue(inst.SubnetId)}, nil
+}
+
+// GetGCPRegion attempts to get the region where GKE is running in.
+// This is not called GetGKERegion but GetGCPRegion to be consistent with
+// GCP sdk.
+func GetGCPRegion() (*string, error) {
+	zone, err := gcpmetadata.Zone()
+	if err != nil {
+		return nil, err
+	}
+
+	i := strings.LastIndex(zone, "-")
+	if i == -1 {
+		return nil, fmt.Errorf("unexpected zone found: %s", zone)
+	}
+
+	region := zone[:i]
+	return &region, err
+}
+
+// GetGCPProjectID attempts to get the project ID where GKE is running in.
+// This is not called GetGKEProjectID but GetGCPProjectID to be consistent with
+// GCP sdk.
+func GetGCPProjectID() (*string, error) {
+	id, err := gcpmetadata.ProjectID()
+	return &id, err
 }

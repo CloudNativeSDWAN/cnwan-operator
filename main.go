@@ -22,7 +22,6 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/controllers"
@@ -31,11 +30,9 @@ import (
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/cluster"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
-	sd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/gcloud/servicedirectory"
 	"github.com/spf13/viper"
 	"go.etcd.io/etcd/clientv3"
 	"go.uber.org/zap/zapcore"
-	"google.golang.org/api/option"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -173,7 +170,24 @@ func main() {
 	}
 	if settings.ServiceRegistrySettings.ServiceDirectorySettings != nil {
 		setupLog.Info("using gcloud service directory...")
-		servreg, servRegErr = getServiceDirectoryHandler(ctx, settings.ServiceRegistrySettings.ProjectID, settings.ServiceRegistrySettings.DefaultRegion)
+
+		cli, err := getGSDClient(context.Background())
+		if err != nil {
+			setupLog.Error(err, "fatal error encountered")
+			returnCode = 11
+			runtime.Goexit()
+		}
+		defer cli.Close()
+
+		sdSettings, err := parseAndResetGSDSettings(settings.ServiceRegistrySettings.ServiceDirectorySettings)
+		if err != nil {
+			setupLog.Error(err, "fatal error encountered")
+			returnCode = 11
+			runtime.Goexit()
+		}
+
+		// TODO: get new handler
+		_ = sdSettings
 	}
 
 	if servRegErr != nil {
@@ -232,24 +246,6 @@ func main() {
 		returnCode = 10
 		runtime.Goexit()
 	}
-}
-
-func getServiceDirectoryHandler(ctx context.Context, projectID, defaultRegion string) (sr.ServiceRegistry, error) {
-	// TODO: this will be heavily improved in future versions
-
-	credsPath := defaultSdServAccPath
-
-	// is specified on env?
-	if fromEnv := os.Getenv("CNWAN_OPERATOR_SETTINGS_PATH"); len(fromEnv) > 0 {
-		credsPath = fromEnv
-	}
-
-	sdHandler, err := sd.NewHandler(ctx, projectID, defaultRegion, credsPath, defaultTimeout)
-	if err != nil {
-		return nil, err
-	}
-
-	return sdHandler, nil
 }
 
 func getSettingsPath() string {
@@ -354,46 +350,4 @@ func getEtcdConfWithCredentials(clientset *kubernetes.Clientset) (*clientv3.Conf
 	}
 
 	return cfg, nil
-}
-
-func getNetworkCfg(network, subnetwork *string) (netCfg *cluster.NetworkConfiguration, err error) {
-	netCfg = &cluster.NetworkConfiguration{}
-	if network != nil {
-		netCfg.NetworkName = *network
-	}
-	if subnetwork != nil {
-		netCfg.SubNetworkName = *subnetwork
-	}
-
-	if strings.ToLower(netCfg.NetworkName) == "auto" || strings.ToLower(netCfg.SubNetworkName) == "auto" {
-		var res *cluster.NetworkConfiguration
-		runningIn := cluster.WhereAmIRunning()
-		if runningIn == cluster.UnknownCluster {
-			return nil, fmt.Errorf("could not get information about the managed cluster: unsupported or no permissions to do so")
-		}
-
-		if runningIn == cluster.GKECluster {
-			sa, err := cluster.GetGoogleServiceAccountSecret(context.Background())
-			if err != nil {
-				return nil, err
-			}
-
-			res, err = cluster.GetNetworkFromGKE(context.Background(), option.WithCredentialsJSON(sa))
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		// TODO: implement EKS on future versions. Code is ready but just not
-		// included in this iteration.
-
-		if strings.ToLower(netCfg.NetworkName) == "auto" {
-			netCfg.NetworkName = res.NetworkName
-		}
-		if strings.ToLower(netCfg.SubNetworkName) == "auto" {
-			netCfg.SubNetworkName = res.SubNetworkName
-		}
-	}
-
-	return
 }
