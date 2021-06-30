@@ -35,7 +35,7 @@ function print_help {
     echo
     echo 
     echo "Global options:"
-    echo "--img         the image repository, in case you don't want to use CN-WAN Operator's default one"
+    echo "--image       the image repository, in case you don't want to use CN-WAN Operator's default one"
     echo "--help        show this help"
     echo
     echo "servicedirectory options:"
@@ -46,7 +46,7 @@ function print_help {
     echo
     echo "Examples:"
     echo "deploy.sh etcd --username user --password pass"
-    echo "deploy.sh servicedirectory --img example.com/username/repo:tag"
+    echo "deploy.sh servicedirectory --image example.com/username/repo:tag"
     echo
 }
 
@@ -128,7 +128,7 @@ while test $# -gt 0; do
             shift
         ;;
 
-        --img)
+        --image)
             shift
             if test $# -gt 0; then
                 IMG=$1
@@ -183,17 +183,16 @@ kubectl create -f $DEPLOY_DIR/02_service_account.yaml,$DEPLOY_DIR/03_cluster_rol
 kubectl create configmap cnwan-operator-settings -n cnwan-operator-system --from-file=$SETTINGS_YAML
 
 if [ "$SR" == "servicedirectory" ]; then
-    kubectl create secret generic cnwan-operator-service-handler-account -n cnwan-operator-system --from-file=$GC_SERV_ACC
-    sed -e "s#{CONTAINER_IMAGE}#$IMG#" $DEPLOY_DIR/deployment/with_service_account.yaml.tpl > $DEPLOY_DIR/07_deployment_generated.yaml
+    kubectl create secret generic google-service-account -n cnwan-operator-system --from-file=$GC_SERV_ACC
 fi;
 
 if [ "$SR" == "etcd" ]; then
-    sed -e "s#{CONTAINER_IMAGE}#$IMG#" $DEPLOY_DIR/deployment/base.yaml.tpl > $DEPLOY_DIR/07_deployment_generated.yaml
     if [ \( ! -z "$ETCD_PASSWORD" \) -a \( ! -z "$ETCD_USERNAME" \) ]; then
         kubectl create secret generic cnwan-operator-etcd-credentials -n cnwan-operator-system --from-literal=username=$ETCD_USERNAME --from-literal=password=$ETCD_PASSWORD
     fi;
 fi;
 
+sed -e "s#{CONTAINER_IMAGE}#$IMG#" $DEPLOY_DIR/07_deployment.yaml.tpl > $DEPLOY_DIR/07_deployment_generated.yaml
 kubectl create -f $DEPLOY_DIR/07_deployment_generated.yaml
 
 print_success
