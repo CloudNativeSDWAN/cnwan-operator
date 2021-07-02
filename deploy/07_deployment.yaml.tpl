@@ -22,10 +22,6 @@ spec:
         control-plane: controller-manager
         cnwan.io/application: operator
     spec:
-      volumes:
-        - name: settings
-          configMap:
-            name: cnwan-operator-settings
       containers:
         - name: manager
           image: {CONTAINER_IMAGE}
@@ -36,10 +32,6 @@ spec:
             requests:
               cpu: 100m
               memory: 20Mi
-          volumeMounts:
-            - name: settings
-              readOnly: true
-              mountPath: /settings
           imagePullPolicy: Always
           env:
           - name: CNWAN_OPERATOR_NAMESPACE

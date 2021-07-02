@@ -66,7 +66,7 @@ func TestGetGoogleServiceAccountSecret(t *testing.T) {
 				}
 				return fake.NewSimpleClientset(sec)
 			}(),
-			expErr: fmt.Errorf(`secrets  %s/%s has multiple data`, defaultK8sNamespace, defaultGoogleServiceAccountSecretName),
+			expErr: fmt.Errorf(`secret %s/%s has multiple data`, defaultK8sNamespace, defaultGoogleServiceAccountSecretName),
 		},
 		{
 			kcli: func() kubernetes.Interface {
@@ -165,6 +165,84 @@ func TestGetEtcdCredentialsSecret(t *testing.T) {
 		}
 
 		if !a.Equal(currCase.expUser, user) || !a.Equal(currCase.expPass, pass) || !a.Equal(currCase.expErr, err) {
+			a.FailNow("case failed", "i", i)
+		}
+
+		kcli = nil
+	}
+}
+
+func TestGetOperatorSettingsConfigMap(t *testing.T) {
+
+	anyErr := fmt.Errorf("any")
+	cases := []struct {
+		kcli   kubernetes.Interface
+		expRes []byte
+		expErr error
+	}{
+		{
+			kcli:   fake.NewSimpleClientset(),
+			expErr: anyErr,
+		},
+		{
+			kcli: func() kubernetes.Interface {
+				sec := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      defaultOpSettingsConfigmapName,
+						Namespace: defaultK8sNamespace,
+					},
+				}
+				return fake.NewSimpleClientset(sec)
+			}(),
+			expErr: fmt.Errorf(`configmap %s/%s has no data`, defaultK8sNamespace, defaultOpSettingsConfigmapName),
+		},
+		{
+			kcli: func() kubernetes.Interface {
+				sec := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      defaultOpSettingsConfigmapName,
+						Namespace: defaultK8sNamespace,
+					},
+					Data: map[string]string{
+						"test-1": "test-1",
+						"test-2": "test-2",
+					},
+				}
+				return fake.NewSimpleClientset(sec)
+			}(),
+			expErr: fmt.Errorf(`configmap %s/%s has multiple data`, defaultK8sNamespace, defaultOpSettingsConfigmapName),
+		},
+		{
+			kcli: func() kubernetes.Interface {
+				sec := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      defaultOpSettingsConfigmapName,
+						Namespace: defaultK8sNamespace,
+					},
+					Data: map[string]string{
+						"test-1": "test-1",
+					},
+				}
+				return fake.NewSimpleClientset(sec)
+			}(),
+			expRes: []byte("test-1"),
+		},
+	}
+
+	for i, currCase := range cases {
+		a := assert.New(t)
+		kcli = currCase.kcli
+		res, err := GetOperatorSettingsConfigMap(context.Background())
+
+		if currCase.expErr == anyErr {
+			if err == nil {
+				a.FailNow("case failed: was expecting error but no error occurred", "i", i)
+			}
+
+			continue
+		}
+
+		if !a.Equal(currCase.expRes, res) || !a.Equal(currCase.expErr, err) {
 			a.FailNow("case failed", "i", i)
 		}
 

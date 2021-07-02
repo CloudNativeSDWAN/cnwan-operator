@@ -30,6 +30,7 @@ const (
 	defaultK8sNamespace                   string = "cnwan-operator-system"
 	defaultGoogleServiceAccountSecretName string = "google-service-account"
 	defaultEtcdCredentialsSecretName      string = "etcd-credentials"
+	defaultOpSettingsConfigmapName        string = "cnwan-operator-settings"
 )
 
 var (
@@ -82,7 +83,7 @@ func GetGoogleServiceAccountSecret(ctx context.Context) ([]byte, error) {
 	case l == 0:
 		return nil, fmt.Errorf(`secret %s/%s has no data`, defaultK8sNamespace, defaultGoogleServiceAccountSecretName)
 	case l > 1:
-		return nil, fmt.Errorf(`secrets  %s/%s has multiple data`, defaultK8sNamespace, defaultGoogleServiceAccountSecretName)
+		return nil, fmt.Errorf(`secret %s/%s has multiple data`, defaultK8sNamespace, defaultGoogleServiceAccountSecretName)
 	}
 
 	var data []byte
@@ -103,4 +104,32 @@ func GetEtcdCredentialsSecret(ctx context.Context) (string, string, error) {
 	}
 
 	return string(secret.Data["username"]), string(secret.Data["password"]), nil
+}
+
+func GetOperatorSettingsConfigMap(ctx context.Context) ([]byte, error) {
+	cli, err := getK8sClientSet()
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: May change this on future to use a different namespace.
+	cfgm, err := cli.CoreV1().ConfigMaps(defaultK8sNamespace).Get(ctx, defaultOpSettingsConfigmapName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	switch l := len(cfgm.Data); {
+	case l == 0:
+		return nil, fmt.Errorf(`configmap %s/%s has no data`, defaultK8sNamespace, defaultOpSettingsConfigmapName)
+	case l > 1:
+		return nil, fmt.Errorf(`configmap %s/%s has multiple data`, defaultK8sNamespace, defaultOpSettingsConfigmapName)
+	}
+
+	var data []byte
+	for _, d := range cfgm.Data {
+		data = []byte(d)
+		break
+	}
+
+	return data, err
 }
