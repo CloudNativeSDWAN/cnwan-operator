@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2020, 2021 Cisco
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import (
 
 func TestExtractData(t *testing.T) {
 	nsName, servName := "ns", "serv"
-	s := &servDir{}
+	s := &Handler{}
 	ips := []string{"10.10.10.10", "11.11.11.11"}
 	ports := []int32{3333, 4444}
 	nsToTest := &corev1.Namespace{

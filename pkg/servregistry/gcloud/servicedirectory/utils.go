@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2020, 2021 Cisco
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,18 +30,18 @@ type servDirPath struct {
 	endpoint  string
 }
 
-func (s *servDir) getResourcePath(res servDirPath) string {
+func (s *Handler) getResourcePath(res servDirPath) string {
 	resource := ""
 
 	proj := res.project
 	if len(proj) == 0 {
-		proj = s.project
+		proj = s.ProjectID
 	}
 	resource = path.Join("projects", proj)
 
 	loc := res.region
 	if len(loc) == 0 {
-		loc = s.region
+		loc = s.DefaultRegion
 	}
 	resource = path.Join(resource, "locations", loc)
 
@@ -60,7 +60,7 @@ func (s *servDir) getResourcePath(res servDirPath) string {
 	return resource
 }
 
-func (s *servDir) checkNames(nsName, servName, endpName *string) error {
+func (s *Handler) checkNames(nsName, servName, endpName *string) error {
 	if nsName != nil && len(*nsName) == 0 {
 		return sr.ErrNsNameNotProvided
 	}

@@ -62,10 +62,10 @@ To deploy the operator with the provided script, you will have to execute `deplo
 ./scripts/deploy.sh <service-registry>
 ```
 
-If you want to use your own image, you'll need to provide `--img` flag, for example:
+If you want to use your own image, you'll need to provide `--image` flag, for example:
 
 ```bash
-./scripts/deploy.sh etcd --img example.com/repository/image:tag
+./scripts/deploy.sh etcd --image example.com/repository/image:tag
 ```
 
 Follow the two sections below according to the service registry you chose and, after that and if everything goes fine, CN-WAN Operator will run in namespace `cnwan-operator-system` and deployed to a suitable and available worker node.

@@ -3,7 +3,7 @@ module github.com/CloudNativeSDWAN/cnwan-operator
 go 1.13
 
 require (
-	cloud.google.com/go v0.72.0
+	cloud.google.com/go v0.84.0
 	github.com/aws/aws-sdk-go v1.38.60
 	github.com/go-logr/logr v0.1.0
 	github.com/googleapis/gax-go v1.0.3
@@ -14,11 +14,9 @@ require (
 	github.com/stretchr/testify v1.6.1
 	go.etcd.io/etcd v0.0.0-20191023171146-3cf2f69b5738
 	go.uber.org/zap v1.10.0
-	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5 // indirect
-	golang.org/x/tools v0.1.0 // indirect
-	google.golang.org/api v0.36.0
-	google.golang.org/genproto v0.0.0-20201210142538-e3217bee35cc
-	google.golang.org/grpc v1.34.0
+	google.golang.org/api v0.48.0
+	google.golang.org/genproto v0.0.0-20210608205507-b6d2f5bf0d7d
+	google.golang.org/grpc v1.38.0
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 	k8s.io/api v0.18.6
 	k8s.io/apimachinery v0.18.6

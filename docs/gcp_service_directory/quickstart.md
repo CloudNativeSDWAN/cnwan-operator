@@ -103,10 +103,10 @@ Navigate to the root directory and place your service account to `deploy/setting
 From the root directory navigate to `deploy/settings` and modify the file `settings.yaml` to look like this - please provide appropriate values in place of `<gcloud-project>` and `<gcloud-region>`:
 
 ```yaml
-gcloud:
-  serviceDirectory:
-    region: <gcloud-region>
-    project: <gcloud-project>
+serviceRegistry:
+  gcpServiceDirectory:
+    defaultRegion: <gcloud-region>
+    projectID: <gcloud-project-id>
 namespace:
   listPolicy: allowlist
 service:
@@ -124,6 +124,20 @@ Please notice the values inside `annotations`:
 ```
 
 This means that the operator will register `traffic-profile` as metadata if it finds it among a [service's annotations list](./concepts.md#allowed-annotations).
+If you plan to run the operator in GKE, you can just write:
+
+```yaml
+serviceRegistry:
+  gcpServiceDirectory: {}
+namespace:
+  listPolicy: allowlist
+service:
+  annotations:
+  - traffic-profile
+  - version
+```
+
+Explanation of this is explained [here](./configure_with_operator.md#automatic-values), but you can jump on that when you finish this quickstart.
 
 ### 5 - Deploy the operator
 

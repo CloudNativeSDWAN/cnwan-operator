@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2020, 2021 Cisco
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,24 +22,24 @@ import (
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"google.golang.org/api/iterator"
-	sdpb "google.golang.org/genproto/googleapis/cloud/servicedirectory/v1beta1"
+	sdpb "google.golang.org/genproto/googleapis/cloud/servicedirectory/v1"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 // GetNs returns the namespace if exists.
-func (s *servDir) GetNs(name string) (*sr.Namespace, error) {
+func (s *Handler) GetNs(name string) (*sr.Namespace, error) {
 	// -- Init
 	if err := s.checkNames(&name, nil, nil); err != nil {
 		return nil, err
 	}
-	l := s.log.WithName("GetNs").WithValues("ns-name", name)
+	l := s.Log.WithName("GetNs").WithValues("ns-name", name)
 	nsPath := s.getResourcePath(servDirPath{namespace: name})
-	ctx, canc := context.WithTimeout(s.context, s.timeout)
+	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
-	sdNs, err := s.client.GetNamespace(ctx, &sdpb.GetNamespaceRequest{Name: nsPath})
+	sdNs, err := s.Client.GetNamespace(ctx, &sdpb.GetNamespaceRequest{Name: nsPath})
 	if err == nil {
 		namespace := &sr.Namespace{
 			Name:     name,
@@ -54,7 +54,7 @@ func (s *servDir) GetNs(name string) (*sr.Namespace, error) {
 
 	// What is the error?
 	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", s.timeout.Seconds())
+		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
 		return nil, sr.ErrTimeOutExpired
 	}
 
@@ -67,10 +67,10 @@ func (s *servDir) GetNs(name string) (*sr.Namespace, error) {
 }
 
 // ListNs returns a list of all namespaces.
-func (s *servDir) ListNs() ([]*sr.Namespace, error) {
+func (s *Handler) ListNs() ([]*sr.Namespace, error) {
 	// -- Init
-	l := s.log.WithName("ListNs")
-	ctx, canc := context.WithTimeout(s.context, s.timeout)
+	l := s.Log.WithName("ListNs")
+	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
 	req := &sdpb.ListNamespacesRequest{
@@ -78,7 +78,7 @@ func (s *servDir) ListNs() ([]*sr.Namespace, error) {
 	}
 
 	nsList := []*sr.Namespace{}
-	iter := s.client.ListNamespaces(ctx, req)
+	iter := s.Client.ListNamespaces(ctx, req)
 	if iter == nil {
 		l.V(0).Info("returned list is nil")
 		return nsList, nil
@@ -88,7 +88,7 @@ func (s *servDir) ListNs() ([]*sr.Namespace, error) {
 		if iterErr != nil {
 
 			if iterErr == context.DeadlineExceeded {
-				l.Error(iterErr, "timeout expired while waiting for service directory to reply", "timeout-seconds", s.timeout.Seconds())
+				l.Error(iterErr, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
 				return nil, sr.ErrTimeOutExpired
 			}
 
@@ -116,7 +116,7 @@ func (s *servDir) ListNs() ([]*sr.Namespace, error) {
 }
 
 // CreateNs creates the namespace.
-func (s *servDir) CreateNs(ns *sr.Namespace) (*sr.Namespace, error) {
+func (s *Handler) CreateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 	// -- Init
 	if ns == nil {
 		return nil, sr.ErrNsNotProvided
@@ -124,8 +124,8 @@ func (s *servDir) CreateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 	if err := s.checkNames(&ns.Name, nil, nil); err != nil {
 		return nil, err
 	}
-	l := s.log.WithName("CreateNs").WithValues("ns-name", ns.Name, "labels", ns.Metadata)
-	ctx, canc := context.WithTimeout(s.context, s.timeout)
+	l := s.Log.WithName("CreateNs").WithValues("ns-name", ns.Name, "labels", ns.Metadata)
+	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
 	nsToCreate := &sdpb.Namespace{
@@ -139,7 +139,7 @@ func (s *servDir) CreateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 		Namespace:   nsToCreate,
 	}
 
-	_, err := s.client.CreateNamespace(ctx, req)
+	_, err := s.Client.CreateNamespace(ctx, req)
 	if err == nil {
 		// No need to parse the returned resource, because it is the same
 		// resource we want to add. So we can just returned the one we
@@ -149,7 +149,7 @@ func (s *servDir) CreateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 
 	// What is the error?
 	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", s.timeout.Seconds())
+		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
 		return nil, sr.ErrTimeOutExpired
 	}
 
@@ -162,7 +162,7 @@ func (s *servDir) CreateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 }
 
 // UpdateNs updates the namespace.
-func (s *servDir) UpdateNs(ns *sr.Namespace) (*sr.Namespace, error) {
+func (s *Handler) UpdateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 	// -- Init
 	if ns == nil {
 		return nil, sr.ErrNsNotProvided
@@ -170,8 +170,8 @@ func (s *servDir) UpdateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 	if err := s.checkNames(&ns.Name, nil, nil); err != nil {
 		return nil, err
 	}
-	l := s.log.WithName("UpdateNs").WithValues("ns-name", ns.Name, "labels", ns.Metadata)
-	ctx, canc := context.WithTimeout(s.context, s.timeout)
+	l := s.Log.WithName("UpdateNs").WithValues("ns-name", ns.Name, "labels", ns.Metadata)
+	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
 	nsToUpd := &sdpb.Namespace{
@@ -182,18 +182,18 @@ func (s *servDir) UpdateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 	req := &sdpb.UpdateNamespaceRequest{
 		Namespace: nsToUpd,
 		UpdateMask: &field_mask.FieldMask{
-			Paths: []string{"metadata"},
+			Paths: []string{"labels"},
 		},
 	}
 
-	_, err := s.client.UpdateNamespace(ctx, req)
+	_, err := s.Client.UpdateNamespace(ctx, req)
 	if err == nil {
 		return ns, nil
 	}
 
 	// What is the error?
 	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", s.timeout.Seconds())
+		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
 		return nil, sr.ErrTimeOutExpired
 	}
 
@@ -206,27 +206,27 @@ func (s *servDir) UpdateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 }
 
 // DeleteNs deletes the namespace.
-func (s *servDir) DeleteNs(name string) error {
+func (s *Handler) DeleteNs(name string) error {
 	// -- Init
 	if err := s.checkNames(&name, nil, nil); err != nil {
 		return err
 	}
-	l := s.log.WithName("DeleteNs").WithValues("ns-name", name)
-	ctx, canc := context.WithTimeout(s.context, s.timeout)
+	l := s.Log.WithName("DeleteNs").WithValues("ns-name", name)
+	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
 	req := &sdpb.DeleteNamespaceRequest{
 		Name: s.getResourcePath(servDirPath{namespace: name}),
 	}
 
-	err := s.client.DeleteNamespace(ctx, req)
+	err := s.Client.DeleteNamespace(ctx, req)
 	if err == nil {
 		return nil
 	}
 
 	// What is the error?
 	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", s.timeout.Seconds())
+		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
 		return sr.ErrTimeOutExpired
 	}
 

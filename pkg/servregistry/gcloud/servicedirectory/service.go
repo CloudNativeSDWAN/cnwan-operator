@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2020, 2021 Cisco
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,29 +23,29 @@ import (
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"google.golang.org/api/iterator"
-	sdpb "google.golang.org/genproto/googleapis/cloud/servicedirectory/v1beta1"
+	sdpb "google.golang.org/genproto/googleapis/cloud/servicedirectory/v1"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 // GetServ returns the service if exists.
-func (s *servDir) GetServ(nsName, servName string) (*sr.Service, error) {
+func (s *Handler) GetServ(nsName, servName string) (*sr.Service, error) {
 	// -- Init
 	if err := s.checkNames(&nsName, &servName, nil); err != nil {
 		return nil, err
 	}
-	l := s.log.WithName("GetServ").WithValues("ns-name", nsName, "serv-name", servName)
+	l := s.Log.WithName("GetServ").WithValues("ns-name", nsName, "serv-name", servName)
 	servPath := s.getResourcePath(servDirPath{namespace: nsName, service: servName})
-	ctx, canc := context.WithTimeout(s.context, s.timeout)
+	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
-	sdServ, err := s.client.GetService(ctx, &sdpb.GetServiceRequest{Name: servPath})
+	sdServ, err := s.Client.GetService(ctx, &sdpb.GetServiceRequest{Name: servPath})
 	if err == nil {
 		serv := &sr.Service{
 			Name:     servName,
 			NsName:   nsName,
-			Metadata: sdServ.Metadata,
+			Metadata: sdServ.Annotations,
 		}
 		if serv.Metadata == nil {
 			serv.Metadata = map[string]string{}
@@ -56,7 +56,7 @@ func (s *servDir) GetServ(nsName, servName string) (*sr.Service, error) {
 
 	// What is the error?
 	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", s.timeout.Seconds())
+		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
 		return nil, sr.ErrTimeOutExpired
 	}
 
@@ -69,20 +69,20 @@ func (s *servDir) GetServ(nsName, servName string) (*sr.Service, error) {
 }
 
 // ListServ returns a list of services inside the provided namespace.
-func (s *servDir) ListServ(nsName string) (servList []*sr.Service, err error) {
+func (s *Handler) ListServ(nsName string) (servList []*sr.Service, err error) {
 	// -- Init
 	if err := s.checkNames(&nsName, nil, nil); err != nil {
 		return nil, err
 	}
-	l := s.log.WithName("ListServ").WithValues("ns-name", nsName)
-	ctx, canc := context.WithTimeout(s.context, time.Minute)
+	l := s.Log.WithName("ListServ").WithValues("ns-name", nsName)
+	ctx, canc := context.WithTimeout(s.Context, time.Minute)
 	defer canc()
 
 	req := &sdpb.ListServicesRequest{
 		Parent: s.getResourcePath(servDirPath{namespace: nsName}),
 	}
 
-	iter := s.client.ListServices(ctx, req)
+	iter := s.Client.ListServices(ctx, req)
 	if iter == nil {
 		l.V(0).Info("returned list is nil")
 		return
@@ -92,7 +92,7 @@ func (s *servDir) ListServ(nsName string) (servList []*sr.Service, err error) {
 		if iterErr != nil {
 
 			if iterErr == context.DeadlineExceeded {
-				l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", s.timeout.Seconds())
+				l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
 				return nil, sr.ErrTimeOutExpired
 			}
 
@@ -109,7 +109,7 @@ func (s *servDir) ListServ(nsName string) (servList []*sr.Service, err error) {
 		serv := &sr.Service{
 			Name:     splitName[len(splitName)-1],
 			NsName:   nsName,
-			Metadata: nextServ.Metadata,
+			Metadata: nextServ.Annotations,
 		}
 		if serv.Metadata == nil {
 			serv.Metadata = map[string]string{}
@@ -122,7 +122,7 @@ func (s *servDir) ListServ(nsName string) (servList []*sr.Service, err error) {
 }
 
 // CreateServ creates the service.
-func (s *servDir) CreateServ(serv *sr.Service) (*sr.Service, error) {
+func (s *Handler) CreateServ(serv *sr.Service) (*sr.Service, error) {
 	// -- Init
 	if serv == nil {
 		return nil, sr.ErrServNotProvided
@@ -130,13 +130,13 @@ func (s *servDir) CreateServ(serv *sr.Service) (*sr.Service, error) {
 	if err := s.checkNames(&serv.NsName, &serv.Name, nil); err != nil {
 		return nil, err
 	}
-	l := s.log.WithName("CreateServ").WithValues("ns-name", serv.NsName, "serv-name", serv.Name, "metadata", serv.Metadata)
-	ctx, canc := context.WithTimeout(s.context, s.timeout)
+	l := s.Log.WithName("CreateServ").WithValues("ns-name", serv.NsName, "serv-name", serv.Name, "metadata", serv.Metadata)
+	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
 	servToCreate := &sdpb.Service{
-		Name:     serv.Name,
-		Metadata: serv.Metadata,
+		Name:        serv.Name,
+		Annotations: serv.Metadata,
 	}
 
 	req := &sdpb.CreateServiceRequest{
@@ -145,7 +145,7 @@ func (s *servDir) CreateServ(serv *sr.Service) (*sr.Service, error) {
 		Service:   servToCreate,
 	}
 
-	_, err := s.client.CreateService(ctx, req)
+	_, err := s.Client.CreateService(ctx, req)
 	if err == nil {
 		// If it is successful, then it makes no point in parsing the returned
 		// service from service directory, because it will look like just the
@@ -157,7 +157,7 @@ func (s *servDir) CreateServ(serv *sr.Service) (*sr.Service, error) {
 
 	// What is the error?
 	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", s.timeout.Seconds())
+		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
 		return nil, sr.ErrTimeOutExpired
 	}
 
@@ -170,7 +170,7 @@ func (s *servDir) CreateServ(serv *sr.Service) (*sr.Service, error) {
 }
 
 // UpdateServ updates the service.
-func (s *servDir) UpdateServ(serv *sr.Service) (*sr.Service, error) {
+func (s *Handler) UpdateServ(serv *sr.Service) (*sr.Service, error) {
 	// -- Init
 	if serv == nil {
 		return nil, sr.ErrServNotProvided
@@ -178,30 +178,30 @@ func (s *servDir) UpdateServ(serv *sr.Service) (*sr.Service, error) {
 	if err := s.checkNames(&serv.NsName, &serv.Name, nil); err != nil {
 		return nil, err
 	}
-	l := s.log.WithName("UpdateServ").WithValues("ns-name", serv.NsName, "serv-name", serv.Name, "metadata", serv.Metadata)
-	ctx, canc := context.WithTimeout(s.context, s.timeout)
+	l := s.Log.WithName("UpdateServ").WithValues("ns-name", serv.NsName, "serv-name", serv.Name, "metadata", serv.Metadata)
+	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
 	servToUpd := &sdpb.Service{
-		Name:     s.getResourcePath(servDirPath{namespace: serv.NsName, service: serv.Name}),
-		Metadata: serv.Metadata,
+		Name:        s.getResourcePath(servDirPath{namespace: serv.NsName, service: serv.Name}),
+		Annotations: serv.Metadata,
 	}
 
 	req := &sdpb.UpdateServiceRequest{
 		Service: servToUpd,
 		UpdateMask: &field_mask.FieldMask{
-			Paths: []string{"metadata"},
+			Paths: []string{"annotations"},
 		},
 	}
 
-	_, err := s.client.UpdateService(ctx, req)
+	_, err := s.Client.UpdateService(ctx, req)
 	if err == nil {
 		return serv, nil
 	}
 
 	// What is the error?
 	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", s.timeout.Seconds())
+		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
 		return nil, sr.ErrTimeOutExpired
 	}
 
@@ -214,27 +214,27 @@ func (s *servDir) UpdateServ(serv *sr.Service) (*sr.Service, error) {
 }
 
 // DeleteServ deletes the service.
-func (s *servDir) DeleteServ(nsName, servName string) error {
+func (s *Handler) DeleteServ(nsName, servName string) error {
 	// -- Init
 	if err := s.checkNames(&nsName, &servName, nil); err != nil {
 		return err
 	}
-	l := s.log.WithName("DeleteServ").WithValues("ns-name", nsName, "serv-name", servName)
-	ctx, canc := context.WithTimeout(s.context, s.timeout)
+	l := s.Log.WithName("DeleteServ").WithValues("ns-name", nsName, "serv-name", servName)
+	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
 	req := &sdpb.DeleteServiceRequest{
 		Name: s.getResourcePath(servDirPath{namespace: nsName, service: servName}),
 	}
 
-	err := s.client.DeleteService(ctx, req)
+	err := s.Client.DeleteService(ctx, req)
 	if err == nil {
 		return nil
 	}
 
 	// What is the error?
 	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", s.timeout.Seconds())
+		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
 		return sr.ErrTimeOutExpired
 	}
 

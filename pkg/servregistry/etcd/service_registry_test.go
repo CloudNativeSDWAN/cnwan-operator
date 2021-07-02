@@ -37,20 +37,15 @@ import (
 func TestNewServiceRegistryWithEtcd(t *testing.T) {
 	a := assert.New(t)
 
-	res, err := NewServiceRegistryWithEtcd(context.Background(), nil, nil)
-	a.Nil(res)
-	a.Equal(err, ErrNilClient)
-
 	prefix := "something"
-	res, err = NewServiceRegistryWithEtcd(context.Background(), &clientv3.Client{}, &prefix)
+	res := NewServiceRegistryWithEtcd(context.Background(), &clientv3.Client{}, &prefix)
 	a.NotNil(res)
-	a.Nil(err)
 }
 
 func TestGetOne(t *testing.T) {
 	a := assert.New(t)
 	unknErr := fmt.Errorf("unknown")
-	e := &etcdServReg{}
+	e := &EtcdServReg{}
 	ns := &sr.Namespace{
 		Name: "namespace-name",
 		Metadata: map[string]string{
@@ -223,7 +218,7 @@ func TestGetOne(t *testing.T) {
 func TestGetList(t *testing.T) {
 	a := assert.New(t)
 	unknErr := fmt.Errorf("unknown")
-	e := &etcdServReg{mainCtx: context.Background()}
+	e := &EtcdServReg{mainCtx: context.Background()}
 	nsSearchPref := string(namespacePrefix)
 	ns := &sr.Namespace{
 		Name: "namespace-name",
@@ -412,7 +407,7 @@ func TestGetList(t *testing.T) {
 }
 func TestPut(t *testing.T) {
 	a := assert.New(t)
-	e := &etcdServReg{}
+	e := &EtcdServReg{}
 	txn := &fakeTXN{}
 	txn._if = func(cs ...clientv3.Cmp) clientv3.Txn {
 		return txn
@@ -476,7 +471,7 @@ func TestPut(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	a := assert.New(t)
-	e := &etcdServReg{}
+	e := &EtcdServReg{}
 	txn := &fakeTXN{}
 	txn._if = func(cs ...clientv3.Cmp) clientv3.Txn {
 		return txn
@@ -546,7 +541,7 @@ func TestDelete(t *testing.T) {
 func TestExtractData(t *testing.T) {
 	a := assert.New(t)
 	nsName, servName := "ns", "serv"
-	e := &etcdServReg{}
+	e := &EtcdServReg{}
 	nsToTest := &corev1.Namespace{
 		ObjectMeta: v1.ObjectMeta{
 			Name: nsName,
