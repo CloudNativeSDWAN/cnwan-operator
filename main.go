@@ -18,7 +18,6 @@ package main
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"runtime"
 
@@ -86,36 +85,39 @@ func main() {
 		nsName = defaultNsName
 	}
 
-	settingsPath := getSettingsPath()
-
 	//--------------------------------------
 	// Load the settings
 	//--------------------------------------
 
-	settings, err := getSettings(settingsPath)
+	settings, err := func() (*types.Settings, error) {
+		settingsByte, err := cluster.GetOperatorSettingsConfigMap(ctx)
+		if err != nil {
+			setupLog.Error(err, "unable to retrieve settings from configmap")
+			returnCode = 1
+			runtime.Goexit()
+		}
+		setupLog.Info("settings file loaded successfully")
+
+		var settings types.Settings
+		if err := yaml.Unmarshal(settingsByte, &settings); err != nil {
+			return nil, err
+		}
+
+		return &settings, nil
+	}()
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.Error(err, "error while getting settings")
 		returnCode = 1
 		runtime.Goexit()
 	}
-	setupLog.Info("settings file loaded successfully")
 
 	settings, err = utils.ParseAndValidateSettings(settings)
 	if err != nil {
-		setupLog.Error(err, "error while unmarshaling options")
+		setupLog.Error(err, "error while validation options")
 		returnCode = 2
 		runtime.Goexit()
 	}
 	setupLog.Info("settings parsed successfully")
-
-	viper.SetConfigFile(settingsPath)
-	if err := viper.ReadInConfig(); err != nil {
-		setupLog.Error(err, "error storing settings")
-		returnCode = 3
-		runtime.Goexit()
-	}
-
-	viper.Set(types.CurrentNamespace, nsName)
 
 	// Load the allowed annotations and put into a map, for better
 	// check afterwards
@@ -125,6 +127,8 @@ func main() {
 		allowedAnnotations[ann] = true
 	}
 	viper.Set(types.AllowedAnnotationsMap, allowedAnnotations)
+	viper.Set(types.NamespaceListPolicy, settings.Namespace.ListPolicy)
+	viper.Set(types.CurrentNamespace, nsName)
 
 	persistentMeta := []sr.MetadataPair{}
 	if settings.CloudMetadata != nil {
@@ -234,35 +238,4 @@ func main() {
 		returnCode = 10
 		runtime.Goexit()
 	}
-}
-
-func getSettingsPath() string {
-	args := os.Args
-
-	// is specified as first argument?
-	if len(args) > 1 {
-		return args[1]
-	}
-
-	// is specified on env?
-	if fromEnv := os.Getenv("CNWAN_OPERATOR_SETTINGS_PATH"); len(fromEnv) > 0 {
-		return fromEnv
-	}
-
-	// last resort: just try to load it from a default path...
-	return defaultSettingsPath
-}
-
-func getSettings(fileName string) (*types.Settings, error) {
-	file, err := ioutil.ReadFile(fileName)
-	if err != nil {
-		return nil, err
-	}
-
-	var settings types.Settings
-	if err := yaml.Unmarshal(file, &settings); err != nil {
-		return nil, err
-	}
-
-	return &settings, nil
 }
