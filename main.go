@@ -18,12 +18,8 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
-	"strings"
-	"time"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/controllers"
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
@@ -34,13 +30,9 @@ import (
 	sd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/gcloud/servicedirectory"
 	"github.com/spf13/viper"
 	"go.etcd.io/etcd/clientv3"
-	"go.uber.org/zap/zapcore"
-	"google.golang.org/api/option"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -93,36 +85,39 @@ func main() {
 		nsName = defaultNsName
 	}
 
-	settingsPath := getSettingsPath()
-
 	//--------------------------------------
 	// Load the settings
 	//--------------------------------------
 
-	settings, err := getSettings(settingsPath)
+	settings, err := func() (*types.Settings, error) {
+		settingsByte, err := cluster.GetOperatorSettingsConfigMap(ctx)
+		if err != nil {
+			setupLog.Error(err, "unable to retrieve settings from configmap")
+			returnCode = 1
+			runtime.Goexit()
+		}
+		setupLog.Info("settings file loaded successfully")
+
+		var settings types.Settings
+		if err := yaml.Unmarshal(settingsByte, &settings); err != nil {
+			return nil, err
+		}
+
+		return &settings, nil
+	}()
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.Error(err, "error while getting settings")
 		returnCode = 1
 		runtime.Goexit()
 	}
-	setupLog.Info("settings file loaded successfully")
 
 	settings, err = utils.ParseAndValidateSettings(settings)
 	if err != nil {
-		setupLog.Error(err, "error while unmarshaling options")
+		setupLog.Error(err, "error while validation options")
 		returnCode = 2
 		runtime.Goexit()
 	}
 	setupLog.Info("settings parsed successfully")
-
-	viper.SetConfigFile(settingsPath)
-	if err := viper.ReadInConfig(); err != nil {
-		setupLog.Error(err, "error storing settings")
-		returnCode = 3
-		runtime.Goexit()
-	}
-
-	viper.Set(types.CurrentNamespace, nsName)
 
 	// Load the allowed annotations and put into a map, for better
 	// check afterwards
@@ -132,6 +127,8 @@ func main() {
 		allowedAnnotations[ann] = true
 	}
 	viper.Set(types.AllowedAnnotationsMap, allowedAnnotations)
+	viper.Set(types.NamespaceListPolicy, settings.Namespace.ListPolicy)
+	viper.Set(types.CurrentNamespace, nsName)
 
 	persistentMeta := []sr.MetadataPair{}
 	if settings.CloudMetadata != nil {
@@ -158,7 +155,6 @@ func main() {
 	// Get the service registry
 	//--------------------------------------
 
-	var servRegErr error
 	if settings.ServiceRegistrySettings.EtcdSettings != nil {
 		setupLog.Info("using etcd as a service registry...")
 		_cli, err := getEtcdClient(settings.EtcdSettings)
@@ -169,17 +165,27 @@ func main() {
 		}
 		etcdClient = _cli
 		defer etcdClient.Close()
-		servreg, servRegErr = etcd.NewServiceRegistryWithEtcd(ctx, etcdClient, settings.EtcdSettings.Prefix)
+		servreg = etcd.NewServiceRegistryWithEtcd(ctx, etcdClient, settings.EtcdSettings.Prefix)
 	}
 	if settings.ServiceRegistrySettings.ServiceDirectorySettings != nil {
 		setupLog.Info("using gcloud service directory...")
-		servreg, servRegErr = getServiceDirectoryHandler(ctx, settings.ServiceRegistrySettings.ProjectID, settings.ServiceRegistrySettings.DefaultRegion)
-	}
 
-	if servRegErr != nil {
-		setupLog.Error(err, "fatal error encountered")
-		returnCode = 5
-		runtime.Goexit()
+		cli, err := getGSDClient(context.Background())
+		if err != nil {
+			setupLog.Error(err, "fatal error encountered")
+			returnCode = 11
+			runtime.Goexit()
+		}
+		defer cli.Close()
+
+		sdSettings, err := parseAndResetGSDSettings(settings.ServiceRegistrySettings.ServiceDirectorySettings)
+		if err != nil {
+			setupLog.Error(err, "fatal error encountered")
+			returnCode = 11
+			runtime.Goexit()
+		}
+
+		servreg = &sd.Handler{ProjectID: sdSettings.ProjectID, DefaultRegion: sdSettings.DefaultRegion, Log: setupLog.WithName("ServiceDirectory"), Context: ctx, Client: cli}
 	}
 
 	srBroker, err := sr.NewBroker(servreg, sr.MetadataPair{Key: opKey, Value: opVal}, persistentMeta...)
@@ -232,168 +238,4 @@ func main() {
 		returnCode = 10
 		runtime.Goexit()
 	}
-}
-
-func getServiceDirectoryHandler(ctx context.Context, projectID, defaultRegion string) (sr.ServiceRegistry, error) {
-	// TODO: this will be heavily improved in future versions
-
-	credsPath := defaultSdServAccPath
-
-	// is specified on env?
-	if fromEnv := os.Getenv("CNWAN_OPERATOR_SETTINGS_PATH"); len(fromEnv) > 0 {
-		credsPath = fromEnv
-	}
-
-	sdHandler, err := sd.NewHandler(ctx, projectID, defaultRegion, credsPath, defaultTimeout)
-	if err != nil {
-		return nil, err
-	}
-
-	return sdHandler, nil
-}
-
-func getSettingsPath() string {
-	args := os.Args
-
-	// is specified as first argument?
-	if len(args) > 1 {
-		return args[1]
-	}
-
-	// is specified on env?
-	if fromEnv := os.Getenv("CNWAN_OPERATOR_SETTINGS_PATH"); len(fromEnv) > 0 {
-		return fromEnv
-	}
-
-	// last resort: just try to load it from a default path...
-	return defaultSettingsPath
-}
-
-func getSettings(fileName string) (*types.Settings, error) {
-	file, err := ioutil.ReadFile(fileName)
-	if err != nil {
-		return nil, err
-	}
-
-	var settings types.Settings
-	if err := yaml.Unmarshal(file, &settings); err != nil {
-		return nil, err
-	}
-
-	return &settings, nil
-}
-
-func getEtcdClient(settings *types.EtcdSettings) (*clientv3.Client, error) {
-	endps := []string{}
-
-	for _, endp := range settings.Endpoints {
-		endps = append(endps, fmt.Sprintf("%s:%d", endp.Host, *endp.Port))
-	}
-	cfg := clientv3.Config{
-		Endpoints: endps,
-	}
-
-	if settings.Authentication == types.EtcdAuthWithNothing {
-		return clientv3.New(cfg)
-	}
-
-	k8sconf := ctrl.GetConfigOrDie()
-	clientset, err := kubernetes.NewForConfig(k8sconf)
-	if err != nil {
-		return nil, err
-	}
-
-	if settings.Authentication == types.EtcdAuthWithUsernamePassw {
-		cfg, err := getEtcdConfWithCredentials(clientset)
-		if err != nil {
-			return nil, err
-		}
-
-		cfg.Endpoints = endps
-		return clientv3.New(*cfg)
-	}
-
-	// TODO: support for TLS: if authentication is through TLS if Username and Password are both nil, then look
-	// for the secrets containing the client's certificate and and key.
-	return nil, fmt.Errorf("unsupported etcd authentication method")
-}
-
-func getEtcdConfWithCredentials(clientset *kubernetes.Clientset) (*clientv3.Config, error) {
-	nsName := viper.GetString(types.CurrentNamespace)
-
-	ctx, canc := context.WithTimeout(context.Background(), time.Duration(15)*time.Second)
-	defer canc()
-
-	// Get username and password
-	secret, err := clientset.CoreV1().Secrets(nsName).Get(ctx, types.EtcdCredentialsSecretName, v1.GetOptions{})
-	if err != nil {
-		setupLog.Error(err, "error while trying to get secret with etcd credentials, skipping...")
-		return nil, err
-	}
-
-	// get it
-	data := secret.Data
-
-	unameVal, unameExists := data["username"]
-	passVal, passExist := data["password"]
-
-	if !unameExists && !passExist {
-		return nil, fmt.Errorf("username and password could not be found")
-	}
-
-	if len(unameVal) == 0 && len(passVal) == 0 {
-		setupLog.V(int(zapcore.WarnLevel)).Info("username and password are both empty")
-	}
-
-	cfg := &clientv3.Config{}
-	if len(unameVal) > 0 {
-		cfg.Username = string(unameVal)
-	}
-	if len(passVal) > 0 {
-		cfg.Password = string(passVal)
-	}
-
-	return cfg, nil
-}
-
-func getNetworkCfg(network, subnetwork *string) (netCfg *cluster.NetworkConfiguration, err error) {
-	netCfg = &cluster.NetworkConfiguration{}
-	if network != nil {
-		netCfg.NetworkName = *network
-	}
-	if subnetwork != nil {
-		netCfg.SubNetworkName = *subnetwork
-	}
-
-	if strings.ToLower(netCfg.NetworkName) == "auto" || strings.ToLower(netCfg.SubNetworkName) == "auto" {
-		var res *cluster.NetworkConfiguration
-		runningIn := cluster.WhereAmIRunning()
-		if runningIn == cluster.UnknownCluster {
-			return nil, fmt.Errorf("could not get information about the managed cluster: unsupported or no permissions to do so")
-		}
-
-		if runningIn == cluster.GKECluster {
-			sa, err := cluster.GetGoogleServiceAccountSecret(context.Background())
-			if err != nil {
-				return nil, err
-			}
-
-			res, err = cluster.GetNetworkFromGKE(context.Background(), option.WithCredentialsJSON(sa))
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		// TODO: implement EKS on future versions. Code is ready but just not
-		// included in this iteration.
-
-		if strings.ToLower(netCfg.NetworkName) == "auto" {
-			netCfg.NetworkName = res.NetworkName
-		}
-		if strings.ToLower(netCfg.SubNetworkName) == "auto" {
-			netCfg.SubNetworkName = res.SubNetworkName
-		}
-	}
-
-	return
 }

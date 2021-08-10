@@ -32,7 +32,7 @@ import (
 
 func TestGetEndp(t *testing.T) {
 	a := assert.New(t)
-	e := &etcdServReg{
+	e := &EtcdServReg{
 		mainCtx: context.Background(),
 	}
 	unknownErr := fmt.Errorf("unknwon")
@@ -115,7 +115,7 @@ func TestGetEndp(t *testing.T) {
 func TestListEndp(t *testing.T) {
 	a := assert.New(t)
 	unknErr := fmt.Errorf("unknown")
-	e := &etcdServReg{mainCtx: context.Background()}
+	e := &EtcdServReg{mainCtx: context.Background()}
 	endp := &sr.Endpoint{
 		NsName:   "namespace-name",
 		ServName: "service-name",
@@ -203,7 +203,7 @@ func TestListEndp(t *testing.T) {
 
 func TestCreateEndp(t *testing.T) {
 	a := assert.New(t)
-	e := &etcdServReg{
+	e := &EtcdServReg{
 		mainCtx: context.Background(),
 	}
 	unknownErr := fmt.Errorf("unknwon")
@@ -327,7 +327,7 @@ func TestCreateEndp(t *testing.T) {
 
 func TestUpdateEndp(t *testing.T) {
 	a := assert.New(t)
-	e := &etcdServReg{
+	e := &EtcdServReg{
 		mainCtx: context.Background(),
 	}
 	unknownErr := fmt.Errorf("unknwon")
@@ -451,7 +451,7 @@ func TestUpdateEndp(t *testing.T) {
 
 func TestDeleteEndp(t *testing.T) {
 	a := assert.New(t)
-	e := &etcdServReg{
+	e := &EtcdServReg{
 		mainCtx: context.Background(),
 	}
 	txn := &fakeTXN{}

@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2020, 2021 Cisco
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,80 +19,36 @@ package servicedirectory
 import (
 	"context"
 	"crypto/sha256"
-	"errors"
 	"fmt"
-	"io/ioutil"
-	"sync"
 	"time"
 
-	sd "cloud.google.com/go/servicedirectory/apiv1beta1"
-	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"github.com/go-logr/logr"
-	"google.golang.org/api/option"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-type servDir struct {
-	project     string
-	region      string
-	client      regClient
-	log         logr.Logger
-	context     context.Context
-	resMetadata map[string]string
-	timeout     time.Duration
-	lock        sync.Mutex
+const (
+	defTimeout time.Duration = 30 * time.Second
+)
+
+// Handler is a wrapper for Service Directory that exposes its methods in a
+// sort of "universal" way through the ServiceRegistry interface.
+type Handler struct {
+	// ProjectID where ServiceDirectory is enabled.
+	ProjectID string
+	// DefaultRegion where namespaces, services and endpoints are going to be
+	// registered to.
+	DefaultRegion string
+	// Log to use.
+	Log logr.Logger
+	// Context to use for requests.
+	// TODO: remove this in favor of explicit context for each call?
+	Context context.Context
+	// Client to wrap around.
+	Client regClient
 }
 
-// NewHandler creates a handler for service directory. The handler will set up
-// the library with gcloud project name, the region of
-// service directory where services will registered and the path to the
-// credentials file - or service account.
-// Additionally, it takes a timeout value that represents the amount of time
-// (in seconds) an http call can stay active before being terminated.
-//
-// It returns an instance of ServiceRegistry, or nil and an error in case
-// something went wrong
-func NewHandler(ctx context.Context, project, region, credsPath string, timeout int) (servregistry.ServiceRegistry, error) {
-	// -- Init
-	s := &servDir{
-		context: ctx,
-	}
-
-	// -- Validations
-	if timeout <= 0 {
-		timeout = 30
-	}
-	s.timeout = time.Duration(timeout) * time.Second
-
-	if len(project) == 0 {
-		return nil, errors.New("project not provided")
-	}
-	s.project = project
-
-	if len(region) == 0 {
-		return nil, errors.New("region not provided")
-	}
-	s.region = region
-	s.log = zap.New(zap.UseDevMode(true)).WithName("Service Directory").WithValues("project", project, "region", region)
-
-	// -- Load the credentials
-	jsonBytes, err := ioutil.ReadFile(credsPath)
-	if err != nil {
-		return nil, err
-	}
-
-	c, err := sd.NewRegistrationClient(s.context, option.WithCredentialsJSON(jsonBytes))
-	if err != nil {
-		return nil, err
-	}
-	s.client = c
-
-	return s, nil
-}
-
-func (s *servDir) ExtractData(ns *corev1.Namespace, serv *corev1.Service) (namespaceData *sr.Namespace, serviceData *sr.Service, endpointsData []*sr.Endpoint, err error) {
+func (s *Handler) ExtractData(ns *corev1.Namespace, serv *corev1.Service) (namespaceData *sr.Namespace, serviceData *sr.Service, endpointsData []*sr.Endpoint, err error) {
 	if ns == nil {
 		err = sr.ErrNsNotProvided
 		return

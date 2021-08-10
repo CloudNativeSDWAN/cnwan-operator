@@ -26,7 +26,7 @@ import (
 // GetNs returns the namespace if exists.
 //
 // Read the documentation for this method on servregistry's package.
-func (e *etcdServReg) GetNs(name string) (*sr.Namespace, error) {
+func (e *EtcdServReg) GetNs(name string) (*sr.Namespace, error) {
 	key := KeyFromNames(name)
 	if !key.IsValid() {
 		return nil, sr.ErrNsNameNotProvided
@@ -46,7 +46,7 @@ func (e *etcdServReg) GetNs(name string) (*sr.Namespace, error) {
 // ListNs returns a list of all namespaces.
 //
 // Read the documentation for this method on servregistry's package.
-func (e *etcdServReg) ListNs() (nsList []*sr.Namespace, err error) {
+func (e *EtcdServReg) ListNs() (nsList []*sr.Namespace, err error) {
 	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
 	defer canc()
 
@@ -68,7 +68,7 @@ func (e *etcdServReg) ListNs() (nsList []*sr.Namespace, err error) {
 // CreateNs creates the namespace.
 //
 // Read the documentation for this method on servregistry's package.
-func (e *etcdServReg) CreateNs(ns *sr.Namespace) (*sr.Namespace, error) {
+func (e *EtcdServReg) CreateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
 	defer canc()
 
@@ -82,7 +82,7 @@ func (e *etcdServReg) CreateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 // UpdateNs updates the namespace.
 //
 // Read the documentation for this method on servregistry's package.
-func (e *etcdServReg) UpdateNs(ns *sr.Namespace) (*sr.Namespace, error) {
+func (e *EtcdServReg) UpdateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 	ctx, canc := context.WithTimeout(e.mainCtx, defaultTimeout)
 	defer canc()
 
@@ -96,7 +96,7 @@ func (e *etcdServReg) UpdateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 // DeleteNs deletes the namespace.
 //
 // Read the documentation for this method on servregistry's package.
-func (e *etcdServReg) DeleteNs(name string) error {
+func (e *EtcdServReg) DeleteNs(name string) error {
 	key := KeyFromNames(name)
 	if !key.IsValid() {
 		return sr.ErrNsNameNotProvided

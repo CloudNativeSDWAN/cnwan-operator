@@ -31,7 +31,7 @@ import (
 
 func TestGetNs(t *testing.T) {
 	a := assert.New(t)
-	e := &etcdServReg{
+	e := &EtcdServReg{
 		mainCtx: context.Background(),
 	}
 	unknownErr := fmt.Errorf("unknwon")
@@ -98,7 +98,7 @@ func TestGetNs(t *testing.T) {
 func TestListNs(t *testing.T) {
 	a := assert.New(t)
 	unknErr := fmt.Errorf("unknown")
-	e := &etcdServReg{mainCtx: context.Background()}
+	e := &EtcdServReg{mainCtx: context.Background()}
 	ns := &sr.Namespace{
 		Name: "namespace-name",
 		Metadata: map[string]string{
@@ -167,7 +167,7 @@ func TestListNs(t *testing.T) {
 
 func TestCreateNs(t *testing.T) {
 	a := assert.New(t)
-	e := &etcdServReg{
+	e := &EtcdServReg{
 		mainCtx: context.Background(),
 	}
 	unknownErr := fmt.Errorf("unknwon")
@@ -246,7 +246,7 @@ func TestCreateNs(t *testing.T) {
 
 func TestUpdateNs(t *testing.T) {
 	a := assert.New(t)
-	e := &etcdServReg{
+	e := &EtcdServReg{
 		mainCtx: context.Background(),
 	}
 	unknownErr := fmt.Errorf("unknwon")
@@ -325,7 +325,7 @@ func TestUpdateNs(t *testing.T) {
 
 func TestDeleteNs(t *testing.T) {
 	a := assert.New(t)
-	e := &etcdServReg{
+	e := &EtcdServReg{
 		mainCtx: context.Background(),
 	}
 	txn := &fakeTXN{}

@@ -32,7 +32,7 @@ import (
 
 func TestGetServ(t *testing.T) {
 	a := assert.New(t)
-	e := &etcdServReg{
+	e := &EtcdServReg{
 		mainCtx: context.Background(),
 	}
 	unknownErr := fmt.Errorf("unknwon")
@@ -106,7 +106,7 @@ func TestGetServ(t *testing.T) {
 func TestListServ(t *testing.T) {
 	a := assert.New(t)
 	unknErr := fmt.Errorf("unknown")
-	e := &etcdServReg{mainCtx: context.Background()}
+	e := &EtcdServReg{mainCtx: context.Background()}
 	serv := &sr.Service{
 		NsName: "namespace-name",
 		Name:   "service-name",
@@ -183,7 +183,7 @@ func TestListServ(t *testing.T) {
 }
 func TestCreateServ(t *testing.T) {
 	a := assert.New(t)
-	e := &etcdServReg{
+	e := &EtcdServReg{
 		mainCtx: context.Background(),
 	}
 	unknownErr := fmt.Errorf("unknwon")
@@ -299,7 +299,7 @@ func TestCreateServ(t *testing.T) {
 
 func TestUpdateServ(t *testing.T) {
 	a := assert.New(t)
-	e := &etcdServReg{
+	e := &EtcdServReg{
 		mainCtx: context.Background(),
 	}
 	unknownErr := fmt.Errorf("unknwon")
@@ -415,7 +415,7 @@ func TestUpdateServ(t *testing.T) {
 
 func TestDeleteServ(t *testing.T) {
 	a := assert.New(t)
-	e := &etcdServReg{
+	e := &EtcdServReg{
 		mainCtx: context.Background(),
 	}
 	txn := &fakeTXN{}

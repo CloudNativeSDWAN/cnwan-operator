@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2020, 2021 Cisco
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import (
 )
 
 func TestGetResourcePath(t *testing.T) {
-	s := &servDir{project: "project", region: "us"}
+	s := &Handler{ProjectID: "project", DefaultRegion: "us"}
 	assert := a.New(t)
 
 	// Test no project/region provided

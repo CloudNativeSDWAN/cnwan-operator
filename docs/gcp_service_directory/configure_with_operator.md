@@ -44,15 +44,34 @@ serviceRegistry:
 
 ## Service Directory settings
 
+### Automatic values
+
+If you are running the operator on GKE and want to use Service Directory on the current region and project, you may omit some fields: the operator will retrieve them automatically.
+
+For example, if your Google Cloud Project ID is `my-project-id` and your cluster **zone** is `us-east1-d` you may write the settings as this -- other data is omitted for clarity:
+
+```yaml
+serviceRegistry:
+  gcpServiceDirectory: {}
+```
+
+The operator will then automatically fill `defaultRegion` to `us-east1` -- please remember that Service Directory is region-based, not zone-based -- and `projectID` to `my-project-id`.
+
+Please remember that this will only work if you are running inside GKE and won't work with other clusters, in which case you will have to manually override **both** fields.
+
 ### Default region
 
 This is the [region](https://cloud.google.com/compute/docs/regions-zones) where you want the CN-WAN Operator to put objects into. You should choose a region as close as possible to your cluster or the end user of Service Directory.
+
+If empty and the operator is running on GKE, this value will automatically be set to the region where the cluster is in.
 
 ### Project ID
 
 This is the *ID* of the Google project where you want to use Service Directory. It is **not** the project's *name*.
 
 You can find this on you Google console.
+
+If empty and the operator is running on GKE, this value will automatically be set to the project ID where the cluster is in.
 
 ## Full example
 
