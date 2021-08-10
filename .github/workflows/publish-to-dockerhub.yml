@@ -20,12 +20,19 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       
-      - name: Build and push
-        id: docker_build
+      - name: Build and push with its tag
+        id: docker_build_tag
         uses: docker/build-push-action@v2
         with:
           push: true
           tags: cnwan/cnwan-operator:${{ github.event.release.tag_name }}
       
+      - name: Build and push as latest
+        id: docker_build_latest
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: cnwan/cnwan-operator
+
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
