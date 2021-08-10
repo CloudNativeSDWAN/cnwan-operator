@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] (2021-08-10)
+
+### Added
+
+- Package `cluster` now contains code to automatically pull some data from GKE
+    in case it is running there.
+- Package `cluster` now contains code to pull some resources from the cluster
+    it is running in, e.g. secrets and configmaps.
+- From previous point, it is able to automatically get region and project from
+    GCP and automatically create the client with those data.
+
+
+### Changed
+
+- Settings for Google Service Directory can now be empty, and if so cloud
+    metadata is used in case the cluster is running in GKE. It fails otherwise.
+- Using `google.golang.org/genproto/googleapis/cloud/servicedirectory/v1` instead
+    of `v1beta`
+- Using `cloud.google.com/go/servicedirectory/apiv1` instead of `v1beta`
+- The two points above required a change in some of the structures, such as
+    changing `Metadata` with `Annotations` in services API.
+- Service Directory handler can now be instantiated directly.
+- Changed `project` to `ProjectID` in Service Directory handler.
+- Changed `region` to `DefaultRegion` in Service Directory handler.
+- Changed `--img` to `--image` in installation script.
+- Dockerfile is updated by also including the new `utils.go`.
+- The etcd credentials are now being retrieved automatically from the
+    cluster.
+- The Google service account is now retrieved automatically from within the
+    cluster.
+- Operator's settings configmap is now retrieved automatically from within the
+    cluster.
+    
+### Removed
+
+- Secrets and configmaps are not mounted on the pod anymore.
+- Old code that was used to read the aforementioned files from the pod's
+    mounted volumes.
+- Old code from viper (will be removed entirely in future).
+
+
 ## [0.4.0] (2021-06-25)
 
 ### Added
