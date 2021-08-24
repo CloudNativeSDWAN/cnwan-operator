@@ -1,6 +1,0 @@
-resources:
-- manager.yaml
-- settings.yaml
-- serviceHandlerSecret.yaml
-patchesStrategicMerge:
-- patch.yaml
