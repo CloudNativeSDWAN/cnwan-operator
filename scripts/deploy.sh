@@ -193,6 +193,12 @@ echo "all files found, deploying..."
 
 kubectl create -f $DEPLOY_DIR/01_namespace.yaml
 kubectl create -f $DEPLOY_DIR/02_service_account.yaml,$DEPLOY_DIR/03_cluster_role.yaml,$DEPLOY_DIR/04_cluster_role_binding.yaml,$DEPLOY_DIR/05_role.yaml,$DEPLOY_DIR/06_role_binding.yaml
+
+if [ "$(ls -A $DEPLOY_DIR/other)" ]; then
+    echo "deploying resources from 'other' directory..."
+    kubectl apply -f $DEPLOY_DIR/other
+fi;
+
 kubectl create configmap cnwan-operator-settings -n cnwan-operator-system --from-file=$SETTINGS_YAML
 
 if [ "$SR" == "servicedirectory" ]; then
