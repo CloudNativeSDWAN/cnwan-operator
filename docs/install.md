@@ -1,8 +1,9 @@
-# Basic Installation
+# Install
 
-This is the easiest way to install the operator and suitable for most users.
+You can deploy the operator in two ways:
 
-This will install/deploy the latest released version of the operator without modifying any YAML resource from this repository.
+* *helm charts*: please follow our [official helm chart repository](https://github.com/CloudNativeSDWAN/cnwan-helm-charts).
+* *bash scripts*: continue reading this guide.
 
 ## Requirements
 
@@ -39,10 +40,6 @@ Please make sure you have the following software installed:
     ```
 
   * *Windows* users: follow [this section](https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl-on-windows) of the documentation
-
-### Simple Modifications
-
-If you need to do some simple modifications, such as change the docker image or set a docker pull secret, you can do so by modifying the files in `/deploy`. But if you need to do more advanced modifications, then you will have to follow [Advanced Installation](./advanced_installation.md).
 
 ## Configure the operator
 

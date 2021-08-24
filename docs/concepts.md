@@ -141,7 +141,4 @@ To learn how to define them look at this [section](./configuration.md#cloud-meta
 
 ## Deploy
 
-There are two ways to deploy the operator, according to your use case and knowledge of Kubernetes:
-
-* If you want to use the operator "as-is", i.e. you don't want to change its code and/or resources, you can follow [Basic Installation](./basic_installation.md).
-* If you want to modify resources, i.e. add new ones or update existing ones, you can follow [Advanced Installation](./advanced_installation.md).
+Please read our [installation guide](install.md).

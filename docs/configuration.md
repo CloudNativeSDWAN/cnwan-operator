@@ -144,7 +144,7 @@ As of now, only one of `etcd` or `gcpServiceDirectory` is allowed, and therefore
 
 ## Deploy settings
 
-To deploy these settings you will have to follow either [Basic Installation](./basic_installation.md) or [Advanced Installation](./advanced_installation.md).
+To deploy these settings you will have to follow the [installation guide](./install.md)
 
 ## Update settings
 

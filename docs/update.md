@@ -39,4 +39,4 @@ cd cnwan-operator/scripts
 ```
 
 The *Settings* that was being used up to `v0.2.1` is deprecated and will be dropped in `v0.6.0`.
-Follow [Basic installation](./basic_installation.md) carefully to re-deploy the operator with the new *Settings*.
+Follow the [installation guide](./install.md) carefully to re-deploy the operator with the new *Settings*.
