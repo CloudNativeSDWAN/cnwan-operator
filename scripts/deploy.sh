@@ -31,14 +31,15 @@ trap print_error ERR
 
 function print_help {
     echo "Usage:"
-    echo "deploy.sh servicedirectory|etcd [options]"
+    echo "deploy.sh servicedirectory|etcd [--help|options]"
     echo
-    echo 
+    echo
     echo "Global options:"
     echo "--image       the image repository, in case you don't want to use CN-WAN Operator's default one"
     echo "--help        show this help"
     echo
     echo "servicedirectory options:"
+    echo "--service-account     the path to the google service account (default: ./artifacts/secrets/gcloud-credentials.json)."
     echo
     echo "etcd options:"
     echo "--username    the username for etcd. This will also be used to create the corresponding Kubernetes secrets."
@@ -64,7 +65,9 @@ fi;
 SR=""
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PARENT_DIR=$(dirname $DIR)
-DEPLOY_DIR=$PARENT_DIR/deploy
+DEPLOY_DIR=$PARENT_DIR/artifacts/deploy
+SECRETS_DIR=$PARENT_DIR/artifacts/secrets
+SERVICE_ACCOUNT_PATH=$SECRETS_DIR/gcloud-credentials.json
 IMG=""
 ETCD_USERNAME=""
 ETCD_PASSWORD=""
@@ -77,10 +80,10 @@ if [ "$DIR_VALID" -eq 0 ]; then
 fi;
 
 # Does settings exist?
-SETTINGS_DIR=$DEPLOY_DIR/settings
+SETTINGS_DIR=$PARENT_DIR/artifacts/settings
 dir_exists $SETTINGS_DIR
 if [ "$DIR_VALID" -eq 0 ]; then
-    echo "settings folder does not exist"
+    echo "error: settings folder does not exist"
     exit 1
 fi;
 
@@ -88,7 +91,7 @@ fi;
 SETTINGS_YAML=$SETTINGS_DIR/settings.yaml
 file_exists $SETTINGS_YAML
 if [ "$FILE_VALID" -eq 0 ]; then
-    echo "settings file does not exist in $SETTINGS_DIR"
+    echo "error: settings file does not exist in $SETTINGS_DIR"
     exit 1
 fi;
 
@@ -105,13 +108,13 @@ SR=$1
 shift
 
 while test $# -gt 0; do
-    case "$1" in    
+    case "$1" in
         --username)
             shift
             if test $# -gt 0; then
                 ETCD_USERNAME=$1
             else
-                echo "no username provided"
+                echo "error: no username provided"
                 exit 1
             fi
             shift
@@ -122,7 +125,18 @@ while test $# -gt 0; do
             if test $# -gt 0; then
                 ETCD_PASSWORD=$1
             else
-                echo "no password provided"
+                echo "error: no password provided"
+                exit 1
+            fi
+            shift
+        ;;
+
+        --service-account)
+            shift
+            if test $# -gt 0; then
+                SERVICE_ACCOUNT_PATH=$1
+            else
+                echo "error: no service account path"
                 exit 1
             fi
             shift
@@ -133,7 +147,7 @@ while test $# -gt 0; do
             if test $# -gt 0; then
                 IMG=$1
             else
-                echo "no image provided"
+                echo "error: no image provided"
                 exit 1
             fi
             shift
@@ -147,25 +161,24 @@ done
 
 # Check for gcloud service account existence
 if [ "$SR" == "servicedirectory" ]; then
-    GC_SERV_ACC=$SETTINGS_DIR/gcloud-credentials.json
-    if [ "$1" == "ServiceDirectory" ]; then
-        SR="SD"
+    # if [ "$1" == "ServiceDirectory" ]; then
+        # SR="SD"
         # Does the service account file exist?
-        file_exists $GC_SERV_ACC
+        file_exists $SERVICE_ACCOUNT_PATH
         if [ "$FILE_VALID" -eq 0 ]; then
-            echo "service account file does not exist in $SETTINGS_DIR"
+            echo "error: $SERVICE_ACCOUNT_PATH file was not found"
             exit 1
         fi;
-    fi;
+    # fi;
 fi;
 
-if [ "$SR" -a "etcd" ]; then
+if [ "$SR" == "etcd" ]; then
     if [ \( ! -z "$ETCD_USERNAME" \) -a \( -z "$ETCD_PASSWORD" \)  ]; then
-        echo "no password provided"
+        echo "error: no password provided"
         exit 1
     fi;
     if [ \( ! -z "$ETCD_PASSWORD" \) -a \( -z "$ETCD_USERNAME" \)  ]; then
-        echo "no username provided"
+        echo "error: no username provided"
         exit 1
     fi;
 fi;
@@ -183,7 +196,7 @@ kubectl create -f $DEPLOY_DIR/02_service_account.yaml,$DEPLOY_DIR/03_cluster_rol
 kubectl create configmap cnwan-operator-settings -n cnwan-operator-system --from-file=$SETTINGS_YAML
 
 if [ "$SR" == "servicedirectory" ]; then
-    kubectl create secret generic google-service-account -n cnwan-operator-system --from-file=$GC_SERV_ACC
+    kubectl create secret generic google-service-account -n cnwan-operator-system --from-file=$SERVICE_ACCOUNT_PATH
 fi;
 
 if [ "$SR" == "etcd" ]; then
