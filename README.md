@@ -34,8 +34,7 @@ If you want to quickly see how CN-WAN Operator works, you can follow this simple
 ## Documentation
 
 * [Concepts](./docs/concepts.md)
-* [Basic Installation](./docs/basic_installation.md)
-* [Advanced Installation](./docs/advanced_installation.md)
+* [Install](./docs/install.md)
 * [Update](./docs/update.md)
 * [Configuration](./docs/configuration.md)
 * [Service registry](./docs/service_registry.md)
@@ -56,19 +55,19 @@ If you want to quickly see how CN-WAN Operator works, you can follow this simple
 
 ## Contributing
 
-Thank you for interest in contributing to this project.  
+Thank you for interest in contributing to this project.
 Before starting, please make sure you know and agree to our [Code of conduct](./code-of-conduct.md).
 
 1. Fork it
-2. Download your fork  
+2. Download your fork
     `git clone https://github.com/your_username/cnwan-operator && cd cnwan-operator`
-3. Create your feature branch  
+3. Create your feature branch
     `git checkout -b my-new-feature`
-4. Make changes and add them  
+4. Make changes and add them
     `git add .`
-5. Commit your changes  
+5. Commit your changes
     `git commit -m 'Add some feature'`
-6. Push to the branch  
+6. Push to the branch
     `git push origin my-new-feature`
 7. Create new pull request to this repository
 
