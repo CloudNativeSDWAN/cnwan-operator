@@ -17,7 +17,7 @@ endif
 
 # Run tests
 test: fmt vet
-	go test ./... -coverprofile cover.out
+	go test ./pkg/... ./internal/... -coverprofile cover.out
 
 # Build manager binary
 manager: fmt vet
