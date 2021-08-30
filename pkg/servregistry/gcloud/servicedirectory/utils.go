@@ -20,6 +20,8 @@ import (
 	"path"
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type servDirPath struct {
@@ -72,4 +74,18 @@ func (s *Handler) checkNames(nsName, servName, endpName *string) error {
 	}
 
 	return nil
+}
+
+func castStatusToErr(err error) error {
+	// What is the error?
+	switch status.Code(err) {
+	case codes.DeadlineExceeded:
+		return sr.ErrTimeOutExpired
+	case codes.AlreadyExists:
+		return sr.ErrAlreadyExists
+	case codes.NotFound:
+		return sr.ErrNotFound
+	default:
+		return err
+	}
 }

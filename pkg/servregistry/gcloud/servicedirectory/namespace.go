@@ -24,8 +24,6 @@ import (
 	"google.golang.org/api/iterator"
 	sdpb "google.golang.org/genproto/googleapis/cloud/servicedirectory/v1"
 	"google.golang.org/genproto/protobuf/field_mask"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // GetNs returns the namespace if exists.
@@ -34,7 +32,7 @@ func (s *Handler) GetNs(name string) (*sr.Namespace, error) {
 	if err := s.checkNames(&name, nil, nil); err != nil {
 		return nil, err
 	}
-	l := s.Log.WithName("GetNs").WithValues("ns-name", name)
+
 	nsPath := s.getResourcePath(servDirPath{namespace: name})
 	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
@@ -52,18 +50,7 @@ func (s *Handler) GetNs(name string) (*sr.Namespace, error) {
 		return namespace, nil
 	}
 
-	// What is the error?
-	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
-		return nil, sr.ErrTimeOutExpired
-	}
-
-	if status.Code(err) == codes.NotFound {
-		return nil, sr.ErrNotFound
-	}
-
-	// Any other error
-	return nil, err
+	return nil, castStatusToErr(err)
 }
 
 // ListNs returns a list of all namespaces.
@@ -124,7 +111,7 @@ func (s *Handler) CreateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 	if err := s.checkNames(&ns.Name, nil, nil); err != nil {
 		return nil, err
 	}
-	l := s.Log.WithName("CreateNs").WithValues("ns-name", ns.Name, "labels", ns.Metadata)
+
 	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
@@ -147,18 +134,7 @@ func (s *Handler) CreateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 		return ns, nil
 	}
 
-	// What is the error?
-	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
-		return nil, sr.ErrTimeOutExpired
-	}
-
-	if status.Code(err) == codes.AlreadyExists {
-		return nil, sr.ErrAlreadyExists
-	}
-
-	// Any other error
-	return nil, err
+	return nil, castStatusToErr(err)
 }
 
 // UpdateNs updates the namespace.
@@ -170,7 +146,7 @@ func (s *Handler) UpdateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 	if err := s.checkNames(&ns.Name, nil, nil); err != nil {
 		return nil, err
 	}
-	l := s.Log.WithName("UpdateNs").WithValues("ns-name", ns.Name, "labels", ns.Metadata)
+
 	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
@@ -191,18 +167,7 @@ func (s *Handler) UpdateNs(ns *sr.Namespace) (*sr.Namespace, error) {
 		return ns, nil
 	}
 
-	// What is the error?
-	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
-		return nil, sr.ErrTimeOutExpired
-	}
-
-	if status.Code(err) == codes.NotFound {
-		return nil, sr.ErrNotFound
-	}
-
-	// Any other error
-	return nil, err
+	return nil, castStatusToErr(err)
 }
 
 // DeleteNs deletes the namespace.
@@ -211,7 +176,7 @@ func (s *Handler) DeleteNs(name string) error {
 	if err := s.checkNames(&name, nil, nil); err != nil {
 		return err
 	}
-	l := s.Log.WithName("DeleteNs").WithValues("ns-name", name)
+
 	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
@@ -224,16 +189,5 @@ func (s *Handler) DeleteNs(name string) error {
 		return nil
 	}
 
-	// What is the error?
-	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
-		return sr.ErrTimeOutExpired
-	}
-
-	if status.Code(err) == codes.NotFound {
-		return sr.ErrNotFound
-	}
-
-	// Any other error
-	return err
+	return castStatusToErr(err)
 }
