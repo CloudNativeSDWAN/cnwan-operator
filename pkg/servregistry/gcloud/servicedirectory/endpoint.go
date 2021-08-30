@@ -25,8 +25,6 @@ import (
 	"google.golang.org/api/iterator"
 	sdpb "google.golang.org/genproto/googleapis/cloud/servicedirectory/v1"
 	"google.golang.org/genproto/protobuf/field_mask"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // GetEndp returns the endpoint if exists.
@@ -35,7 +33,7 @@ func (s *Handler) GetEndp(nsName, servName, endpName string) (*sr.Endpoint, erro
 	if err := s.checkNames(&nsName, &servName, &endpName); err != nil {
 		return nil, err
 	}
-	l := s.Log.WithName("GetEndp").WithValues("ns-name", nsName, "serv-name", servName, "endp-name", endpName)
+
 	endpPath := s.getResourcePath(servDirPath{namespace: nsName, service: servName, endpoint: endpName})
 	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
@@ -55,18 +53,7 @@ func (s *Handler) GetEndp(nsName, servName, endpName string) (*sr.Endpoint, erro
 		return endp, nil
 	}
 
-	// What is the error?
-	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
-		return nil, sr.ErrTimeOutExpired
-	}
-
-	if status.Code(err) == codes.NotFound {
-		return nil, sr.ErrNotFound
-	}
-
-	// Any other error
-	return nil, err
+	return nil, castStatusToErr(err)
 }
 
 // ListServ returns a list of services inside the provided namespace.
@@ -132,7 +119,7 @@ func (s *Handler) CreateEndp(endp *sr.Endpoint) (*sr.Endpoint, error) {
 	if err := s.checkNames(&endp.NsName, &endp.ServName, &endp.Name); err != nil {
 		return nil, err
 	}
-	l := s.Log.WithName("CreateEndp").WithValues("ns-name", endp.NsName, "serv-name", endp.ServName, "endp-name", endp.Name, "metadata", endp.Metadata)
+
 	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
@@ -151,7 +138,7 @@ func (s *Handler) CreateEndp(endp *sr.Endpoint) (*sr.Endpoint, error) {
 
 	_, err := s.Client.CreateEndpoint(ctx, req)
 	if err == nil {
-		// If it is successful, then it makes no point in parsing the returned
+		// If it is successful, then there is no point in parsing the returned
 		// service from service directory, because it will look like just the
 		// same as the service we want to create, apart from having prefixes
 		// in the name, which is something we want to abstract to someone
@@ -159,18 +146,7 @@ func (s *Handler) CreateEndp(endp *sr.Endpoint) (*sr.Endpoint, error) {
 		return endp, nil
 	}
 
-	// What is the error?
-	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
-		return nil, sr.ErrTimeOutExpired
-	}
-
-	if status.Code(err) == codes.AlreadyExists {
-		return nil, sr.ErrAlreadyExists
-	}
-
-	// Any other error
-	return nil, err
+	return nil, castStatusToErr(err)
 }
 
 // UpdateEndp updates the endpoint.
@@ -182,7 +158,7 @@ func (s *Handler) UpdateEndp(endp *sr.Endpoint) (*sr.Endpoint, error) {
 	if err := s.checkNames(&endp.NsName, &endp.ServName, &endp.Name); err != nil {
 		return nil, err
 	}
-	l := s.Log.WithName("UpdateEndp").WithValues("ns-name", endp.NsName, "serv-name", endp.ServName, "endp-name", endp.Name, "metadata", endp.Metadata)
+
 	endpPath := s.getResourcePath(servDirPath{namespace: endp.NsName, service: endp.ServName, endpoint: endp.Name})
 	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
@@ -206,18 +182,7 @@ func (s *Handler) UpdateEndp(endp *sr.Endpoint) (*sr.Endpoint, error) {
 		return endp, nil
 	}
 
-	// What is the error?
-	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
-		return nil, sr.ErrTimeOutExpired
-	}
-
-	if status.Code(err) == codes.NotFound {
-		return nil, sr.ErrNotFound
-	}
-
-	// Any other error
-	return nil, err
+	return nil, castStatusToErr(err)
 }
 
 // DeleteEndp deletes the endpoint.
@@ -226,7 +191,7 @@ func (s *Handler) DeleteEndp(nsName, servName, endpName string) error {
 	if err := s.checkNames(&nsName, &servName, &endpName); err != nil {
 		return err
 	}
-	l := s.Log.WithName("DeleteEndp").WithValues("ns-name", nsName, "serv-name", servName, "endp-name", endpName)
+
 	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
@@ -239,16 +204,5 @@ func (s *Handler) DeleteEndp(nsName, servName, endpName string) error {
 		return nil
 	}
 
-	// What is the error?
-	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
-		return sr.ErrTimeOutExpired
-	}
-
-	if status.Code(err) == codes.NotFound {
-		return sr.ErrNotFound
-	}
-
-	// Any other error
-	return err
+	return castStatusToErr(err)
 }

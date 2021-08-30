@@ -25,8 +25,6 @@ import (
 	"google.golang.org/api/iterator"
 	sdpb "google.golang.org/genproto/googleapis/cloud/servicedirectory/v1"
 	"google.golang.org/genproto/protobuf/field_mask"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // GetServ returns the service if exists.
@@ -35,7 +33,7 @@ func (s *Handler) GetServ(nsName, servName string) (*sr.Service, error) {
 	if err := s.checkNames(&nsName, &servName, nil); err != nil {
 		return nil, err
 	}
-	l := s.Log.WithName("GetServ").WithValues("ns-name", nsName, "serv-name", servName)
+
 	servPath := s.getResourcePath(servDirPath{namespace: nsName, service: servName})
 	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
@@ -54,18 +52,7 @@ func (s *Handler) GetServ(nsName, servName string) (*sr.Service, error) {
 		return serv, nil
 	}
 
-	// What is the error?
-	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
-		return nil, sr.ErrTimeOutExpired
-	}
-
-	if status.Code(err) == codes.NotFound {
-		return nil, sr.ErrNotFound
-	}
-
-	// Any other error
-	return nil, err
+	return nil, castStatusToErr(err)
 }
 
 // ListServ returns a list of services inside the provided namespace.
@@ -130,7 +117,7 @@ func (s *Handler) CreateServ(serv *sr.Service) (*sr.Service, error) {
 	if err := s.checkNames(&serv.NsName, &serv.Name, nil); err != nil {
 		return nil, err
 	}
-	l := s.Log.WithName("CreateServ").WithValues("ns-name", serv.NsName, "serv-name", serv.Name, "metadata", serv.Metadata)
+
 	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
@@ -155,18 +142,7 @@ func (s *Handler) CreateServ(serv *sr.Service) (*sr.Service, error) {
 		return serv, nil
 	}
 
-	// What is the error?
-	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
-		return nil, sr.ErrTimeOutExpired
-	}
-
-	if status.Code(err) == codes.AlreadyExists {
-		return nil, sr.ErrAlreadyExists
-	}
-
-	// Any other error
-	return nil, err
+	return nil, castStatusToErr(err)
 }
 
 // UpdateServ updates the service.
@@ -178,7 +154,7 @@ func (s *Handler) UpdateServ(serv *sr.Service) (*sr.Service, error) {
 	if err := s.checkNames(&serv.NsName, &serv.Name, nil); err != nil {
 		return nil, err
 	}
-	l := s.Log.WithName("UpdateServ").WithValues("ns-name", serv.NsName, "serv-name", serv.Name, "metadata", serv.Metadata)
+
 	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
@@ -199,18 +175,7 @@ func (s *Handler) UpdateServ(serv *sr.Service) (*sr.Service, error) {
 		return serv, nil
 	}
 
-	// What is the error?
-	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
-		return nil, sr.ErrTimeOutExpired
-	}
-
-	if status.Code(err) == codes.NotFound {
-		return nil, sr.ErrNotFound
-	}
-
-	// Any other error
-	return nil, err
+	return nil, castStatusToErr(err)
 }
 
 // DeleteServ deletes the service.
@@ -219,7 +184,7 @@ func (s *Handler) DeleteServ(nsName, servName string) error {
 	if err := s.checkNames(&nsName, &servName, nil); err != nil {
 		return err
 	}
-	l := s.Log.WithName("DeleteServ").WithValues("ns-name", nsName, "serv-name", servName)
+
 	ctx, canc := context.WithTimeout(s.Context, defTimeout)
 	defer canc()
 
@@ -232,16 +197,5 @@ func (s *Handler) DeleteServ(nsName, servName string) error {
 		return nil
 	}
 
-	// What is the error?
-	if err == context.DeadlineExceeded {
-		l.Error(err, "timeout expired while waiting for service directory to reply", "timeout-seconds", defTimeout.Seconds())
-		return sr.ErrTimeOutExpired
-	}
-
-	if status.Code(err) == codes.NotFound {
-		return sr.ErrNotFound
-	}
-
-	// Any other error
-	return err
+	return castStatusToErr(err)
 }

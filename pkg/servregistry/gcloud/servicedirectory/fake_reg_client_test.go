@@ -55,7 +55,7 @@ func (f *fakeRegClient) GetNamespace(ctx context.Context, req *sdpb.GetNamespace
 	}
 
 	if name == "timeout-error" {
-		return nil, context.DeadlineExceeded
+		return nil, status.Error(codes.DeadlineExceeded, codes.DeadlineExceeded.String())
 	}
 
 	return &sdpb.Namespace{Name: "one/two/three/four/five/ns"}, nil
@@ -78,7 +78,7 @@ func (f *fakeRegClient) CreateNamespace(ctx context.Context, req *sdpb.CreateNam
 	}
 
 	if name == "timeout-error" {
-		return nil, context.DeadlineExceeded
+		return nil, status.Error(codes.DeadlineExceeded, codes.DeadlineExceeded.String())
 	}
 
 	return &sdpb.Namespace{Name: "one/two/three/four/five/ns"}, nil
@@ -96,7 +96,7 @@ func (f *fakeRegClient) UpdateNamespace(ctx context.Context, req *sdpb.UpdateNam
 	}
 
 	if name == "timeout-error" {
-		return nil, context.DeadlineExceeded
+		return nil, status.Error(codes.DeadlineExceeded, codes.DeadlineExceeded.String())
 	}
 
 	return &sdpb.Namespace{Name: "one/two/three/four/five/ns"}, nil
@@ -114,7 +114,7 @@ func (f *fakeRegClient) DeleteNamespace(ctx context.Context, req *sdpb.DeleteNam
 	}
 
 	if name == "timeout-error" {
-		return context.DeadlineExceeded
+		return status.Error(codes.DeadlineExceeded, codes.DeadlineExceeded.String())
 	}
 
 	return nil
@@ -132,7 +132,7 @@ func (f *fakeRegClient) GetService(ctx context.Context, req *sdpb.GetServiceRequ
 	}
 
 	if name == "timeout-error" {
-		return nil, context.DeadlineExceeded
+		return nil, status.Error(codes.DeadlineExceeded, codes.DeadlineExceeded.String())
 	}
 
 	return &sdpb.Service{Name: "one/two/three/four/five/six/seven/" + req.Name}, nil
@@ -150,7 +150,7 @@ func (f *fakeRegClient) CreateService(ctx context.Context, req *sdpb.CreateServi
 	}
 
 	if name == "timeout-error" {
-		return nil, context.DeadlineExceeded
+		return nil, status.Error(codes.DeadlineExceeded, codes.DeadlineExceeded.String())
 	}
 
 	return &sdpb.Service{Name: "one/two/three/four/five/six/seven/" + req.ServiceId}, nil
@@ -168,7 +168,7 @@ func (f *fakeRegClient) UpdateService(ctx context.Context, req *sdpb.UpdateServi
 	}
 
 	if name == "timeout-error" {
-		return nil, context.DeadlineExceeded
+		return nil, status.Error(codes.DeadlineExceeded, codes.DeadlineExceeded.String())
 	}
 
 	return &sdpb.Service{Name: "one/two/three/four/five/ns"}, nil
@@ -186,7 +186,7 @@ func (f *fakeRegClient) DeleteService(ctx context.Context, req *sdpb.DeleteServi
 	}
 
 	if name == "timeout-error" {
-		return context.DeadlineExceeded
+		return status.Error(codes.DeadlineExceeded, codes.DeadlineExceeded.String())
 	}
 
 	return nil
@@ -204,7 +204,7 @@ func (f *fakeRegClient) GetEndpoint(ctx context.Context, req *sdpb.GetEndpointRe
 	}
 
 	if name == "timeout-error" {
-		return nil, context.DeadlineExceeded
+		return nil, status.Error(codes.DeadlineExceeded, codes.DeadlineExceeded.String())
 	}
 
 	return &sdpb.Endpoint{Name: "one/two/three/four/five/six/seven/eight/nine/" + req.Name}, nil
@@ -222,7 +222,7 @@ func (f *fakeRegClient) CreateEndpoint(ctx context.Context, req *sdpb.CreateEndp
 	}
 
 	if name == "timeout-error" {
-		return nil, context.DeadlineExceeded
+		return nil, status.Error(codes.DeadlineExceeded, codes.DeadlineExceeded.String())
 	}
 
 	return &sdpb.Endpoint{Name: "one/two/three/four/five/six/seven/eight/nine/" + req.EndpointId}, nil
@@ -240,7 +240,7 @@ func (f *fakeRegClient) UpdateEndpoint(ctx context.Context, req *sdpb.UpdateEndp
 	}
 
 	if name == "timeout-error" {
-		return nil, context.DeadlineExceeded
+		return nil, status.Error(codes.DeadlineExceeded, codes.DeadlineExceeded.String())
 	}
 
 	return &sdpb.Endpoint{Name: "one/two/three/four/five/six/seven/eight/nine/" + req.Endpoint.Name}, nil
@@ -258,7 +258,7 @@ func (f *fakeRegClient) DeleteEndpoint(ctx context.Context, req *sdpb.DeleteEndp
 	}
 
 	if name == "timeout-error" {
-		return context.DeadlineExceeded
+		return status.Error(codes.DeadlineExceeded, codes.DeadlineExceeded.String())
 	}
 
 	return nil
