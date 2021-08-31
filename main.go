@@ -29,7 +29,7 @@ import (
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
 	sd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/gcloud/servicedirectory"
 	"github.com/spf13/viper"
-	"go.etcd.io/etcd/clientv3"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"

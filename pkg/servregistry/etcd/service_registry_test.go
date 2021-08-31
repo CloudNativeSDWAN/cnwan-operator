@@ -26,9 +26,9 @@ import (
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"github.com/stretchr/testify/assert"
-	clientv3 "go.etcd.io/etcd/clientv3"
-	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
-	"go.etcd.io/etcd/mvcc/mvccpb"
+	"go.etcd.io/etcd/api/v3/mvccpb"
+	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

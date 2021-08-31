@@ -21,12 +21,12 @@ import (
 	"fmt"
 	"testing"
 
-	"go.etcd.io/etcd/mvcc/mvccpb"
+	"go.etcd.io/etcd/api/v3/mvccpb"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"gopkg.in/yaml.v3"
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"github.com/stretchr/testify/assert"
-	"go.etcd.io/etcd/clientv3"
 )
 
 func TestGetNs(t *testing.T) {
