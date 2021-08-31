@@ -22,8 +22,8 @@ import (
 	"os"
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
-	clientv3 "go.etcd.io/etcd/clientv3"
-	namespace "go.etcd.io/etcd/clientv3/namespace"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	namespace "go.etcd.io/etcd/client/v3/namespace"
 )
 
 // This example shows how to use the Keybuilder without any names yet.

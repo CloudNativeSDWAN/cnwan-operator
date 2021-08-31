@@ -25,7 +25,7 @@ import (
 	sd "cloud.google.com/go/servicedirectory/apiv1"
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/cluster"
-	"go.etcd.io/etcd/clientv3"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/api/option"
 )
 

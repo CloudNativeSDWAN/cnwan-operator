@@ -25,9 +25,9 @@ import (
 	"time"
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
-	clientv3 "go.etcd.io/etcd/clientv3"
-	namespace "go.etcd.io/etcd/clientv3/namespace"
-	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
+	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	namespace "go.etcd.io/etcd/client/v3/namespace"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 )

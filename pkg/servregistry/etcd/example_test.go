@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"os"
 
-	"go.etcd.io/etcd/clientv3"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // This example shows how to start the etcd service registry
