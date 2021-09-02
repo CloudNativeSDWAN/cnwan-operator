@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] (2021-09-02)
+
+### Added
+
+- `/artifacts/secrets` folder to contain secrets (these are git ignored).
+- `/artifacts/deploy` to contain yamls to deploy to the cluster.
+- `/artifacts/settings` to contains settings for the operator and service
+    registries.
+- `/artifacts/deploy/other` to contain yaml files to deploy with the operator.
+
+### Changed
+
+- Fix an error causing `context.DeadlineExceeded` not being correctly
+    parsed when calls to Service Directory fail.
+- Update packages for Service Directory to the latest version.
+- Update packages for etcd to a stable version.
+- Files to deploy are now moved to `/artifacts`.
+- `deploy.sh` is updated to reflect files reorganization.
+- `remove.sh` is updated to reflect files reorganization.
+- Update installation to include new ways to add files.
+- Update go to `1.17`.
+
+### Removed
+
+- Some unused entrypoints in `Makefile`.
+- Files that belonged to the old advance installation.
+- `hack` folder.
+- Documentation about the advance installation.
+
 ## [0.5.0] (2021-08-10)
 
 ### Added
