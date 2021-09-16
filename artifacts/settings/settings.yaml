@@ -1,5 +1,4 @@
-namespace:
-  listPolicy: allowlist
+enableNamespaceByDefault: false
 service:
   annotations: []
 serviceRegistry:

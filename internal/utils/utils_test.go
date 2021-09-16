@@ -113,39 +113,21 @@ func TestParseAndValidateSettings(t *testing.T) {
 			expErr: fmt.Errorf("no settings provided"),
 		},
 		{
-			id: "unknown-ns-settings",
-			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.ListPolicy("unknwon"),
-				},
-			},
-			expErr: fmt.Errorf("namespace list policy is neither AllowList nor BlockList"),
-		},
-		{
-			id: "no-service-registry-settings",
-			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
-			},
+			id:     "no-service-registry-settings",
+			arg:    &types.Settings{EnableNamespaceByDefault: true},
 			expErr: fmt.Errorf("no service registry provided"),
 		},
 		{
 			id: "no-service-registry-fields",
 			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
-				ServiceRegistrySettings: &types.ServiceRegistrySettings{},
+				EnableNamespaceByDefault: true,
+				ServiceRegistrySettings:  &types.ServiceRegistrySettings{},
 			},
 			expErr: fmt.Errorf("no service registry provided"),
 		},
 		{
 			id: "etcd-unknown-auth",
 			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{
 						Authentication: types.EtcdAuthenticationType("nothing"),
@@ -160,9 +142,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 		{
 			id: "etcd-uname-pass-auth",
 			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
+				EnableNamespaceByDefault: true,
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{
 						Authentication: types.EtcdAuthWithUsernamePassw,
@@ -173,9 +153,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				},
 			},
 			expRes: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
+				EnableNamespaceByDefault: true,
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{
 						Authentication: types.EtcdAuthWithUsernamePassw,
@@ -189,9 +167,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 		{
 			id: "etcd-tls-auth",
 			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{
 						Authentication: types.EtcdAuthWithTLS,
@@ -206,9 +181,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 		{
 			id: "only-etcd-not-empty",
 			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{
 						Prefix: &pref,
@@ -223,9 +195,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 				},
 			},
 			expRes: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{
 						Authentication: types.EtcdAuthWithNothing,
@@ -242,9 +211,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 		{
 			id: "only-etcd-empty",
 			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{},
 				},
@@ -254,9 +220,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 		{
 			id: "both-but-only-etcd-is-there",
 			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
+				EnableNamespaceByDefault: true,
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -270,9 +234,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				},
 			},
 			expRes: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
+				EnableNamespaceByDefault: true,
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -294,18 +256,14 @@ func TestParseAndValidateSettings(t *testing.T) {
 						DefaultRegion: "ca",
 					},
 				},
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
+				EnableNamespaceByDefault: true,
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{},
 			},
 			expRes: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
+				EnableNamespaceByDefault: true,
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -326,9 +284,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 						DefaultRegion: "old",
 					},
 				},
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
+				EnableNamespaceByDefault: true,
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -340,9 +296,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				},
 			},
 			expRes: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
+				EnableNamespaceByDefault: true,
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -362,9 +316,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 						ProjectName:   "old",
 						DefaultRegion: "old",
 					},
-				},
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
 				},
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
@@ -387,9 +338,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 				},
 			},
 			expRes: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -418,9 +366,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 						DefaultRegion: "old",
 					},
 				},
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -433,9 +378,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 				CloudMetadata: &types.CloudMetadata{},
 			},
 			expRes: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},

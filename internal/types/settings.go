@@ -21,8 +21,6 @@ const (
 	SDDefaultRegion = "gcloud.servicedirectory.region"
 	// SDProject is the key for service directory project setting
 	SDProject = "gcloud.servicedirectory.project"
-	// NamespaceListPolicy is the key for the namespace list policy setting
-	NamespaceListPolicy = "namespace.listpolicy"
 	// AllowedAnnotations is the key for the allowed annotations setting
 	AllowedAnnotations = "service.annotations"
 	// AllowedAnnotationsMap is the key for the allowed annotations map setting
@@ -44,8 +42,8 @@ const (
 
 // Settings of the application
 type Settings struct {
-	Namespace                NamespaceSettings `yaml:"namespace"`
-	Service                  ServiceSettings   `yaml:"service"`
+	EnableNamespaceByDefault bool            `yaml:"enableNamespaceByDefault"`
+	Service                  ServiceSettings `yaml:"service"`
 	*ServiceRegistrySettings `yaml:"serviceRegistry"`
 
 	// DEPRECATED: include this under serviceRegistry instead of here.
@@ -58,31 +56,6 @@ type Settings struct {
 // TODO: remove this on v0.6.0
 type GcloudSettings struct {
 	ServiceDirectory *DeprecatedServiceDirectorySettings `yaml:"serviceDirectory"`
-}
-
-// ListPolicy is the list type that must be adopted by the operator
-type ListPolicy string
-
-const (
-	// AllowList will make the operator only consider resources that have
-	// are in the allowlist
-	AllowList ListPolicy = "allowlist"
-	// AllowedKey is the label key that states that a specific resource is
-	// in the allowlist, if allowlist is the current policy type.
-	// If the policy type is blocklist, this key is ignored.
-	AllowedKey string = "operator.cnwan.io/allowed"
-	// BlockList will make the operator consider all resources and ignore
-	// those that are in the blocklist
-	BlockList ListPolicy = "blocklist"
-	// BlockedKey is the label key that states that a specific resource is
-	// in the blocklist, if blocklist is the current policy type.
-	// If the policy type is allowlist, this key is ignored.
-	BlockedKey string = "operator.cnwan.io/blocked"
-)
-
-// NamespaceSettings includes settings about namespaces
-type NamespaceSettings struct {
-	ListPolicy ListPolicy `yaml:"listPolicy"`
 }
 
 // ServiceSettings includes settings about services

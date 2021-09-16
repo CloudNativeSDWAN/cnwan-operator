@@ -82,7 +82,7 @@ func ParseAndValidateSettings(settings *types.Settings) (*types.Settings, error)
 		return nil, fmt.Errorf("no settings provided")
 	}
 
-	finalSettings := &types.Settings{}
+	finalSettings := &types.Settings{EnableNamespaceByDefault: settings.EnableNamespaceByDefault}
 	if settings.CloudMetadata != nil {
 		clCfg := settings.CloudMetadata
 		finalCfg := &types.CloudMetadata{}
@@ -98,14 +98,6 @@ func ParseAndValidateSettings(settings *types.Settings) (*types.Settings, error)
 			finalSettings.CloudMetadata = finalCfg
 		}
 	}
-
-	if settings.Namespace.ListPolicy != types.AllowList && settings.Namespace.ListPolicy != types.BlockList {
-		// Probably we could revert to using a default value here, but I think
-		// it's better not to confuse the user with unexpected behaviors and
-		// just return an error.
-		return nil, fmt.Errorf("namespace list policy is neither AllowList nor BlockList")
-	}
-	finalSettings.Namespace = settings.Namespace
 
 	if len(settings.Service.Annotations) == 0 {
 		log.V(int(zapcore.WarnLevel)).Info("no allowed annotations provided: no service will be registered")
