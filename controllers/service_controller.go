@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2020, 2021 Cisco
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,13 +19,12 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/utils"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 
-	cnwan_types "github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
 	"github.com/go-logr/logr"
-	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -36,9 +35,10 @@ import (
 // ServiceReconciler reconciles a Service object
 type ServiceReconciler struct {
 	client.Client
-	Log           logr.Logger
-	Scheme        *runtime.Scheme
-	ServRegBroker *sr.Broker
+	Log                      logr.Logger
+	Scheme                   *runtime.Scheme
+	ServRegBroker            *sr.Broker
+	EnableNamespaceByDefault bool
 }
 
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
@@ -69,6 +69,11 @@ func (r *ServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		deleted = true
 	}
 
+	if r.ServRegBroker == nil {
+		l.Error(fmt.Errorf("%s", "service registry broker is nil"), "cannot handle service")
+		return ctrl.Result{}, nil
+	}
+
 	// Get the namespace
 	var ns corev1.Namespace
 	if err := r.Get(ctx, types.NamespacedName{Name: service.Namespace}, &ns); err != nil {
@@ -76,24 +81,18 @@ func (r *ServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	nsListPolicy := cnwan_types.ListPolicy(viper.GetString(cnwan_types.NamespaceListPolicy))
-
-	if nsListPolicy == cnwan_types.AllowList {
-		if _, exists := ns.Labels[cnwan_types.AllowedKey]; !exists {
-			l.V(1).Info("ignoring service as namespace is not in the allow list")
-			return ctrl.Result{}, nil
-		}
+	var shouldWatchNs bool
+	switch strings.ToLower(ns.Labels[enabledLabel]) {
+	case "yes":
+		shouldWatchNs = true
+	case "no":
+		shouldWatchNs = false
+	default:
+		shouldWatchNs = r.EnableNamespaceByDefault
 	}
 
-	if nsListPolicy == cnwan_types.BlockList {
-		if _, exists := ns.Labels[cnwan_types.BlockedKey]; exists {
-			l.V(1).Info("ignoring service as namespace is in the block list")
-			return ctrl.Result{}, nil
-		}
-	}
-
-	if r.ServRegBroker == nil {
-		l.Error(fmt.Errorf("%s", "service registry broker is nil"), "cannot handle namespace")
+	if !shouldWatchNs {
+		l.V(1).Info("ignoring service as namespace is not in the allow list")
 		return ctrl.Result{}, nil
 	}
 
