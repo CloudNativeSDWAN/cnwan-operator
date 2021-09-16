@@ -127,7 +127,6 @@ func main() {
 		allowedAnnotations[ann] = true
 	}
 	viper.Set(types.AllowedAnnotationsMap, allowedAnnotations)
-	viper.Set(types.NamespaceListPolicy, settings.Namespace.ListPolicy)
 	viper.Set(types.CurrentNamespace, nsName)
 
 	persistentMeta := []sr.MetadataPair{}
@@ -211,20 +210,22 @@ func main() {
 	}
 
 	if err = (&controllers.ServiceReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Service"),
-		Scheme:        mgr.GetScheme(),
-		ServRegBroker: srBroker,
+		Client:                   mgr.GetClient(),
+		Log:                      ctrl.Log.WithName("controllers").WithName("Service"),
+		Scheme:                   mgr.GetScheme(),
+		ServRegBroker:            srBroker,
+		EnableNamespaceByDefault: settings.EnableNamespaceByDefault,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Service")
 		returnCode = 8
 		runtime.Goexit()
 	}
 	if err = (&controllers.NamespaceReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Namespace"),
-		Scheme:        mgr.GetScheme(),
-		ServRegBroker: srBroker,
+		Client:                   mgr.GetClient(),
+		Log:                      ctrl.Log.WithName("controllers").WithName("Namespace"),
+		Scheme:                   mgr.GetScheme(),
+		ServRegBroker:            srBroker,
+		EnableNamespaceByDefault: settings.EnableNamespaceByDefault,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
 		returnCode = 9
