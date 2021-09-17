@@ -16,30 +16,6 @@
 
 package types
 
-const (
-	// SDDefaultRegion is the key for service directory region setting
-	SDDefaultRegion = "gcloud.servicedirectory.region"
-	// SDProject is the key for service directory project setting
-	SDProject = "gcloud.servicedirectory.project"
-	// AllowedAnnotations is the key for the allowed annotations setting
-	AllowedAnnotations = "service.annotations"
-	// AllowedAnnotationsMap is the key for the allowed annotations map setting
-	AllowedAnnotationsMap = "service.annotationsmap"
-	// ServiceRegistrySettingsKey is the key for the service registry settings
-	ServiceRegistrySettingsKey = "serviceregistry"
-	// DeprecatedGcloudServiceDirectoryKey is the key for the old service
-	// directory. It is currently only used to check if it is there and warn
-	// the user that it is deprecated.
-	DeprecatedGcloudServiceDirectoryKey = "gcloud.servicedirectory"
-	// CurrentNamespace identifies the namespace name in which we are running
-	// in, in case we are running inside the cluster.
-	CurrentNamespace = "currentnamespace"
-	// EtcdCredentialsSecretName is the name of the secret holding username
-	// and password to connect to the etcd cluster. If it exists, the cnwan
-	// operator expects this name.
-	EtcdCredentialsSecretName = "cnwan-operator-etcd-credentials"
-)
-
 // Settings of the application
 type Settings struct {
 	MonitorNamespacesByDefault bool            `yaml:"monitorNamespacesByDefault"`
