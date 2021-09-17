@@ -39,6 +39,7 @@ type ServiceReconciler struct {
 	Scheme                     *runtime.Scheme
 	ServRegBroker              *sr.Broker
 	MonitorNamespacesByDefault bool
+	AllowedAnnotations         []string
 }
 
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete

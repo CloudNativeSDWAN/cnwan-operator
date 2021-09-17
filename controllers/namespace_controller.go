@@ -41,6 +41,7 @@ type NamespaceReconciler struct {
 	Log                        logr.Logger
 	Scheme                     *runtime.Scheme
 	MonitorNamespacesByDefault bool
+	AllowedAnnotations         []string
 	nsLastConf                 map[string]bool
 	lock                       sync.Mutex
 	ServRegBroker              *sr.Broker
