@@ -43,7 +43,7 @@ const (
 // Settings of the application
 type Settings struct {
 	EnableNamespaceByDefault bool            `yaml:"enableNamespaceByDefault"`
-	Service                  ServiceSettings `yaml:"service"`
+	Service                  ServiceSettings `yaml:",inline"`
 	*ServiceRegistrySettings `yaml:"serviceRegistry"`
 
 	// DEPRECATED: include this under serviceRegistry instead of here.
@@ -60,7 +60,7 @@ type GcloudSettings struct {
 
 // ServiceSettings includes settings about services
 type ServiceSettings struct {
-	Annotations []string `yaml:"annotations"`
+	Annotations []string `yaml:"serviceAnnotations"`
 }
 
 // ServiceRegistrySettings contains information about the service registry

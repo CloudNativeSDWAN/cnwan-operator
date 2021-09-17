@@ -1,6 +1,5 @@
 enableNamespaceByDefault: false
-service:
-  annotations: []
+serviceAnnotations: []
 serviceRegistry:
   etcd:
     prefix: <prefix>
