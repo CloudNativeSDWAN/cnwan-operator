@@ -41,7 +41,7 @@ metadata:
     name: training-app-namespace
     labels:
         purpose: "test"
-        operator.cnwan.io/allowed: "yes"
+        operator.cnwan.io/enabled: "yes"
 ---
 kind: Service
 apiVersion: v1
@@ -65,7 +65,7 @@ spec:
 EOF
 ```
 
-Please notice that the namespace has this label: `operator.cnwan.io/allowed: yes` which inserts the namespace in the opeartor's [allowlist](./concepts.md#namespace-lists). Also notice that the service has annotations that will be registered as [metadata](./concepts.md#metadata):
+Please notice that the namespace has this label: `operator.cnwan.io/enabled: yes` which inserts the namespace in the opeartor's [allowlist](./concepts.md#namespace-lists). Also notice that the service has annotations that will be registered as [metadata](./concepts.md#metadata):
 
 ```yaml
 annotations:
@@ -107,10 +107,8 @@ serviceRegistry:
   gcpServiceDirectory:
     defaultRegion: <gcloud-region>
     projectID: <gcloud-project-id>
-namespace:
-  listPolicy: allowlist
-service:
-  annotations:
+enableNamespaceByDefault: false
+serviceAnnotations:
   - traffic-profile
   - version
 ```
@@ -129,10 +127,8 @@ If you plan to run the operator in GKE, you can just write:
 ```yaml
 serviceRegistry:
   gcpServiceDirectory: {}
-namespace:
-  listPolicy: allowlist
-service:
-  annotations:
+enableNamespaceByDefault: false
+serviceAnnotations:
   - traffic-profile
   - version
 ```

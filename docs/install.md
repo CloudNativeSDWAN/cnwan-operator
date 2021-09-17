@@ -47,7 +47,7 @@ Before deploying the operator you will need to configure it.
 
 ### Settings
 
-Modify the file `deploy/settings/settings.yaml` with the appropriate values. If you haven't already, please read [Configuration](./configuration.md) to learn how to do this.
+Modify the file `artifacts/deploy/settings/settings.yaml` with the appropriate values. If you haven't already, please read [Configuration](./configuration.md) to learn how to do this.
 
 ## Deploy
 
@@ -58,7 +58,7 @@ Before continuing, if you also have other files that you want to be deployed, yo
 To deploy the operator with the provided script, you will have to execute `deploy.sh` as such:
 
 ```bash
-./scripts/deploy.sh <service-registry>
+./scripts/deploy.sh etcd|servicedirectory
 ```
 
 If you want to use your own image, you'll need to provide `--image` flag, for example:

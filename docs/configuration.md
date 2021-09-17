@@ -5,7 +5,7 @@ This section will guide you through the steps you need to take to configure the 
 ## Table of Contents
 
 * [Format](#format)
-* [Set the Namespace List Policy](#set-the-namespace-list-policy)
+* [Enable namespace by default](#enable-namespace-by-default)
 * [Allow Annotations](#allow-annotations)
 * [Cloud Metadata](#cloud-metadata)
 * [Service registry settings](#service-registry-settings)
@@ -17,10 +17,8 @@ This section will guide you through the steps you need to take to configure the 
 The CN-WAN Operator can be configured with the following YAML format.
 
 ```yaml
-namespace:
-  listPolicy: allowlist
-service:
-  annotations: []
+enableNamespaceByDefault: false
+serviceAnnotations: []
 serviceRegistry:
   etcd:
     prefix: <prefix>
@@ -38,18 +36,13 @@ cloudMetadata:
   subNetwork: auto
 ```
 
-## Set the Namespace List Policy
+## Enable namespace by default
 
-The operator will only monitor services that belong to a namespace that you have explicitly allowed.
+The operator will watch service events only on namespaces that are *enabled*, and to do so you need to explicitly label namespaces with the reserved `operator.cnwan.io/enabled` label key.
 
-if you haven't already, please take a look at [this section](./concepts.md#namespace-list-policy) to learn more about the *default namespace list policy*.
+`enableNamespaceByDefault` will tell the operator what to do when such label is not found: if it does not exist or is false, then the operator will ignore the namespace by default. Otherwise it will watch events inside it.
 
-To set the list policy, change `listPolicy` value to either `allowlist` or `blocklist` like so:
-
-```yaml
-namespace:
-  listPolicy: allowlist
-```
+if you haven't already, please take a look at [this section](./concepts.md#enable-namespaces) to learn more about this concept.
 
 ## Allow Annotations
 
@@ -57,13 +50,18 @@ The operator will not register every annotation as metadata from a Kubernetes Se
 
 if you haven't already, please take a look at [Metadata](./concepts.md#metadata), [Allowed Annotations](./concepts.md#allowed-annotations) and [Annotations vs Labels](./concepts.md#annotations-vs-labels) to learn more.
 
-You can allow annotations by setting up `service.annotations` in the configuration. For example:
+You can allow annotations by setting up `serviceAnnotations` in the configuration. For example:
 
 ```yaml
-service:
-  annotations:
+serviceAnnotations:
   - version
   - example.com/purpose
+```
+
+Or you may like this format better:
+
+```yaml
+serviceAnnotations: [version, example.com/purpose]
 ```
 
 Values can also have wildcards. Example of accepted values are:
@@ -100,7 +98,7 @@ my.prefix.com/another-name: another-value
 name-with-no-prefix: simple-value
 ```
 
-Finally, if you leave this empty - as `annotations: []`, then no service will match this and, therefore, no service will be registered.
+Finally, if you leave this empty - as `serviceAnnotations: []`, then no service will match this and, therefore, no service will be registered.
 
 ## Cloud Metadata
 

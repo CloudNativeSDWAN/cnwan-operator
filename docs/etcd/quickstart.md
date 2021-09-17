@@ -39,7 +39,7 @@ metadata:
     name: training-app-namespace
     labels:
         purpose: "test"
-        operator.cnwan.io/allowed: "yes"
+        operator.cnwan.io/enabled: "yes"
 ---
 kind: Service
 apiVersion: v1
@@ -63,7 +63,7 @@ spec:
 EOF
 ```
 
-Please notice that the namespace has this label: `operator.cnwan.io/allowed: yes` which inserts the namespace in the opeartor's [allowlist](../concepts.md#namespace-lists). Also notice that the service has annotations that will be registered as [metadata](../concepts.md#metadata):
+Please notice that the namespace has this label: `operator.cnwan.io/enabled: yes` which inserts the namespace in the opeartor's [allowlist](../concepts.md#namespace-lists). Also notice that the service has annotations that will be registered as [metadata](../concepts.md#metadata):
 
 ```yaml
 annotations:
@@ -97,10 +97,8 @@ It doesn't really matter that there is no pod backing this service for now, as t
 From the root directory navigate to `deploy/settings` and modify the file `settings.yaml` to look like this - please provide appropriate values for `host` and `port` keys with your etcd cluster's addresses:
 
 ```yaml
-namespace:
-  listPolicy: allowlist
-service:
-  annotations:
+enableNamespaceByDefault: false
+servicennotations:
   - traffic-profile
   - version
 serviceRegistry:
@@ -120,10 +118,10 @@ endpoints:
 - host: 10.10.10.10
 ```
 
-Please notice the values inside `annotations`:
+Please notice the values inside `serviceAnnotations`:
 
 ```yaml
-  annotations:
+  serviceAnnotations:
   - traffic-profile
   - version
 ```

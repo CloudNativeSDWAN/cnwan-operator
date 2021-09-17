@@ -28,6 +28,13 @@ and you should see
 deployment.apps/cnwan-operator-controller-manager image updated
 ```
 
+<!-- TODO: write an update guide for v0.6.0 when it is going to be released:
+- clone operator
+- remove it
+- script to replace the old labels with new one
+- change the settings
+ -->
+
 ## 0.2.1 and below
 
 Clone latest `v0.2.x` version and navigate to `/scripts folder to remove it:
