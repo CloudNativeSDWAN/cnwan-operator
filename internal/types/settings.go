@@ -21,17 +21,7 @@ type Settings struct {
 	MonitorNamespacesByDefault bool            `yaml:"monitorNamespacesByDefault"`
 	Service                    ServiceSettings `yaml:",inline"`
 	*ServiceRegistrySettings   `yaml:"serviceRegistry"`
-
-	// DEPRECATED: include this under serviceRegistry instead of here.
-	// TODO: remove this on v0.6.0
-	Gcloud        *GcloudSettings `yaml:"gcloud"`
-	CloudMetadata *CloudMetadata  `yaml:"cloudMetadata"`
-}
-
-// GcloudSettings holds gcloud settings
-// TODO: remove this on v0.6.0
-type GcloudSettings struct {
-	ServiceDirectory *DeprecatedServiceDirectorySettings `yaml:"serviceDirectory"`
+	CloudMetadata              *CloudMetadata `yaml:"cloudMetadata"`
 }
 
 // ServiceSettings includes settings about services
@@ -44,13 +34,6 @@ type ServiceSettings struct {
 type ServiceRegistrySettings struct {
 	*ServiceDirectorySettings `yaml:"gcpServiceDirectory"`
 	*EtcdSettings             `yaml:"etcd"`
-}
-
-// DeprecatedServiceDirectorySettings holds settings about gcloud service directory
-// TODO: remove this on v0.6.0
-type DeprecatedServiceDirectorySettings struct {
-	DefaultRegion string `yaml:"region"`
-	ProjectName   string `yaml:"project"`
 }
 
 // ServiceDirectorySettings holds settings about gcloud service directory

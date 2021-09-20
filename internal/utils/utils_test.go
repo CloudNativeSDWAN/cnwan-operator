@@ -176,75 +176,8 @@ func TestParseAndValidateSettings(t *testing.T) {
 			},
 		},
 		{
-			id: "convert-deprecated-sd",
-			arg: &types.Settings{
-				Gcloud: &types.GcloudSettings{
-					ServiceDirectory: &types.DeprecatedServiceDirectorySettings{
-						ProjectName:   "test",
-						DefaultRegion: "ca",
-					},
-				},
-				MonitorNamespacesByDefault: true,
-				Service: types.ServiceSettings{
-					Annotations: []string{"one", "two"},
-				},
-				ServiceRegistrySettings: &types.ServiceRegistrySettings{},
-			},
-			expRes: &types.Settings{
-				MonitorNamespacesByDefault: true,
-				Service: types.ServiceSettings{
-					Annotations: []string{"one", "two"},
-				},
-				ServiceRegistrySettings: &types.ServiceRegistrySettings{
-					ServiceDirectorySettings: &types.ServiceDirectorySettings{
-						ProjectID:     "test",
-						DefaultRegion: "ca",
-					},
-				},
-			},
-		},
-		{
-			id: "do-not-convert-deprecated-sd",
-			arg: &types.Settings{
-				Gcloud: &types.GcloudSettings{
-					ServiceDirectory: &types.DeprecatedServiceDirectorySettings{
-						ProjectName:   "old",
-						DefaultRegion: "old",
-					},
-				},
-				MonitorNamespacesByDefault: true,
-				Service: types.ServiceSettings{
-					Annotations: []string{"one", "two"},
-				},
-				ServiceRegistrySettings: &types.ServiceRegistrySettings{
-					ServiceDirectorySettings: &types.ServiceDirectorySettings{
-						ProjectID:     "new",
-						DefaultRegion: "new",
-					},
-				},
-			},
-			expRes: &types.Settings{
-				MonitorNamespacesByDefault: true,
-				Service: types.ServiceSettings{
-					Annotations: []string{"one", "two"},
-				},
-				ServiceRegistrySettings: &types.ServiceRegistrySettings{
-					ServiceDirectorySettings: &types.ServiceDirectorySettings{
-						ProjectID:     "new",
-						DefaultRegion: "new",
-					},
-				},
-			},
-		},
-		{
 			id: "successful-with-cloud-cfg",
 			arg: &types.Settings{
-				Gcloud: &types.GcloudSettings{
-					ServiceDirectory: &types.DeprecatedServiceDirectorySettings{
-						ProjectName:   "old",
-						DefaultRegion: "old",
-					},
-				},
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -288,12 +221,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 		{
 			id: "successful-with-empty-cloud-cfg",
 			arg: &types.Settings{
-				Gcloud: &types.GcloudSettings{
-					ServiceDirectory: &types.DeprecatedServiceDirectorySettings{
-						ProjectName:   "old",
-						DefaultRegion: "old",
-					},
-				},
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},

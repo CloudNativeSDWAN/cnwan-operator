@@ -68,23 +68,6 @@ func ParseAndValidateSettings(settings *types.Settings) (*types.Settings, error)
 
 	// Only one service registry can be chosen at this time
 
-	// TODO: remove this in v0.6.0
-	if settings.Gcloud != nil {
-		if settings.Gcloud.ServiceDirectory != nil && settings.ServiceDirectorySettings == nil {
-			// Convert the deprecated service directory settings into the new structure,
-			// but only if the new one doesn't already exist.
-			log.V(int(zapcore.WarnLevel)).Info(`DEPRECATED: current service directory settings is under gcloud field.
-				This is deprecated and will be removed on v0.6.0.
-				Please place it under service registry as defined in the documentation.`)
-
-			sd := settings.Gcloud.ServiceDirectory
-			settings.ServiceDirectorySettings = &types.ServiceDirectorySettings{
-				DefaultRegion: sd.DefaultRegion,
-				ProjectID:     sd.ProjectName,
-			}
-		}
-	}
-
 	if settings.EtcdSettings == nil && settings.ServiceDirectorySettings == nil {
 		// Both are nil
 		return nil, fmt.Errorf("no service registry provided")
