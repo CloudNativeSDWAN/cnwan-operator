@@ -5,7 +5,7 @@ This section will guide you through the steps you need to take to configure the 
 ## Table of Contents
 
 * [Format](#format)
-* [Enable namespace by default](#enable-namespace-by-default)
+* [Monitor namespaces by default](#monitor-namespace-by-default)
 * [Allow Annotations](#allow-annotations)
 * [Cloud Metadata](#cloud-metadata)
 * [Service registry settings](#service-registry-settings)
@@ -17,7 +17,7 @@ This section will guide you through the steps you need to take to configure the 
 The CN-WAN Operator can be configured with the following YAML format.
 
 ```yaml
-enableNamespaceByDefault: false
+monitorNamespacesByDefault: false
 serviceAnnotations: []
 serviceRegistry:
   etcd:
@@ -36,13 +36,13 @@ cloudMetadata:
   subNetwork: auto
 ```
 
-## Enable namespace by default
+## Monitor namespace by default
 
-The operator will watch service events only on namespaces that are *enabled*, and to do so you need to explicitly label namespaces with the reserved `operator.cnwan.io/enabled` label key.
+The operator will watch service events only on namespaces that are *monitored*, and to do so you need to explicitly label namespaces with the reserved `operator.cnwan.io/monitor` label key.
 
-`enableNamespaceByDefault` will tell the operator what to do when such label is not found: if it does not exist or is false, then the operator will ignore the namespace by default. Otherwise it will watch events inside it.
+`monitorNamespacesByDefault` will tell the operator what to do when such label is not found: if it does not exist or is false, then the operator will ignore the namespace by default. Otherwise it will watch events inside it.
 
-if you haven't already, please take a look at [this section](./concepts.md#enable-namespaces) to learn more about this concept.
+if you haven't already, please take a look at [this section](./concepts.md#monitor-namespaces) to learn more about this concept.
 
 ## Allow Annotations
 

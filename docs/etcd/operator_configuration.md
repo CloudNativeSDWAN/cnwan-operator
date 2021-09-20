@@ -9,7 +9,7 @@ The included directory `deploy/settings` contains a `settings.yaml` for you to m
 For your convenience, here is how the settings for the CN-WAN Operator looks like:
 
 ```yaml
-enableNamespaceByDefault: false
+monitorNamespacesByDefault: false
 serviceAnnotations: []
 serviceRegistry:
   etcd:
@@ -28,7 +28,7 @@ serviceRegistry:
 We will only cover etcd settings here, so you can go ahead and remove the whole `gcpServiceDirectory` settings:
 
 ```yaml
-enableNamespaceByDefault: false
+monitorNamespacesByDefault: false
 serviceAnnotations: []
 serviceRegistry:
   etcd:

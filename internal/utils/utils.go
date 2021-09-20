@@ -82,7 +82,7 @@ func ParseAndValidateSettings(settings *types.Settings) (*types.Settings, error)
 		return nil, fmt.Errorf("no settings provided")
 	}
 
-	finalSettings := &types.Settings{EnableNamespaceByDefault: settings.EnableNamespaceByDefault}
+	finalSettings := &types.Settings{MonitorNamespacesByDefault: settings.MonitorNamespacesByDefault}
 	if settings.CloudMetadata != nil {
 		clCfg := settings.CloudMetadata
 		finalCfg := &types.CloudMetadata{}
