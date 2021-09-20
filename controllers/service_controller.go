@@ -35,10 +35,10 @@ import (
 // ServiceReconciler reconciles a Service object
 type ServiceReconciler struct {
 	client.Client
-	Log                      logr.Logger
-	Scheme                   *runtime.Scheme
-	ServRegBroker            *sr.Broker
-	EnableNamespaceByDefault bool
+	Log                        logr.Logger
+	Scheme                     *runtime.Scheme
+	ServRegBroker              *sr.Broker
+	MonitorNamespacesByDefault bool
 }
 
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
@@ -82,13 +82,13 @@ func (r *ServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	var shouldWatchNs bool
-	switch strings.ToLower(ns.Labels[enabledLabel]) {
-	case "yes":
+	switch strings.ToLower(ns.Labels[monitorLabel]) {
+	case "true":
 		shouldWatchNs = true
-	case "no":
+	case "false":
 		shouldWatchNs = false
 	default:
-		shouldWatchNs = r.EnableNamespaceByDefault
+		shouldWatchNs = r.MonitorNamespacesByDefault
 	}
 
 	if !shouldWatchNs {

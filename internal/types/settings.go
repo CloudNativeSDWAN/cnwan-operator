@@ -42,9 +42,9 @@ const (
 
 // Settings of the application
 type Settings struct {
-	EnableNamespaceByDefault bool            `yaml:"enableNamespaceByDefault"`
-	Service                  ServiceSettings `yaml:",inline"`
-	*ServiceRegistrySettings `yaml:"serviceRegistry"`
+	MonitorNamespacesByDefault bool            `yaml:"monitorNamespacesByDefault"`
+	Service                    ServiceSettings `yaml:",inline"`
+	*ServiceRegistrySettings   `yaml:"serviceRegistry"`
 
 	// DEPRECATED: include this under serviceRegistry instead of here.
 	// TODO: remove this on v0.6.0

@@ -114,14 +114,14 @@ func TestParseAndValidateSettings(t *testing.T) {
 		},
 		{
 			id:     "no-service-registry-settings",
-			arg:    &types.Settings{EnableNamespaceByDefault: true},
+			arg:    &types.Settings{MonitorNamespacesByDefault: true},
 			expErr: fmt.Errorf("no service registry provided"),
 		},
 		{
 			id: "no-service-registry-fields",
 			arg: &types.Settings{
-				EnableNamespaceByDefault: true,
-				ServiceRegistrySettings:  &types.ServiceRegistrySettings{},
+				MonitorNamespacesByDefault: true,
+				ServiceRegistrySettings:    &types.ServiceRegistrySettings{},
 			},
 			expErr: fmt.Errorf("no service registry provided"),
 		},
@@ -142,7 +142,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 		{
 			id: "etcd-uname-pass-auth",
 			arg: &types.Settings{
-				EnableNamespaceByDefault: true,
+				MonitorNamespacesByDefault: true,
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{
 						Authentication: types.EtcdAuthWithUsernamePassw,
@@ -153,7 +153,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				},
 			},
 			expRes: &types.Settings{
-				EnableNamespaceByDefault: true,
+				MonitorNamespacesByDefault: true,
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{
 						Authentication: types.EtcdAuthWithUsernamePassw,
@@ -220,7 +220,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 		{
 			id: "both-but-only-etcd-is-there",
 			arg: &types.Settings{
-				EnableNamespaceByDefault: true,
+				MonitorNamespacesByDefault: true,
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -234,7 +234,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				},
 			},
 			expRes: &types.Settings{
-				EnableNamespaceByDefault: true,
+				MonitorNamespacesByDefault: true,
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -256,14 +256,14 @@ func TestParseAndValidateSettings(t *testing.T) {
 						DefaultRegion: "ca",
 					},
 				},
-				EnableNamespaceByDefault: true,
+				MonitorNamespacesByDefault: true,
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{},
 			},
 			expRes: &types.Settings{
-				EnableNamespaceByDefault: true,
+				MonitorNamespacesByDefault: true,
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -284,7 +284,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 						DefaultRegion: "old",
 					},
 				},
-				EnableNamespaceByDefault: true,
+				MonitorNamespacesByDefault: true,
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -296,7 +296,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				},
 			},
 			expRes: &types.Settings{
-				EnableNamespaceByDefault: true,
+				MonitorNamespacesByDefault: true,
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},

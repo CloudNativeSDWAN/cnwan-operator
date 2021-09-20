@@ -32,18 +32,18 @@ import (
 )
 
 const (
-	enabledLabel string = "operator.cnwan.io/enabled"
+	monitorLabel string = "operator.cnwan.io/monitor"
 )
 
 // NamespaceReconciler reconciles a Namespace object
 type NamespaceReconciler struct {
 	client.Client
-	Log                      logr.Logger
-	Scheme                   *runtime.Scheme
-	EnableNamespaceByDefault bool
-	nsLastConf               map[string]bool
-	lock                     sync.Mutex
-	ServRegBroker            *sr.Broker
+	Log                        logr.Logger
+	Scheme                     *runtime.Scheme
+	MonitorNamespacesByDefault bool
+	nsLastConf                 map[string]bool
+	lock                       sync.Mutex
+	ServRegBroker              *sr.Broker
 }
 
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create;update;patch;delete
@@ -95,27 +95,27 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
-	change, nsIsEnabled := func() (bool, bool) {
-		var currentlyEnabled bool
-		switch strings.ToLower(ns.Labels[enabledLabel]) {
-		case "yes":
-			currentlyEnabled = true
-		case "no":
-			currentlyEnabled = false
+	change, nsIsMonitored := func() (bool, bool) {
+		var currentlyMonitored bool
+		switch strings.ToLower(ns.Labels[monitorLabel]) {
+		case "true":
+			currentlyMonitored = true
+		case "false":
+			currentlyMonitored = false
 		default:
-			currentlyEnabled = r.EnableNamespaceByDefault
+			currentlyMonitored = r.MonitorNamespacesByDefault
 		}
 
 		r.lock.Lock()
 		defer r.lock.Unlock()
-		previouslyEnabled, existed := r.nsLastConf[ns.Name]
+		previouslyMonitored, existed := r.nsLastConf[ns.Name]
 		if !existed {
-			previouslyEnabled = r.EnableNamespaceByDefault
+			previouslyMonitored = r.MonitorNamespacesByDefault
 		}
 
-		changed := currentlyEnabled != previouslyEnabled
-		r.nsLastConf[ns.Name] = currentlyEnabled
-		return changed, currentlyEnabled
+		changed := currentlyMonitored != previouslyMonitored
+		r.nsLastConf[ns.Name] = currentlyMonitored
+		return changed, currentlyMonitored
 	}()
 	if !change {
 		return ctrl.Result{}, nil
@@ -129,7 +129,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// First, check the services
 	for _, serv := range servList.Items {
-		if !nsIsEnabled {
+		if !nsIsMonitored {
 			if err := r.ServRegBroker.RemoveServ(serv.Namespace, serv.Name, true); err != nil {
 				l.Error(err, "error while deleting service")
 			}
@@ -161,7 +161,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	}
 
-	if !nsIsEnabled {
+	if !nsIsMonitored {
 		if err := r.ServRegBroker.RemoveNs(ns.Name, true); err != nil {
 			l.Error(err, "error while deleting service")
 		}
