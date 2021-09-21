@@ -16,6 +16,12 @@
 
 package servregistry
 
+import (
+	"path"
+
+	"github.com/patrickmn/go-cache"
+)
+
 // This file contains functions that perform operations on services,
 // such as create/update/delete.
 // These functions belong to a ServiceRegistryBroker, defined in
@@ -51,6 +57,7 @@ func (b *Broker) ManageServ(servData *Service) (regServ *Service, err error) {
 	if len(servData.NsName) == 0 {
 		return nil, ErrNsNameNotProvided
 	}
+	cacheKey := path.Join("namespaces", servData.NsName, "services", servData.Name)
 
 	// -- Init
 	b.lock.Lock()
@@ -68,24 +75,30 @@ func (b *Broker) ManageServ(servData *Service) (regServ *Service, err error) {
 	// -- Do stuff
 	l.V(1).Info("going to load service from service registry")
 
-	regServ, err = b.Reg.GetServ(servData.NsName, servData.Name)
-	if err != nil {
-		if err != ErrNotFound {
-			l.Error(err, "error occurred while getting service from service registry")
-			return
-		}
-
-		// If you're here, it means that the service does not exist.
-		// Let's create it.
-		l.V(1).Info("service does not exist in service registry, going to create it")
-		regServ, err = b.Reg.CreateServ(servData)
+	if val, found := b.cache.Get(cacheKey); found {
+		l.Info("retrieved from cache")
+		regServ = val.(*Service)
+	} else {
+		regServ, err = b.Reg.GetServ(servData.NsName, servData.Name)
 		if err != nil {
-			l.Error(err, "error occurred while creating service in service registry")
-			return
-		}
+			if err != ErrNotFound {
+				l.Error(err, "error occurred while getting service from service registry")
+				return
+			}
 
-		l.V(0).Info("service created correctly")
-		regServ = servData
+			// If you're here, it means that the service does not exist.
+			// Let's create it.
+			l.V(1).Info("service does not exist in service registry, going to create it")
+			regServ, err = b.Reg.CreateServ(servData)
+			if err != nil {
+				l.Error(err, "error occurred while creating service in service registry")
+				return
+			}
+
+			l.V(0).Info("service created correctly")
+			regServ = servData
+		}
+		b.cache.Add(cacheKey, regServ, cache.DefaultExpiration)
 	}
 
 	if by, exists := regServ.Metadata[b.opMetaPair.Key]; by != b.opMetaPair.Value || !exists {
@@ -96,12 +109,15 @@ func (b *Broker) ManageServ(servData *Service) (regServ *Service, err error) {
 	}
 
 	if !b.deepEqualMetadata(servData.Metadata, regServ.Metadata) {
+		b.cache.Delete(cacheKey)
+
 		l.V(1).Info("service metadata need to be updated")
 		regServ, err = b.Reg.UpdateServ(servData)
 		if err != nil {
 			l.Error(err, "error while trying to update service in service registry")
 			return nil, err
 		}
+		b.cache.Add(cacheKey, regServ, cache.DefaultExpiration)
 	}
 
 	return
@@ -128,6 +144,7 @@ func (b *Broker) RemoveServ(nsName, servName string, forceNotEmpty bool) (err er
 	if len(servName) == 0 {
 		return ErrServNameNotProvided
 	}
+	cacheKey := path.Join("namespaces", nsName, "services", servName)
 
 	// -- Init
 	b.lock.Lock()
@@ -136,26 +153,42 @@ func (b *Broker) RemoveServ(nsName, servName string, forceNotEmpty bool) (err er
 
 	// -- Do stuff
 	l.V(1).Info("going to remove service from service registry")
+	var regServ *Service
 
-	// Load the service first
-	regServ, err := b.Reg.GetServ(nsName, servName)
-	if err != nil {
-		if err != ErrNotFound {
-			l.Error(err, "error occurred while removing service from service registry")
-			return
+	if val, found := b.cache.Get(cacheKey); found {
+		l.Info("retrieved from cache")
+		regServ = val.(*Service)
+	} else {
+		// Load the service first
+		regServ, err = b.Reg.GetServ(nsName, servName)
+		if err != nil {
+			if err != ErrNotFound {
+				l.Error(err, "error occurred while removing service from service registry")
+				return
+			}
+
+			// If you're here, it means that the servce does not exist.
+			// This doesn't change anything for us.
+			l.V(0).Info("servce does not exist in service registry, going to stop here")
+			return nil
 		}
-
-		// If you're here, it means that the servce does not exist.
-		// This doesn't change anything for us.
-		l.V(0).Info("servce does not exist in service registry, going to stop here")
-		return nil
+		// Add it on cache, in case this should not be deleted (e.g. it is
+		// owned by someone else)
+		b.cache.Add(cacheKey, regServ, cache.DefaultExpiration)
 	}
 
 	// Is it empty?
+	var listEndp []*Endpoint
 	l.V(1).Info("checking if service is empty before deleting")
-	listEndp, err := b.Reg.ListEndp(nsName, servName)
-	if err != nil {
-		return
+	if val, found := b.cache.Get(path.Join(cacheKey, "endpoints")); found {
+		l.Info("retrieved endpoints list from cache")
+		listEndp = val.([]*Endpoint)
+		defer b.cache.Delete(path.Join(cacheKey, "endpoints"))
+	} else {
+		listEndp, err = b.Reg.ListEndp(nsName, servName)
+		if err != nil {
+			return
+		}
 	}
 
 	if len(listEndp) > 0 && !forceNotEmpty {
@@ -195,6 +228,7 @@ func (b *Broker) RemoveServ(nsName, servName string, forceNotEmpty bool) (err er
 		return ErrServNotOwnedByOp
 	}
 
+	defer b.cache.Delete(cacheKey)
 	err = b.Reg.DeleteServ(nsName, servName)
 	if err != nil {
 		l.Error(err, "error while deleting service from service registry")
