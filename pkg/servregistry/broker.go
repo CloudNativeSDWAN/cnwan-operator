@@ -18,8 +18,10 @@ package servregistry
 
 import (
 	"sync"
+	"time"
 
 	"github.com/go-logr/logr"
+	cache "github.com/patrickmn/go-cache"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
@@ -40,6 +42,7 @@ type Broker struct {
 	Reg ServiceRegistry
 	log logr.Logger
 
+	cache          *cache.Cache
 	opMetaPair     MetadataPair
 	persistentMeta []MetadataPair
 	lock           sync.Mutex
@@ -78,5 +81,6 @@ func NewBroker(reg ServiceRegistry, opMetaPair MetadataPair, persMeta ...Metadat
 		Reg:            reg,
 		opMetaPair:     opMetaPair,
 		persistentMeta: persMeta,
+		cache:          cache.New(5*time.Minute, 10*time.Minute),
 	}, nil
 }
