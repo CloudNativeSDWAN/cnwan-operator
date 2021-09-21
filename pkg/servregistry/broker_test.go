@@ -41,8 +41,9 @@ type fakeServReg struct {
 	updatedEndp []string
 	deletedEndp []string
 
-	getNs   string
-	getServ string
+	getNs    string
+	getServ  string
+	listEndp string
 }
 
 func newFakeInt() ServiceRegistry {

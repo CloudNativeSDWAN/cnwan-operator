@@ -16,6 +16,12 @@
 
 package servregistry
 
+import (
+	"path"
+
+	"github.com/patrickmn/go-cache"
+)
+
 // This file contains functions that perform operations on endpoints,
 // such as create/update/delete.
 // These functions belong to a ServiceRegistryBroker, defined in
@@ -74,12 +80,24 @@ func (b *Broker) ManageServEndps(nsName, servName string, endpsData []*Endpoint)
 	endpErrs = map[string]error{}
 
 	// Check what changed
+	cacheKey := path.Join("namespaces", nsName, "services", servName, "endpoints")
 	var listRegEndps []*Endpoint
-	listRegEndps, err = b.Reg.ListEndp(nsName, servName)
-	if err != nil {
-		return
+	if val, found := b.cache.Get(cacheKey); found {
+		l.Info("retrieved endpoints list from cache")
+		listRegEndps = val.([]*Endpoint)
+	} else {
+		listRegEndps, err = b.Reg.ListEndp(nsName, servName)
+		if err != nil {
+			return
+		}
+		b.cache.Add(cacheKey, listRegEndps, cache.DefaultExpiration)
 	}
 
+	newCacheList := []*Endpoint{}
+	defer func() {
+		b.cache.Delete(cacheKey)
+		b.cache.Add(cacheKey, newCacheList, cache.DefaultExpiration)
+	}()
 	for _, regEndp := range listRegEndps {
 		// endpData: the endpoint as it is in Kubernetes
 		// regEndp: the endpoint as it is registered in the service registry
@@ -92,6 +110,7 @@ func (b *Broker) ManageServEndps(nsName, servName string, endpsData []*Endpoint)
 			l.V(0).Info("endpoint is not managed by the cnwan operator and is going to be ignored")
 			endpErrs[regEndp.Name] = ErrEndpNotOwnedByOp
 			delete(endpsMap, regEndp.Name)
+			newCacheList = append(newCacheList, regEndp)
 			continue
 		}
 
@@ -124,6 +143,7 @@ func (b *Broker) ManageServEndps(nsName, servName string, endpsData []*Endpoint)
 
 			} else {
 				l.V(0).Info("endpoint updated in service registry")
+				newCacheList = append(newCacheList, endpData)
 			}
 		}
 
@@ -143,6 +163,7 @@ func (b *Broker) ManageServEndps(nsName, servName string, endpsData []*Endpoint)
 		}
 
 		l.V(0).Info("endpoint created in service registry")
+		newCacheList = append(newCacheList, endpData)
 	}
 
 	return
