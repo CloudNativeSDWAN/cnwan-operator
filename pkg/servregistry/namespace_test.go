@@ -17,8 +17,10 @@
 package servregistry
 
 import (
+	"path"
 	"testing"
 
+	"github.com/patrickmn/go-cache"
 	a "github.com/stretchr/testify/assert"
 )
 
@@ -82,7 +84,10 @@ func TestManageNs(t *testing.T) {
 
 	// Test namespaces not owned by the operator are not modified
 	testNotOwned := func(tt *testing.T) {
-		defer resetFake()
+		defer func() {
+			resetFake()
+			b.cache.Flush()
+		}()
 		assert := a.New(tt)
 
 		one := &Namespace{Name: "one", Metadata: map[string]string{b.opMetaPair.Key: "someone-else", "key": "val"}}
@@ -97,9 +102,24 @@ func TestManageNs(t *testing.T) {
 		assert.Equal(one, regNs)
 		assert.NoError(err)
 
+		// It is now in cache
+		if val, found := b.cache.Get(path.Join("namespaces", "one")); !found {
+			assert.Fail("namespace is not in cache")
+		} else {
+			v := val.(*Namespace)
+			assert.Equal(one, v)
+		}
+
 		regNs, err = b.ManageNs(twoChange)
 		assert.Equal(two, regNs)
 		assert.NoError(err)
+
+		if val, found := b.cache.Get(path.Join("namespaces", "two")); !found {
+			assert.Fail("namespace is not in cache")
+		} else {
+			v := val.(*Namespace)
+			assert.Equal(two, v)
+		}
 
 		assert.Empty(f.createdNs)
 		assert.Empty(f.updatedNs)
@@ -107,7 +127,10 @@ func TestManageNs(t *testing.T) {
 
 	// Test namespaces owned by the operator are modified
 	testOwned := func(tt *testing.T) {
-		defer resetFake()
+		defer func() {
+			resetFake()
+			b.cache.Flush()
+		}()
 		assert := a.New(tt)
 
 		// should return nil because an error in updating
@@ -119,6 +142,11 @@ func TestManageNs(t *testing.T) {
 		assert.Nil(regNs)
 		assert.Error(err)
 
+		// Should not be in cache
+		if _, found := b.cache.Get(path.Join("namespaces", "update-error")); found {
+			assert.Fail("namespace is in cache but should not be")
+		}
+
 		// no error so it should return the new value
 		shouldOk := &Namespace{Name: "update", Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
 		changeOk := &Namespace{Name: "update", Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val-1"}}
@@ -129,6 +157,21 @@ func TestManageNs(t *testing.T) {
 		assert.NoError(err)
 
 		assert.Empty(f.createdNs)
+
+		// Should be in cache with new value
+		if val, found := b.cache.Get(path.Join("namespaces", "update")); !found {
+			assert.Fail("namespace is not in cache")
+		} else {
+			v := val.(*Namespace)
+			assert.Equal(changeOk, v)
+		}
+
+		// Assert it was pulled from cache, not from service registry
+		f.getNs = ""
+		regNs, err = b.ManageNs(changeOk)
+		assert.Equal(changeOk, regNs)
+		assert.NoError(err)
+		assert.Empty(f.getNs)
 	}
 
 	// Test namespaces are created if they do not exist
@@ -143,6 +186,11 @@ func TestManageNs(t *testing.T) {
 		assert.Nil(regNs)
 		assert.Error(err)
 
+		// Should not be in cache
+		if _, found := b.cache.Get(path.Join("namespaces", "update")); found {
+			assert.Fail("namespace is in cache but should not be")
+		}
+
 		// no error so it should return the created
 		create = &Namespace{Name: "create", Metadata: map[string]string{"key": "val"}}
 		regNs, err = b.ManageNs(create)
@@ -150,6 +198,21 @@ func TestManageNs(t *testing.T) {
 		assert.Equal(map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}, regNs.Metadata)
 		assert.NoError(err)
 
+		assert.Empty(f.updatedNs)
+
+		// it is now in cache
+		if val, found := b.cache.Get(path.Join("namespaces", "create")); !found {
+			assert.Fail("namespace is not in cache")
+		} else {
+			v := val.(*Namespace)
+			assert.Equal(create, v)
+		}
+
+		// Assert it was retrieved from cache, not from service registry
+		f.updatedNs = []string{}
+		regNs, err = b.ManageNs(create)
+		assert.Equal(create, regNs)
+		assert.NoError(err)
 		assert.Empty(f.updatedNs)
 	}
 
@@ -220,6 +283,11 @@ func TestRemoveNs(t *testing.T) {
 		err = b.RemoveNs(two.Name, false)
 		assert.Equal(ErrNsNotOwnedByOp, err)
 		assert.Empty(f.deletedNs)
+
+		// this was not deleted, so it is still in cache
+		if _, found := b.cache.Get(path.Join("namespaces", two.Name)); !found {
+			assert.Fail("namespace was not found in cache but should still be there")
+		}
 	}
 
 	// Test empty owned namespaces are deleted
@@ -301,9 +369,34 @@ func TestRemoveNs(t *testing.T) {
 		assert.Error(err)
 	}
 
+	testFlushCache := func(tt *testing.T) {
+		defer resetFake()
+		assert := a.New(tt)
+		oneOwned := &Service{
+			Name:     "one",
+			Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"},
+			NsName:   nsName,
+		}
+		nsDel := &Namespace{Name: nsName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
+		b.cache.Add(path.Join("namespaces", nsName), nsDel, cache.DefaultExpiration)
+		b.cache.Add(path.Join("namespaces", nsName, "services"), []*Service{oneOwned}, cache.DefaultExpiration)
+
+		f.nsList[nsDel.Name] = nsDel
+		f.servList[oneOwned.Name] = oneOwned
+
+		_ = b.RemoveNs(nsDel.Name, true)
+		if _, found := b.cache.Get(path.Join("namespaces", nsName, "services")); found {
+			assert.Fail("services list was found on cache but should not be there")
+		}
+		if _, found := b.cache.Get(path.Join("namespaces", nsName)); found {
+			assert.Fail("namespace was found on cache but should not be there")
+		}
+	}
+
 	testValidation(t)
 	testUnErr(t)
 	testNotOwned(t)
 	testEmptyOwned(t)
 	testNotEmptyOwned(t)
+	testFlushCache(t)
 }
