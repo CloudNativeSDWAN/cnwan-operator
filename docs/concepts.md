@@ -7,8 +7,7 @@
 * [Metadata](#metadata)
 * [Annotations vs Labels](#annotations-vs-labels)
 * [Ownership](#ownership)
-* [Namespace Lists](#namespace-lists)
-* [Namespace List Policy](#namespace-list-policy)
+* [Monitor namespaces](#monitor-namespaces)
 * [Allowed Annotations](#allowed-annotations)
 * [Cloud Metadata](#cloud-metadata)
 * [Deploy](#deploy)
@@ -81,47 +80,31 @@ That being said, the operator will still insert child resources even if the pare
 
 Finally, if you wish the operator to manage your pre-existing resources on your service registry, please update all the necessary resources by inserting `owner: cnwan-operator` among their metadata.
 
-## Namespace Lists
+## Monitor namespaces
 
-For the CN-WAN Operator, a namespace can belong to two lists: *allowlist* or *blocklist*. CN-WAN Operator only processes services that belong to namespaces it is allowed to work on: those that are inside the *allowlist*.
+The CN-WAN Operator watches service updates only on *monitored* namespaces. To do so, you need to label a namespace with our reserved label key `operator.cnwan.io/monitor`.
 
-To insert a namespace in a list, you have to label it like this:
+If a namespace is labeled as `operator.cnwan.io/monitor=true` then the operator will watch service updates happening on that namespace. On the contrary, `operator.cnwan.io/monitor=false` will instruct the operator to stay away from that namespace.
 
-```bash
-# Insert namespace in the allowlist
-kubectl label ns namespace-name operator.cnwan.io/allowed=yes
+This being said, you don't need to rush labelling all namespaces as `operator.cnwan.io/monitor=false` in fear of potentially exposing sensitive data on the service registry: namespaces that do not have such label will be ignored by default, as the operator will pretend it is seeing `operator.cnwan.io/monitor=false`. This is useful in case you think you have few namespaces you want to monitor or if you prefer to retain control, even have lots of namespaces to monitor.
 
-# Insert namespace in the blocklist
-kubectl label ns namespace-name operator.cnwan.io/blocked=yes
-```
+Instead, if you have many namespaces to monitor and/or find it tedious to manually do so for every single one of them, you can override this behavior via `monitorNamespacesByDefault: true` on the [operator settings](./configuration.md#monitor-namespaces-by-default): this means that the operator will pretend it is seeing `operator.cnwan.io/monitor=true` and thus watch events in the namespace by default, unless instructed otherwise. This is the opposite scenario from above: now you will need to manually *disable* them.
 
-It doesn't really matter what you put as value (in this case `yes` has been inserted), just as long as the key `operator.cnwan.io/<key>` is as specified above.
+Let's see some examples.
 
-Similarly, to remove a namespace from the list:
+To _enable_ monitoring on namespace `hr`, do the following:
 
 ```bash
-# Remove namespace from the allowlist
-kubectl label ns namespace-name operator.cnwan.io/allowed-
-
-# Remove namespace from the blocklist
-kubectl label ns namespace-name operator.cnwan.io/blocked-
+kubectl label ns hr operator.cnwan.io/monitor=true
 ```
 
-To prevent you from manually inserting a namespace in a list each time, you can define the [Default Namespace List Policy](#namespace-list-policy).
+To _disable_ monitoring on namespace `hr`:
 
-## Namespace List Policy
+```bash
+kubectl label ns hr operator.cnwan.io/monitor=false
+```
 
-As we said, the operator watches for changes in Kubernetes services. While it does watch all services, it does **not** process services that belong to namespaces that the operator is not allowed to work on.
-
-To prevent you from manually allowing/blocking namespaces each time, the operator defines a *default namespace list policy*.
-
-Setting this default policy as `allowlist` means that, by default, all namespaces are **blocked** and the operator will work only on the ones you have specifically allowed. This is useful when you want few namespaces to be allowed or when you want to retain full control over which ones are allowed.
-
-In contrast, if you have a lot of namespaces that you want to enable, or you want the operator to work more "automatically", or you virtually want to enable all namespaces, than you can set the default policy as `blocklist` which means that, by default, all namespaces are **allowed** and you will have to specify only the ones that must be blocked.
-
-Refer to the previous section to know how to insert a namespace into a certain list.
-
-Please follow [this guide](./configuration.md#set-the-namespace-list-policy) to learn how to set up the default namespace list policy.
+Note: append `--overwrite` in case the label already exists.
 
 ## Allowed Annotations
 

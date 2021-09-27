@@ -1,7 +1,5 @@
-namespace:
-  listPolicy: allowlist
-service:
-  annotations: []
+monitorNamespacesByDefault: false
+serviceAnnotations: []
 serviceRegistry:
   etcd:
     prefix: <prefix>
