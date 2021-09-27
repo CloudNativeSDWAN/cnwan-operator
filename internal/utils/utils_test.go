@@ -21,80 +21,8 @@ import (
 	"testing"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
-	"github.com/spf13/viper"
 	. "github.com/stretchr/testify/assert"
 )
-
-func TestFilterAnnotations(t *testing.T) {
-	annotations := map[string]string{
-		"one.prefix.com/first-name":  "one-first-value",
-		"one.prefix.com/second-name": "one-second-value",
-		"one-no-prefix-label":        "one-no-prefix-value",
-		"two-no-prefix-label":        "two-no-prefix-value",
-		"two.prefix.com/first-name":  "two-first-value",
-		"two.prefix.com/second-name": "two-second-value",
-	}
-
-	// Case 1: no annotations
-	res := FilterAnnotations(map[string]string{})
-	Empty(t, res)
-
-	viper.Set(types.AllowedAnnotationsMap, map[string]bool{"one.prefix.com/first-name": true})
-	res = FilterAnnotations(map[string]string{})
-	Empty(t, res)
-
-	// Case 2: specific annotations
-	allowed := map[string]bool{
-		"one.prefix.com/first-name": true,
-		"one-no-prefix-label":       true,
-		"three-no-prefix-label":     true,
-	}
-	expected := map[string]string{
-		"one.prefix.com/first-name": "one-first-value",
-		"one-no-prefix-label":       "one-no-prefix-value",
-	}
-	viper.Set(types.AllowedAnnotationsMap, allowed)
-	res = FilterAnnotations(annotations)
-	Equal(t, expected, res)
-
-	// Case 3: with prefix wildcards
-	allowed = map[string]bool{
-		"one.prefix.com/*":      true,
-		"one-no-prefix-label":   true,
-		"three-no-prefix-label": true,
-	}
-	expected = map[string]string{
-		"one.prefix.com/first-name":  "one-first-value",
-		"one.prefix.com/second-name": "one-second-value",
-		"one-no-prefix-label":        "one-no-prefix-value",
-	}
-	viper.Set(types.AllowedAnnotationsMap, allowed)
-	res = FilterAnnotations(annotations)
-	Equal(t, expected, res)
-
-	// Case 3: with prefix names
-	allowed = map[string]bool{
-		"*/first-name":          true,
-		"one-no-prefix-label":   true,
-		"three-no-prefix-label": true,
-	}
-	expected = map[string]string{
-		"one.prefix.com/first-name": "one-first-value",
-		"two.prefix.com/first-name": "two-first-value",
-		"one-no-prefix-label":       "one-no-prefix-value",
-	}
-	viper.Set(types.AllowedAnnotationsMap, allowed)
-	res = FilterAnnotations(annotations)
-	Equal(t, expected, res)
-
-	// Case 4: all
-	allowed = map[string]bool{
-		"*/*": true,
-	}
-	viper.Set(types.AllowedAnnotationsMap, allowed)
-	res = FilterAnnotations(annotations)
-	Equal(t, annotations, res)
-}
 
 func TestParseAndValidateSettings(t *testing.T) {
 	a := New(t)
@@ -113,39 +41,21 @@ func TestParseAndValidateSettings(t *testing.T) {
 			expErr: fmt.Errorf("no settings provided"),
 		},
 		{
-			id: "unknown-ns-settings",
-			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.ListPolicy("unknwon"),
-				},
-			},
-			expErr: fmt.Errorf("namespace list policy is neither AllowList nor BlockList"),
-		},
-		{
-			id: "no-service-registry-settings",
-			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
-			},
+			id:     "no-service-registry-settings",
+			arg:    &types.Settings{MonitorNamespacesByDefault: true},
 			expErr: fmt.Errorf("no service registry provided"),
 		},
 		{
 			id: "no-service-registry-fields",
 			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
-				ServiceRegistrySettings: &types.ServiceRegistrySettings{},
+				MonitorNamespacesByDefault: true,
+				ServiceRegistrySettings:    &types.ServiceRegistrySettings{},
 			},
 			expErr: fmt.Errorf("no service registry provided"),
 		},
 		{
 			id: "etcd-unknown-auth",
 			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{
 						Authentication: types.EtcdAuthenticationType("nothing"),
@@ -160,9 +70,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 		{
 			id: "etcd-uname-pass-auth",
 			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
+				MonitorNamespacesByDefault: true,
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{
 						Authentication: types.EtcdAuthWithUsernamePassw,
@@ -173,9 +81,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				},
 			},
 			expRes: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
+				MonitorNamespacesByDefault: true,
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{
 						Authentication: types.EtcdAuthWithUsernamePassw,
@@ -189,9 +95,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 		{
 			id: "etcd-tls-auth",
 			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{
 						Authentication: types.EtcdAuthWithTLS,
@@ -206,9 +109,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 		{
 			id: "only-etcd-not-empty",
 			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{
 						Prefix: &pref,
@@ -223,9 +123,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 				},
 			},
 			expRes: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{
 						Authentication: types.EtcdAuthWithNothing,
@@ -242,9 +139,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 		{
 			id: "only-etcd-empty",
 			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{},
 				},
@@ -254,9 +148,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 		{
 			id: "both-but-only-etcd-is-there",
 			arg: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
+				MonitorNamespacesByDefault: true,
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -270,9 +162,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				},
 			},
 			expRes: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
+				MonitorNamespacesByDefault: true,
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -286,86 +176,8 @@ func TestParseAndValidateSettings(t *testing.T) {
 			},
 		},
 		{
-			id: "convert-deprecated-sd",
-			arg: &types.Settings{
-				Gcloud: &types.GcloudSettings{
-					ServiceDirectory: &types.DeprecatedServiceDirectorySettings{
-						ProjectName:   "test",
-						DefaultRegion: "ca",
-					},
-				},
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
-				Service: types.ServiceSettings{
-					Annotations: []string{"one", "two"},
-				},
-				ServiceRegistrySettings: &types.ServiceRegistrySettings{},
-			},
-			expRes: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
-				Service: types.ServiceSettings{
-					Annotations: []string{"one", "two"},
-				},
-				ServiceRegistrySettings: &types.ServiceRegistrySettings{
-					ServiceDirectorySettings: &types.ServiceDirectorySettings{
-						ProjectID:     "test",
-						DefaultRegion: "ca",
-					},
-				},
-			},
-		},
-		{
-			id: "do-not-convert-deprecated-sd",
-			arg: &types.Settings{
-				Gcloud: &types.GcloudSettings{
-					ServiceDirectory: &types.DeprecatedServiceDirectorySettings{
-						ProjectName:   "old",
-						DefaultRegion: "old",
-					},
-				},
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
-				Service: types.ServiceSettings{
-					Annotations: []string{"one", "two"},
-				},
-				ServiceRegistrySettings: &types.ServiceRegistrySettings{
-					ServiceDirectorySettings: &types.ServiceDirectorySettings{
-						ProjectID:     "new",
-						DefaultRegion: "new",
-					},
-				},
-			},
-			expRes: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
-				Service: types.ServiceSettings{
-					Annotations: []string{"one", "two"},
-				},
-				ServiceRegistrySettings: &types.ServiceRegistrySettings{
-					ServiceDirectorySettings: &types.ServiceDirectorySettings{
-						ProjectID:     "new",
-						DefaultRegion: "new",
-					},
-				},
-			},
-		},
-		{
 			id: "successful-with-cloud-cfg",
 			arg: &types.Settings{
-				Gcloud: &types.GcloudSettings{
-					ServiceDirectory: &types.DeprecatedServiceDirectorySettings{
-						ProjectName:   "old",
-						DefaultRegion: "old",
-					},
-				},
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -387,9 +199,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 				},
 			},
 			expRes: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -412,15 +221,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 		{
 			id: "successful-with-empty-cloud-cfg",
 			arg: &types.Settings{
-				Gcloud: &types.GcloudSettings{
-					ServiceDirectory: &types.DeprecatedServiceDirectorySettings{
-						ProjectName:   "old",
-						DefaultRegion: "old",
-					},
-				},
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -433,9 +233,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 				CloudMetadata: &types.CloudMetadata{},
 			},
 			expRes: &types.Settings{
-				Namespace: types.NamespaceSettings{
-					ListPolicy: types.AllowList,
-				},
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},

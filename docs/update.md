@@ -8,25 +8,45 @@ If your version is not included, just follow [Simple update](#simple-update)
 
 ## Simple update
 
-Export the version you want to use:
+Remove the operator:
 
 ```bash
-export IMG=cnwan/cnwan-operator:v0.3.0
+./scripts/remove.sh
 ```
 
-If you intend to use your own build you will have to modify the value of `IMG` above accordingly.
+and follow installation guide again. The operator will try to perform all its work again but will stop it when it realizes that most of it was already performed on previous installation.
 
-Run:
+## 0.5.1 and below
+
+Remove the operator:
 
 ```bash
-kubectl set image deployment/cnwan-operator-controller-manager -n cnwan-operator-system manager=$IMG --record
+./scripts/remove.sh
 ```
 
-and you should see
+`monitorNamespacesByDefault` on the settings needs to be set as `true` if your previous value of `namespace.listPolicy` was `blocklist`, otherwise you can just leave it as it is.
+
+Now, if your previous value of `namespace.listPolicy` was `allowlist` run:
 
 ```bash
-deployment.apps/cnwan-operator-controller-manager image updated
+for ns in $(kubectl get ns -l "operator.cnwan.io/allowed" -o jsonpath="{.items[*].metadata.name}")
+do
+kubectl label ns $ns operator.cnwan.io/monitor=true
+kubectl label ns $ns operator.cnwan.io/allowed-
+done
 ```
+
+Or, if it was `blocklist`:
+
+```bash
+for ns in $(kubectl get ns -l "operator.cnwan.io/blocked" -o jsonpath="{.items[*].metadata.name}")
+do
+kubectl label ns $ns operator.cnwan.io/monitor=false
+kubectl label ns $ns operator.cnwan.io/blocked-
+done
+```
+
+Now you can
 
 ## 0.2.1 and below
 

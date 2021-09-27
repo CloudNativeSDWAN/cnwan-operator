@@ -16,6 +16,12 @@
 
 package servregistry
 
+import (
+	"path"
+
+	"github.com/patrickmn/go-cache"
+)
+
 // This file contains functions that perform operations on namespaces,
 // such as create/update/delete.
 // These functions belong to a ServiceRegistryBroker, defined in
@@ -42,6 +48,7 @@ func (b *Broker) ManageNs(nsData *Namespace) (regNs *Namespace, err error) {
 	if len(nsData.Name) == 0 {
 		return nil, ErrNsNameNotProvided
 	}
+	cacheKey := path.Join("namespaces", nsData.Name)
 
 	// -- Init
 	b.lock.Lock()
@@ -54,25 +61,30 @@ func (b *Broker) ManageNs(nsData *Namespace) (regNs *Namespace, err error) {
 
 	// -- Do stuff
 	l.V(1).Info("going to load namespace from service registry")
-
-	regNs, err = b.Reg.GetNs(nsData.Name)
-	if err != nil {
-		if err != ErrNotFound {
-			l.Error(err, "error occurred while getting namespace from service registry")
-			return
-		}
-
-		// If you're here, it means that the namespace does not exist.
-		// Let's create it.
-		l.V(1).Info("namespace does not exist in service registry, going to create it")
-		regNs, err = b.Reg.CreateNs(nsData)
+	if val, found := b.cache.Get(cacheKey); found {
+		regNs = val.(*Namespace)
+		l.Info("retrieved from cache")
+	} else {
+		regNs, err = b.Reg.GetNs(nsData.Name)
 		if err != nil {
-			l.Error(err, "error occurred while creating namespace in service registry")
-			return
-		}
+			if err != ErrNotFound {
+				l.Error(err, "error occurred while getting namespace from service registry")
+				return
+			}
 
-		l.V(0).Info("namespace created correctly")
-		regNs = nsData
+			// If you're here, it means that the namespace does not exist.
+			// Let's create it.
+			l.V(1).Info("namespace does not exist in service registry, going to create it")
+			regNs, err = b.Reg.CreateNs(nsData)
+			if err != nil {
+				l.Error(err, "error occurred while creating namespace in service registry")
+				return
+			}
+
+			l.V(0).Info("namespace created correctly")
+			regNs = nsData
+		}
+		b.cache.Add(cacheKey, regNs, cache.DefaultExpiration)
 	}
 
 	if by, exists := regNs.Metadata[b.opMetaPair.Key]; by != b.opMetaPair.Value || !exists {
@@ -84,11 +96,15 @@ func (b *Broker) ManageNs(nsData *Namespace) (regNs *Namespace, err error) {
 
 	if !b.deepEqualMetadata(nsData.Metadata, regNs.Metadata) {
 		l.V(1).Info("namespace metadata need to be updated")
+		b.cache.Delete(cacheKey)
+
 		regNs, err = b.Reg.UpdateNs(nsData)
 		if err != nil {
 			l.Error(err, "error while trying to update namespace in service registry")
 			return nil, err
 		}
+
+		b.cache.Add(cacheKey, regNs, cache.DefaultExpiration)
 	}
 
 	return
@@ -113,6 +129,7 @@ func (b *Broker) RemoveNs(nsName string, forceNotEmpty bool) (err error) {
 	if len(nsName) == 0 {
 		return ErrNsNameNotProvided
 	}
+	cacheKey := path.Join("namespaces", nsName)
 
 	// -- Init
 	b.lock.Lock()
@@ -121,26 +138,42 @@ func (b *Broker) RemoveNs(nsName string, forceNotEmpty bool) (err error) {
 
 	// -- Do stuff
 	l.V(1).Info("going to remove namespace from service registry")
+	var regNs *Namespace
 
-	// Load the namespace first
-	regNs, err := b.Reg.GetNs(nsName)
-	if err != nil {
-		if err != ErrNotFound {
-			l.Error(err, "error occurred while removing namespace from service registry")
-			return
+	if val, found := b.cache.Get(cacheKey); found {
+		l.Info("retrieved from cache")
+		regNs = val.(*Namespace)
+	} else {
+		// Load the namespace first
+		regNs, err = b.Reg.GetNs(nsName)
+		if err != nil {
+			if err != ErrNotFound {
+				l.Error(err, "error occurred while removing namespace from service registry")
+				return
+			}
+
+			// If you're here, it means that the namespace does not exist.
+			// This doesn't change anything for us.
+			l.V(0).Info("namespace does not exist in service registry, going to stop here")
+			return nil
 		}
-
-		// If you're here, it means that the namespace does not exist.
-		// This doesn't change anything for us.
-		l.V(0).Info("namespace does not exist in service registry, going to stop here")
-		return nil
+		b.cache.Add(cacheKey, regNs, cache.DefaultExpiration)
 	}
 
 	// Is it empty?
+	var listServ []*Service
 	l.V(1).Info("checking if namespace is empty before deleting")
-	listServ, err := b.Reg.ListServ(nsName)
-	if err != nil {
-		return
+	if val, found := b.cache.Get(path.Join(cacheKey, "services")); found {
+		l.Info("retreived services list from cache")
+		listServ = val.([]*Service)
+		defer b.cache.Delete(path.Join(cacheKey, "services"))
+	} else {
+		// We're going to try and delete these services, so there is no point
+		// in putting them in the cache.
+		listServ, err = b.Reg.ListServ(nsName)
+		if err != nil {
+			return
+		}
 	}
 
 	if len(listServ) > 0 && !forceNotEmpty {
@@ -181,11 +214,13 @@ func (b *Broker) RemoveNs(nsName string, forceNotEmpty bool) (err error) {
 		return ErrNsNotOwnedByOp
 	}
 
+	defer b.cache.Delete(cacheKey)
 	err = b.Reg.DeleteNs(nsName)
 	if err != nil {
 		l.Error(err, "error while deleting namespace from service registry")
+	} else {
+		l.V(0).Info("namespace deleted from service registry successfully")
 	}
 
-	l.V(0).Info("namespace deleted from service registry successfully")
 	return
 }

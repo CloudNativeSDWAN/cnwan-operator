@@ -17,8 +17,10 @@
 package servregistry
 
 import (
+	"path"
 	"testing"
 
+	"github.com/patrickmn/go-cache"
 	a "github.com/stretchr/testify/assert"
 )
 
@@ -104,12 +106,33 @@ func TestManageServ(t *testing.T) {
 		assert.Equal(one, regServ)
 		assert.NoError(err)
 
+		// Exists on cache?
+		if val, found := b.cache.Get(path.Join("namespaces", oneChange.NsName, "services", oneChange.Name)); !found {
+			assert.Fail("service was not found on cache")
+		} else {
+			v := val.(*Service)
+			assert.Equal(regServ, v)
+		}
+
 		regServ, err = b.ManageServ(twoChange)
 		assert.Equal(two, regServ)
 		assert.NoError(err)
 
 		assert.Empty(f.createdServ)
 		assert.Empty(f.updatedServ)
+
+		// Exists on cache but as it was before?
+		if val, found := b.cache.Get(path.Join("namespaces", two.NsName, "services", two.Name)); !found {
+			assert.Fail("service was not found on cache")
+		} else {
+			v := val.(*Service)
+			assert.Equal(two, v)
+		}
+
+		// Pulled from cache, not from service registry
+		f.getServ = ""
+		b.ManageServ(twoChange)
+		assert.Empty(f.getServ)
 	}
 
 	// Test services owned by the operator are modified
@@ -235,6 +258,10 @@ func TestRemoveServ(t *testing.T) {
 		err = b.RemoveServ(two.NsName, two.Name, false)
 		assert.Equal(ErrServNotOwnedByOp, err)
 		assert.Empty(f.deletedServ)
+
+		if _, found := b.cache.Get(path.Join("namespaces", one.NsName, "services", one.Name)); !found {
+			assert.Fail("service was not found on cache, but should be there")
+		}
 	}
 
 	// Test empty owned services are deleted
@@ -328,9 +355,38 @@ func TestRemoveServ(t *testing.T) {
 		assert.Error(err)
 	}
 
+	testFlushCache := func(tt *testing.T) {
+		defer resetFake()
+		assert := a.New(tt)
+
+		oneOwned := &Endpoint{
+			Name:     "one",
+			ServName: servName,
+			NsName:   nsName,
+			Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"},
+		}
+		servDel := &Service{Name: servName, NsName: nsName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
+		f.servList[servDel.Name] = servDel
+		f.endpList["one"] = oneOwned
+
+		cacheKey := path.Join("namespaces", servDel.NsName, "services", servDel.Name)
+		b.cache.Add(cacheKey, servDel, cache.DefaultExpiration)
+		b.cache.Add(path.Join(cacheKey, "endpoints"), []*Endpoint{oneOwned}, cache.DefaultExpiration)
+		b.RemoveServ(servDel.NsName, servDel.Name, true)
+
+		if _, found := b.cache.Get(cacheKey); found {
+			assert.Fail("service was found on cache, but shouldn't be there")
+		}
+
+		if _, found := b.cache.Get(path.Join(cacheKey, "endpoints")); found {
+			assert.Fail("endpoints list was found on cache, but shouldn't be there")
+		}
+	}
+
 	testValidation(t)
 	testUnErr(t)
 	testNotOwned(t)
 	testEmptyOwned(t)
 	testNotEmptyOwned(t)
+	testFlushCache(t)
 }

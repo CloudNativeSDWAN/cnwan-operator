@@ -18,10 +18,8 @@ package utils
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
-	"github.com/spf13/viper"
 	"go.uber.org/zap/zapcore"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -29,48 +27,6 @@ import (
 var (
 	log = zap.New(zap.UseDevMode(false))
 )
-
-// FilterAnnotations is used to remove annotations that should be ignored
-// by the operator
-func FilterAnnotations(annotations map[string]string) map[string]string {
-	allowedAnnotations := map[string]bool{}
-	if viper.Get(types.AllowedAnnotationsMap) != nil {
-		allowedAnnotations = viper.Get(types.AllowedAnnotationsMap).(map[string]bool)
-	}
-
-	if _, exists := allowedAnnotations["*/*"]; exists {
-		return annotations
-	}
-
-	filtered := map[string]string{}
-	for key, val := range annotations {
-
-		// Check this key specifically
-		if _, exists := allowedAnnotations[key]; exists {
-			filtered[key] = val
-			continue
-		}
-
-		prefixName := strings.Split(key, "/")
-		if len(prefixName) != 2 {
-			// This key is not in prefix/name format
-			continue
-		}
-
-		prefixWildcard := fmt.Sprintf("%s/*", prefixName[0])
-		if _, exists := allowedAnnotations[prefixWildcard]; exists {
-			filtered[key] = val
-			continue
-		}
-
-		wildcardName := fmt.Sprintf("*/%s", prefixName[1])
-		if _, exists := allowedAnnotations[wildcardName]; exists {
-			filtered[key] = val
-		}
-	}
-
-	return filtered
-}
 
 // ParseAndValidateSettings parses the settings and validates them.
 //
@@ -82,7 +38,7 @@ func ParseAndValidateSettings(settings *types.Settings) (*types.Settings, error)
 		return nil, fmt.Errorf("no settings provided")
 	}
 
-	finalSettings := &types.Settings{}
+	finalSettings := &types.Settings{MonitorNamespacesByDefault: settings.MonitorNamespacesByDefault}
 	if settings.CloudMetadata != nil {
 		clCfg := settings.CloudMetadata
 		finalCfg := &types.CloudMetadata{}
@@ -99,14 +55,6 @@ func ParseAndValidateSettings(settings *types.Settings) (*types.Settings, error)
 		}
 	}
 
-	if settings.Namespace.ListPolicy != types.AllowList && settings.Namespace.ListPolicy != types.BlockList {
-		// Probably we could revert to using a default value here, but I think
-		// it's better not to confuse the user with unexpected behaviors and
-		// just return an error.
-		return nil, fmt.Errorf("namespace list policy is neither AllowList nor BlockList")
-	}
-	finalSettings.Namespace = settings.Namespace
-
 	if len(settings.Service.Annotations) == 0 {
 		log.V(int(zapcore.WarnLevel)).Info("no allowed annotations provided: no service will be registered")
 	}
@@ -119,23 +67,6 @@ func ParseAndValidateSettings(settings *types.Settings) (*types.Settings, error)
 	finalSettings.ServiceRegistrySettings = &types.ServiceRegistrySettings{}
 
 	// Only one service registry can be chosen at this time
-
-	// TODO: remove this in v0.6.0
-	if settings.Gcloud != nil {
-		if settings.Gcloud.ServiceDirectory != nil && settings.ServiceDirectorySettings == nil {
-			// Convert the deprecated service directory settings into the new structure,
-			// but only if the new one doesn't already exist.
-			log.V(int(zapcore.WarnLevel)).Info(`DEPRECATED: current service directory settings is under gcloud field.
-				This is deprecated and will be removed on v0.6.0.
-				Please place it under service registry as defined in the documentation.`)
-
-			sd := settings.Gcloud.ServiceDirectory
-			settings.ServiceDirectorySettings = &types.ServiceDirectorySettings{
-				DefaultRegion: sd.DefaultRegion,
-				ProjectID:     sd.ProjectName,
-			}
-		}
-	}
 
 	if settings.EtcdSettings == nil && settings.ServiceDirectorySettings == nil {
 		// Both are nil

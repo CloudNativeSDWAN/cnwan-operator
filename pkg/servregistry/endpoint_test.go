@@ -17,8 +17,10 @@
 package servregistry
 
 import (
+	"path"
 	"testing"
 
+	"github.com/patrickmn/go-cache"
 	a "github.com/stretchr/testify/assert"
 )
 
@@ -31,6 +33,7 @@ func TestManageServEndps(t *testing.T) {
 	resetFake := func() {
 		f = newFakeStruct()
 		b.Reg = f
+		b.cache.Flush()
 	}
 
 	resetFake()
@@ -208,9 +211,37 @@ func TestManageServEndps(t *testing.T) {
 		assert.Equal(f.deletedEndp[0], del.Name)
 	}
 
+	// Test cache
+	testCache := func(tt *testing.T) {
+		defer resetFake()
+		assert := a.New(tt)
+		cacheKey := path.Join("namespaces", nsName, "services", servName, "endpoints")
+
+		toDelete := &Endpoint{Name: "to-delete", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "to": "delete"}}
+		toUpdate := &Endpoint{Name: "to-update", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "to": "update-before"}}
+		notOwned := &Endpoint{Name: "not-owned", NsName: nsName, ServName: servName, Metadata: map[string]string{"not": "owned"}}
+		f.endpList[toDelete.Name] = toDelete
+		f.endpList[toUpdate.Name] = toUpdate
+		f.endpList[notOwned.Name] = notOwned
+
+		b.cache.Add(cacheKey, []*Endpoint{toDelete, toUpdate, notOwned}, cache.DefaultExpiration)
+
+		toCreate := &Endpoint{Name: "to-create", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
+		toUpdateAfter := &Endpoint{Name: "to-update", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "to": "update-after"}}
+		errored := &Endpoint{Name: "create-error", NsName: nsName, ServName: servName, Metadata: map[string]string{b.opMetaPair.Key: b.opMetaPair.Value, "key": "val"}}
+
+		b.ManageServEndps(nsName, servName, []*Endpoint{toCreate, toUpdateAfter, errored})
+		data, found := b.cache.Get(cacheKey)
+		if !found {
+			assert.Fail("endpoints list is not in cache but should be!")
+		}
+		assert.ElementsMatch([]*Endpoint{notOwned, toUpdateAfter, toCreate}, data)
+	}
+
 	testValidation(t)
 	testNotOwned(t)
 	testOwnedDelete(t)
 	testOwnedUpd(t)
 	testOwnedCreate(t)
+	testCache(t)
 }

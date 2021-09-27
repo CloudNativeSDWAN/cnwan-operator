@@ -40,6 +40,10 @@ type fakeServReg struct {
 	createdEndp []string
 	updatedEndp []string
 	deletedEndp []string
+
+	getNs    string
+	getServ  string
+	listEndp string
 }
 
 func newFakeInt() ServiceRegistry {
@@ -47,6 +51,8 @@ func newFakeInt() ServiceRegistry {
 		nsList:      map[string]*Namespace{},
 		servList:    map[string]*Service{},
 		endpList:    map[string]*Endpoint{},
+		getNs:       "",
+		getServ:     "",
 		createdNs:   []string{},
 		updatedNs:   []string{},
 		deletedNs:   []string{},
@@ -64,6 +70,8 @@ func newFakeStruct() *fakeServReg {
 		nsList:      map[string]*Namespace{},
 		servList:    map[string]*Service{},
 		endpList:    map[string]*Endpoint{},
+		getNs:       "",
+		getServ:     "",
 		createdNs:   []string{},
 		updatedNs:   []string{},
 		deletedNs:   []string{},
@@ -77,6 +85,9 @@ func newFakeStruct() *fakeServReg {
 }
 
 func (f *fakeServReg) GetNs(name string) (*Namespace, error) {
+	defer func() {
+		f.getNs = name
+	}()
 	if name == "get-error" {
 		return nil, errors.New("error")
 	}

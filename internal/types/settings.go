@@ -16,78 +16,17 @@
 
 package types
 
-const (
-	// SDDefaultRegion is the key for service directory region setting
-	SDDefaultRegion = "gcloud.servicedirectory.region"
-	// SDProject is the key for service directory project setting
-	SDProject = "gcloud.servicedirectory.project"
-	// NamespaceListPolicy is the key for the namespace list policy setting
-	NamespaceListPolicy = "namespace.listpolicy"
-	// AllowedAnnotations is the key for the allowed annotations setting
-	AllowedAnnotations = "service.annotations"
-	// AllowedAnnotationsMap is the key for the allowed annotations map setting
-	AllowedAnnotationsMap = "service.annotationsmap"
-	// ServiceRegistrySettingsKey is the key for the service registry settings
-	ServiceRegistrySettingsKey = "serviceregistry"
-	// DeprecatedGcloudServiceDirectoryKey is the key for the old service
-	// directory. It is currently only used to check if it is there and warn
-	// the user that it is deprecated.
-	DeprecatedGcloudServiceDirectoryKey = "gcloud.servicedirectory"
-	// CurrentNamespace identifies the namespace name in which we are running
-	// in, in case we are running inside the cluster.
-	CurrentNamespace = "currentnamespace"
-	// EtcdCredentialsSecretName is the name of the secret holding username
-	// and password to connect to the etcd cluster. If it exists, the cnwan
-	// operator expects this name.
-	EtcdCredentialsSecretName = "cnwan-operator-etcd-credentials"
-)
-
 // Settings of the application
 type Settings struct {
-	Namespace                NamespaceSettings `yaml:"namespace"`
-	Service                  ServiceSettings   `yaml:"service"`
-	*ServiceRegistrySettings `yaml:"serviceRegistry"`
-
-	// DEPRECATED: include this under serviceRegistry instead of here.
-	// TODO: remove this on v0.6.0
-	Gcloud        *GcloudSettings `yaml:"gcloud"`
-	CloudMetadata *CloudMetadata  `yaml:"cloudMetadata"`
-}
-
-// GcloudSettings holds gcloud settings
-// TODO: remove this on v0.6.0
-type GcloudSettings struct {
-	ServiceDirectory *DeprecatedServiceDirectorySettings `yaml:"serviceDirectory"`
-}
-
-// ListPolicy is the list type that must be adopted by the operator
-type ListPolicy string
-
-const (
-	// AllowList will make the operator only consider resources that have
-	// are in the allowlist
-	AllowList ListPolicy = "allowlist"
-	// AllowedKey is the label key that states that a specific resource is
-	// in the allowlist, if allowlist is the current policy type.
-	// If the policy type is blocklist, this key is ignored.
-	AllowedKey string = "operator.cnwan.io/allowed"
-	// BlockList will make the operator consider all resources and ignore
-	// those that are in the blocklist
-	BlockList ListPolicy = "blocklist"
-	// BlockedKey is the label key that states that a specific resource is
-	// in the blocklist, if blocklist is the current policy type.
-	// If the policy type is allowlist, this key is ignored.
-	BlockedKey string = "operator.cnwan.io/blocked"
-)
-
-// NamespaceSettings includes settings about namespaces
-type NamespaceSettings struct {
-	ListPolicy ListPolicy `yaml:"listPolicy"`
+	MonitorNamespacesByDefault bool            `yaml:"monitorNamespacesByDefault"`
+	Service                    ServiceSettings `yaml:",inline"`
+	*ServiceRegistrySettings   `yaml:"serviceRegistry"`
+	CloudMetadata              *CloudMetadata `yaml:"cloudMetadata"`
 }
 
 // ServiceSettings includes settings about services
 type ServiceSettings struct {
-	Annotations []string `yaml:"annotations"`
+	Annotations []string `yaml:"serviceAnnotations"`
 }
 
 // ServiceRegistrySettings contains information about the service registry
@@ -95,13 +34,6 @@ type ServiceSettings struct {
 type ServiceRegistrySettings struct {
 	*ServiceDirectorySettings `yaml:"gcpServiceDirectory"`
 	*EtcdSettings             `yaml:"etcd"`
-}
-
-// DeprecatedServiceDirectorySettings holds settings about gcloud service directory
-// TODO: remove this on v0.6.0
-type DeprecatedServiceDirectorySettings struct {
-	DefaultRegion string `yaml:"region"`
-	ProjectName   string `yaml:"project"`
 }
 
 // ServiceDirectorySettings holds settings about gcloud service directory
