@@ -158,7 +158,7 @@ If successful, you will have to restart the operator for it to be able to acknow
 
 ```bash
 # For Kubernetes 1.15+
-kubectl rollout restart deployment cnwan-operator-controller-manager -n cnwan-operator-system
+kubectl rollout restart deployment cnwan-operator -n cnwan-operator-system
 ```
 
 In case your Kubernetes version is lower, than you will have to either delete the pod or scale down the deployment:

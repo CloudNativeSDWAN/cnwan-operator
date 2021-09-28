@@ -5,7 +5,7 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: cnwan-operator-controller-manager
+  name: cnwan-operator
   namespace: cnwan-operator-system
   labels:
     control-plane: controller-manager

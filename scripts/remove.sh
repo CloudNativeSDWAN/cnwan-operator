@@ -18,7 +18,13 @@ if [ "$(ls -A $DEPLOY_DIR/other)" ]; then
     echo "removing resources from 'other' directory..."
     kubectl delete -f $DEPLOY_DIR/other
 fi;
-kubectl delete deployment cnwan-operator-controller-manager -n cnwan-operator-system
+
+# The name of the deployment has been moved to just "cnwan-operator", so these
+# two lines delete both the old name and the new one and make sure to not exit
+# the operator in case they were not found.
+# TODO: remove this v0.8.0 or v0.9.0
+kubectl delete deployment cnwan-operator-controller-manager -n cnwan-operator-system || true
+kubectl delete deployment cnwan-operator -n cnwan-operator-system || true
 kubectl delete rolebinding cnwan-operator-rolebinding -n cnwan-operator-system
 kubectl delete role cnwan-operator-role -n cnwan-operator-system
 kubectl delete clusterrolebinding cnwan-operator-cluster-rolebinding
