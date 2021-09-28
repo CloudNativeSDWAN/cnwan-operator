@@ -24,14 +24,14 @@ Remove the operator:
 ./scripts/remove.sh
 ```
 
-`monitorNamespacesByDefault` on the settings needs to be set as `true` if your previous value of `namespace.listPolicy` was `blocklist`, otherwise you can just leave it as it is.
+`watchNamespacesByDefault` on the settings needs to be set as `true` if your previous value of `namespace.listPolicy` was `blocklist`, otherwise you can just leave it as it is.
 
 Now, if your previous value of `namespace.listPolicy` was `allowlist` run:
 
 ```bash
 for ns in $(kubectl get ns -l "operator.cnwan.io/allowed" -o jsonpath="{.items[*].metadata.name}")
 do
-kubectl label ns $ns operator.cnwan.io/monitor=true
+kubectl label ns $ns operator.cnwan.io/watch=enabled
 kubectl label ns $ns operator.cnwan.io/allowed-
 done
 ```
@@ -41,17 +41,10 @@ Or, if it was `blocklist`:
 ```bash
 for ns in $(kubectl get ns -l "operator.cnwan.io/blocked" -o jsonpath="{.items[*].metadata.name}")
 do
-kubectl label ns $ns operator.cnwan.io/monitor=false
+kubectl label ns $ns operator.cnwan.io/watch=disabled
 kubectl label ns $ns operator.cnwan.io/blocked-
 done
 ```
-
-<!-- TODO: write an update guide for v0.6.0 when it is going to be released:
-- clone operator
-- remove it
-- script to replace the old labels with new one
-- change the settings
- -->
 
 ## 0.2.1 and below
 

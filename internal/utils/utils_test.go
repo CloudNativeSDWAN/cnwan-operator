@@ -42,14 +42,14 @@ func TestParseAndValidateSettings(t *testing.T) {
 		},
 		{
 			id:     "no-service-registry-settings",
-			arg:    &types.Settings{MonitorNamespacesByDefault: true},
+			arg:    &types.Settings{WatchNamespacesByDefault: true},
 			expErr: fmt.Errorf("no service registry provided"),
 		},
 		{
 			id: "no-service-registry-fields",
 			arg: &types.Settings{
-				MonitorNamespacesByDefault: true,
-				ServiceRegistrySettings:    &types.ServiceRegistrySettings{},
+				WatchNamespacesByDefault: true,
+				ServiceRegistrySettings:  &types.ServiceRegistrySettings{},
 			},
 			expErr: fmt.Errorf("no service registry provided"),
 		},
@@ -70,7 +70,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 		{
 			id: "etcd-uname-pass-auth",
 			arg: &types.Settings{
-				MonitorNamespacesByDefault: true,
+				WatchNamespacesByDefault: true,
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{
 						Authentication: types.EtcdAuthWithUsernamePassw,
@@ -81,7 +81,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				},
 			},
 			expRes: &types.Settings{
-				MonitorNamespacesByDefault: true,
+				WatchNamespacesByDefault: true,
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
 					EtcdSettings: &types.EtcdSettings{
 						Authentication: types.EtcdAuthWithUsernamePassw,
@@ -148,7 +148,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 		{
 			id: "both-but-only-etcd-is-there",
 			arg: &types.Settings{
-				MonitorNamespacesByDefault: true,
+				WatchNamespacesByDefault: true,
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},
@@ -162,7 +162,7 @@ func TestParseAndValidateSettings(t *testing.T) {
 				},
 			},
 			expRes: &types.Settings{
-				MonitorNamespacesByDefault: true,
+				WatchNamespacesByDefault: true,
 				Service: types.ServiceSettings{
 					Annotations: []string{"one", "two"},
 				},

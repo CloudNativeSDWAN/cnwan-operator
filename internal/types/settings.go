@@ -18,10 +18,10 @@ package types
 
 // Settings of the application
 type Settings struct {
-	MonitorNamespacesByDefault bool            `yaml:"monitorNamespacesByDefault"`
-	Service                    ServiceSettings `yaml:",inline"`
-	*ServiceRegistrySettings   `yaml:"serviceRegistry"`
-	CloudMetadata              *CloudMetadata `yaml:"cloudMetadata"`
+	WatchNamespacesByDefault bool            `yaml:"watchNamespacesByDefault"`
+	Service                  ServiceSettings `yaml:",inline"`
+	*ServiceRegistrySettings `yaml:"serviceRegistry"`
+	CloudMetadata            *CloudMetadata `yaml:"cloudMetadata"`
 }
 
 // ServiceSettings includes settings about services

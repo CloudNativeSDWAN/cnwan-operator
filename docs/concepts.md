@@ -7,7 +7,7 @@
 * [Metadata](#metadata)
 * [Annotations vs Labels](#annotations-vs-labels)
 * [Ownership](#ownership)
-* [Monitor namespaces](#monitor-namespaces)
+* [Watch namespaces](#watch-namespaces)
 * [Allowed Annotations](#allowed-annotations)
 * [Cloud Metadata](#cloud-metadata)
 * [Deploy](#deploy)
@@ -80,28 +80,28 @@ That being said, the operator will still insert child resources even if the pare
 
 Finally, if you wish the operator to manage your pre-existing resources on your service registry, please update all the necessary resources by inserting `owner: cnwan-operator` among their metadata.
 
-## Monitor namespaces
+## Watch namespaces
 
-The CN-WAN Operator watches service updates only on *monitored* namespaces. To do so, you need to label a namespace with our reserved label key `operator.cnwan.io/monitor`.
+The CN-WAN Operator observes service updates only on *watched* namespaces. To do so, you need to label a namespace with our reserved label key `operator.cnwan.io/watch`.
 
-If a namespace is labeled as `operator.cnwan.io/monitor=true` then the operator will watch service updates happening on that namespace. On the contrary, `operator.cnwan.io/monitor=false` will instruct the operator to stay away from that namespace.
+If a namespace is labeled as `operator.cnwan.io/watch=enabled` then the operator will watch service updates happening on that namespace. On the contrary, `operator.cnwan.io/watch=disabled` will instruct the operator to stay away from that namespace.
 
-This being said, you don't need to rush labelling all namespaces as `operator.cnwan.io/monitor=false` in fear of potentially exposing sensitive data on the service registry: namespaces that do not have such label will be ignored by default, as the operator will pretend it is seeing `operator.cnwan.io/monitor=false`. This is useful in case you think you have few namespaces you want to monitor or if you prefer to retain control, even have lots of namespaces to monitor.
+This being said, you don't need to rush labelling all namespaces as `operator.cnwan.io/watch=disabled` in fear of potentially exposing sensitive data on the service registry: namespaces that do not have such label will be ignored by default, as the operator will pretend it is seeing `operator.cnwan.io/watch=disabled`. This is useful in case you think you have few namespaces you want to watch or if you prefer to retain control, even have lots of namespaces to watch.
 
-Instead, if you have many namespaces to monitor and/or find it tedious to manually do so for every single one of them, you can override this behavior via `monitorNamespacesByDefault: true` on the [operator settings](./configuration.md#monitor-namespaces-by-default): this means that the operator will pretend it is seeing `operator.cnwan.io/monitor=true` and thus watch events in the namespace by default, unless instructed otherwise. This is the opposite scenario from above: now you will need to manually *disable* them.
+Instead, if you have many namespaces to watch and/or find it tedious to manually do so for every single one of them, you can override this behavior via `watchNamespacesByDefault: true` on the [operator settings](./configuration.md#watch-namespaces-by-default): this means that the operator will pretend it is seeing `operator.cnwan.io/watch=enabled` and thus watch events in the namespace by default, unless instructed otherwise. This is the opposite scenario from above: now you will need to manually *disable* them.
 
 Let's see some examples.
 
-To _enable_ monitoring on namespace `hr`, do the following:
+To _enable_ watching on namespace `hr`, do the following:
 
 ```bash
-kubectl label ns hr operator.cnwan.io/monitor=true
+kubectl label ns hr operator.cnwan.io/watch=enabled
 ```
 
-To _disable_ monitoring on namespace `hr`:
+To _disable_ watching on namespace `hr`:
 
 ```bash
-kubectl label ns hr operator.cnwan.io/monitor=false
+kubectl label ns hr operator.cnwan.io/watch=disabled
 ```
 
 Note: append `--overwrite` in case the label already exists.
