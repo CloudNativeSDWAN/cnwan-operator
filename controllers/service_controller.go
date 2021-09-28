@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/CloudNativeSDWAN/cnwan-operator/internal/utils"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 
 	"github.com/go-logr/logr"
@@ -39,6 +38,7 @@ type ServiceReconciler struct {
 	Scheme                     *runtime.Scheme
 	ServRegBroker              *sr.Broker
 	MonitorNamespacesByDefault bool
+	AllowedAnnotations         []string
 }
 
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
@@ -98,7 +98,7 @@ func (r *ServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// Get the data in our simpler format
 	// Note: as of now, we are not copying any annotations from a namespace
-	service.Annotations = utils.FilterAnnotations(service.Annotations)
+	service.Annotations = filterAnnotations(service.Annotations, r.AllowedAnnotations)
 	nsData, servData, endpList, err := r.ServRegBroker.Reg.ExtractData(&ns, &service)
 	if err != nil {
 		l.Error(err, "error while getting data from the namespace and service")

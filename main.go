@@ -28,7 +28,6 @@ import (
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
 	sd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/gcloud/servicedirectory"
-	"github.com/spf13/viper"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
@@ -119,16 +118,6 @@ func main() {
 	}
 	setupLog.Info("settings parsed successfully")
 
-	// Load the allowed annotations and put into a map, for better
-	// check afterwards
-	annotations := settings.Service.Annotations
-	allowedAnnotations := map[string]bool{}
-	for _, ann := range annotations {
-		allowedAnnotations[ann] = true
-	}
-	viper.Set(types.AllowedAnnotationsMap, allowedAnnotations)
-	viper.Set(types.CurrentNamespace, nsName)
-
 	persistentMeta := []sr.MetadataPair{}
 	if settings.CloudMetadata != nil {
 		// No need to check for network and subnetwork nil as it was already
@@ -215,6 +204,7 @@ func main() {
 		Scheme:                     mgr.GetScheme(),
 		ServRegBroker:              srBroker,
 		MonitorNamespacesByDefault: settings.MonitorNamespacesByDefault,
+		AllowedAnnotations:         settings.Service.Annotations,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Service")
 		returnCode = 8
@@ -226,6 +216,7 @@ func main() {
 		Scheme:                     mgr.GetScheme(),
 		ServRegBroker:              srBroker,
 		MonitorNamespacesByDefault: settings.MonitorNamespacesByDefault,
+		AllowedAnnotations:         settings.Service.Annotations,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
 		returnCode = 9

@@ -22,7 +22,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/CloudNativeSDWAN/cnwan-operator/internal/utils"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -41,6 +40,7 @@ type NamespaceReconciler struct {
 	Log                        logr.Logger
 	Scheme                     *runtime.Scheme
 	MonitorNamespacesByDefault bool
+	AllowedAnnotations         []string
 	nsLastConf                 map[string]bool
 	lock                       sync.Mutex
 	ServRegBroker              *sr.Broker
@@ -136,7 +136,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		} else {
 			// Get the data in our simpler format
 			// Note: as of now, we are not copying any annotations from a namespace
-			serv.Annotations = utils.FilterAnnotations(serv.Annotations)
+			serv.Annotations = filterAnnotations(serv.Annotations, r.AllowedAnnotations)
 			nsData, servData, endpList, err := r.ServRegBroker.Reg.ExtractData(&ns, &serv)
 			if err != nil {
 				l.WithValues("serv-name", servData.Name).Error(err, "error while extracting data from the namespace and service")
