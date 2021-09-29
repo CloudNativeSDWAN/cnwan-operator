@@ -1,4 +1,4 @@
-monitorNamespacesByDefault: false
+watchNamespacesByDefault: false
 serviceAnnotations: []
 serviceRegistry:
   etcd:

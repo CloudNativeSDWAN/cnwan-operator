@@ -199,24 +199,24 @@ func main() {
 	}
 
 	if err = (&controllers.ServiceReconciler{
-		Client:                     mgr.GetClient(),
-		Log:                        ctrl.Log.WithName("controllers").WithName("Service"),
-		Scheme:                     mgr.GetScheme(),
-		ServRegBroker:              srBroker,
-		MonitorNamespacesByDefault: settings.MonitorNamespacesByDefault,
-		AllowedAnnotations:         settings.Service.Annotations,
+		Client:                   mgr.GetClient(),
+		Log:                      ctrl.Log.WithName("controllers").WithName("Service"),
+		Scheme:                   mgr.GetScheme(),
+		ServRegBroker:            srBroker,
+		WatchNamespacesByDefault: settings.WatchNamespacesByDefault,
+		AllowedAnnotations:       settings.Service.Annotations,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Service")
 		returnCode = 8
 		runtime.Goexit()
 	}
 	if err = (&controllers.NamespaceReconciler{
-		Client:                     mgr.GetClient(),
-		Log:                        ctrl.Log.WithName("controllers").WithName("Namespace"),
-		Scheme:                     mgr.GetScheme(),
-		ServRegBroker:              srBroker,
-		MonitorNamespacesByDefault: settings.MonitorNamespacesByDefault,
-		AllowedAnnotations:         settings.Service.Annotations,
+		Client:                   mgr.GetClient(),
+		Log:                      ctrl.Log.WithName("controllers").WithName("Namespace"),
+		Scheme:                   mgr.GetScheme(),
+		ServRegBroker:            srBroker,
+		WatchNamespacesByDefault: settings.WatchNamespacesByDefault,
+		AllowedAnnotations:       settings.Service.Annotations,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
 		returnCode = 9

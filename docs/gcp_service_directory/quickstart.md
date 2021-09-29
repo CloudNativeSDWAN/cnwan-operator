@@ -41,7 +41,7 @@ metadata:
     name: training-app-namespace
     labels:
         purpose: "test"
-        operator.cnwan.io/monitor: "true"
+        operator.cnwan.io/watch: "enabled"
 ---
 kind: Service
 apiVersion: v1
@@ -65,7 +65,7 @@ spec:
 EOF
 ```
 
-Please notice that the namespace has this label: `operator.cnwan.io/monitor: true` which inserts the namespace in the opeartor's [allowlist](./concepts.md#namespace-lists). Also notice that the service has annotations that will be registered as [metadata](./concepts.md#metadata):
+Please notice that the namespace has this label: `operator.cnwan.io/watch: enabled` which inserts the namespace in the opeartor's [allowlist](./concepts.md#namespace-lists). Also notice that the service has annotations that will be registered as [metadata](./concepts.md#metadata):
 
 ```yaml
 annotations:
@@ -107,7 +107,7 @@ serviceRegistry:
   gcpServiceDirectory:
     defaultRegion: <gcloud-region>
     projectID: <gcloud-project-id>
-monitorNamespacesByDefault: false
+watchNamespacesByDefault: false
 serviceAnnotations:
   - traffic-profile
   - version
@@ -127,7 +127,7 @@ If you plan to run the operator in GKE, you can just write:
 ```yaml
 serviceRegistry:
   gcpServiceDirectory: {}
-monitorNamespacesByDefault: false
+watchNamespacesByDefault: false
 serviceAnnotations:
   - traffic-profile
   - version
