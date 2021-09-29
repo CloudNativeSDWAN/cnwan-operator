@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] (2021-09-29)
+
+### Fixed
+
+- A bug preventing deleted namespaces from being correctly identified
+
+### Changed
+
+- `namespace.listPolicy` is now replaced with `watchNamespacesByDefault`
+- `operator.cnwan.io/allowed` and `operator.cnwan.io/blocked` are now replaced
+    by `operator.cnwan.io/watch` with values `enabled` or `disabled`
+- Namespace and service controllers implement a new simpler way to deal with
+    the above changes
+- `service.annotations` is now just `serviceAnnotations`
+- settings are not passed to `viper` but only fractions of those are passed to
+    the actual utilizers
+- `filterAnnotations` is now a member of `controllers` package.
+- The name of the operator in its deployment yaml is now just `cnwan-operator`
+    rather than `cnwan-operator-controller-manager`.
+- Some code paths in the controllers are now moved or changed to prevent
+    unnecessary computation, e.g. if a namespace is deleted it is removed from
+    the service registry without loading its services as this is performed
+    elsewhere.
+
+### Removed
+
+- `allowlist` and `blocklist` concepts
+- `operator.cnwan.io/allowed` and `operator.cnwan.io/blocked`
+- `viper` is now entirely removed
+- Many constants utilized by viper or other packages
+- The old `gcloud` settings is now removed
+
 ## [0.5.1] (2021-09-02)
 
 ### Added
