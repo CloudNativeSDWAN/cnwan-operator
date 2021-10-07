@@ -34,6 +34,7 @@ type ServiceSettings struct {
 type ServiceRegistrySettings struct {
 	*ServiceDirectorySettings `yaml:"gcpServiceDirectory"`
 	*EtcdSettings             `yaml:"etcd"`
+	*CloudMapSettings         `yaml:"awsCloudMap"`
 }
 
 // ServiceDirectorySettings holds settings about gcloud service directory
@@ -83,4 +84,10 @@ type CloudMetadata struct {
 	Network *string `yaml:"network"`
 	// SubNetwork name
 	SubNetwork *string `yaml:"subNetwork"`
+}
+
+// CloudMapSettings contains data and configuration about AWS Cloud Map.
+type CloudMapSettings struct {
+	// DefaultRegion is the region where services will be registered.
+	DefaultRegion string `yaml:"defaultRegion"`
 }

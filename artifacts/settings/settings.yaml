@@ -12,6 +12,8 @@ serviceRegistry:
   gcpServiceDirectory:
     defaultRegion: <region>
     projectID: <project>
+  awsCloudMap:
+    defaultRegion: <region>
 cloudMetadata:
   network: auto
   subNetwork: auto

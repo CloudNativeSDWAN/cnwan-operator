@@ -17,4 +17,7 @@
 // Package utils contains some utility code that can be reused by many
 // components or whose purpose does not really fit the other packages,
 // so it is moved here to keep some separation of concerns.
+//
+// DEPRECATED: this package will be deprecated and functions that are
+// present here will be moved to other packages.
 package utils

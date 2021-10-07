@@ -66,16 +66,33 @@ func ParseAndValidateSettings(settings *types.Settings) (*types.Settings, error)
 
 	finalSettings.ServiceRegistrySettings = &types.ServiceRegistrySettings{}
 
-	// Only one service registry can be chosen at this time
+	// Make sure only one service registry is provided.
+	// TODO: this won't be necessary in future anymore as the CLI will take
+	// care of it.
+	srs := func() int {
+		n := 0
 
-	if settings.EtcdSettings == nil && settings.ServiceDirectorySettings == nil {
-		// Both are nil
+		if settings.EtcdSettings != nil {
+			n++
+		}
+
+		if settings.ServiceDirectorySettings != nil {
+			n++
+		}
+
+		if settings.CloudMapSettings != nil {
+			n++
+		}
+
+		return n
+	}()
+
+	if srs == 0 {
 		return nil, fmt.Errorf("no service registry provided")
 	}
 
-	// Just to display the warning
-	if settings.EtcdSettings != nil && settings.ServiceDirectorySettings != nil {
-		log.V(int(zapcore.WarnLevel)).Info("UNSUPPORTED: multiple service registries are not supported yet. Only etcd will be used.")
+	if srs > 1 {
+		return nil, fmt.Errorf("UNSUPPORTED: multiple service registries have been provided")
 	}
 
 	if settings.EtcdSettings != nil {
@@ -90,9 +107,10 @@ func ParseAndValidateSettings(settings *types.Settings) (*types.Settings, error)
 		return finalSettings, nil
 	}
 
-	// service directory settings is parsed on another function now.
-	finalSettings.ServiceDirectorySettings = settings.ServiceDirectorySettings
-	settings = finalSettings
+	if settings.ServiceDirectorySettings != nil {
+		// service directory settings is parsed on another function now.
+		finalSettings.ServiceDirectorySettings = settings.ServiceDirectorySettings
+	}
 
 	return finalSettings, nil
 }
