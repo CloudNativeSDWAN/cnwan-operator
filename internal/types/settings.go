@@ -90,4 +90,5 @@ type CloudMetadata struct {
 type CloudMapSettings struct {
 	// DefaultRegion is the region where services will be registered.
 	DefaultRegion string `yaml:"defaultRegion"`
+	// TODO: support a different profile?
 }

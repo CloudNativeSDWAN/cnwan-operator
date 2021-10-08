@@ -175,6 +175,24 @@ func main() {
 
 		servreg = &sd.Handler{ProjectID: sdSettings.ProjectID, DefaultRegion: sdSettings.DefaultRegion, Log: setupLog.WithName("ServiceDirectory"), Context: ctx, Client: cli}
 	}
+	if settings.ServiceRegistrySettings.CloudMapSettings != nil {
+		setupLog.Info("using aws cloud map...")
+
+		cmSettings, err := parseAndResetAWSCloudMapSettings(settings.CloudMapSettings)
+		if err != nil {
+			returnCode = 12
+			runtime.Goexit()
+		}
+
+		cli, err := getAWSClient(context.Background(), &cmSettings.DefaultRegion)
+		if err != nil {
+			setupLog.Error(err, "fatal error encountered")
+			returnCode = 12
+			runtime.Goexit()
+		}
+		// TODO: use cli
+		_ = cli
+	}
 
 	srBroker, err := sr.NewBroker(servreg, sr.MetadataPair{Key: opKey, Value: opVal}, persistentMeta...)
 	if err != nil {

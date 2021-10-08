@@ -108,8 +108,13 @@ func ParseAndValidateSettings(settings *types.Settings) (*types.Settings, error)
 	}
 
 	if settings.ServiceDirectorySettings != nil {
-		// service directory settings is parsed on another function now.
+		// This validation is performed elsewhere
 		finalSettings.ServiceDirectorySettings = settings.ServiceDirectorySettings
+	}
+
+	if settings.CloudMapSettings != nil {
+		// This validation is performed elsewhere
+		finalSettings.CloudMapSettings = settings.CloudMapSettings
 	}
 
 	return finalSettings, nil
