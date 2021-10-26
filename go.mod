@@ -7,8 +7,9 @@ require (
 	cloud.google.com/go/servicedirectory v0.1.0
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/aws/aws-sdk-go v1.38.60
+	github.com/aws/aws-sdk-go-v2 v1.9.2
 	github.com/aws/aws-sdk-go-v2/config v1.8.2
-	github.com/aws/aws-sdk-go-v2/service/servicediscovery v1.9.1
+	github.com/aws/aws-sdk-go-v2/service/servicediscovery v1.9.2
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
@@ -88,7 +89,6 @@ require (
 )
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.9.1 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.4.2 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.5.1 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.2.3 // indirect
