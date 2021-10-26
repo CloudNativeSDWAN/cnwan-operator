@@ -26,6 +26,7 @@ import (
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/utils"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/cluster"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
+	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/aws/cloudmap"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
 	sd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/gcloud/servicedirectory"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -190,8 +191,8 @@ func main() {
 			returnCode = 12
 			runtime.Goexit()
 		}
-		// TODO: use cli
-		_ = cli
+
+		servreg = cloudmap.NewHandler(ctx, cli, setupLog)
 	}
 
 	srBroker, err := sr.NewBroker(servreg, sr.MetadataPair{Key: opKey, Value: opVal}, persistentMeta...)
