@@ -22,6 +22,8 @@ fi;
 # The name of the deployment has been moved to just "cnwan-operator", so these
 # two lines delete both the old name and the new one and make sure to not exit
 # the operator in case they were not found.
+# Note that we don't remove secrets here: since we remove the whole namespace
+# at the end, they will be removed as well.
 # TODO: remove this v0.8.0 or v0.9.0
 kubectl delete deployment cnwan-operator-controller-manager -n cnwan-operator-system || true
 kubectl delete deployment cnwan-operator -n cnwan-operator-system || true
