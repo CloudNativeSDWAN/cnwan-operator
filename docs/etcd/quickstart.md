@@ -7,14 +7,11 @@ Follow this guide if you want to see how the CN-WAN Operator automatically conne
 To run this, make sure you have:
 
 * A working etcd cluster: you can follow [this guide](./demo_cluster_setup.md) to create a **demo** cluster for this quickstart
-* Access to a Kubernetes cluster running at least version `1.11.3`
-  * [Minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) is fine.
+* Access to a Kubernetes cluster running at least version `1.11.3` with support for [LoadBalancer](./concepts.md#supported-service-types) type of services and that can perform outbound HTTP/S requests successfully.
+  * You can even try with [KinD](https://kind.sigs.k8s.io/) or [Minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/), but make sure *Load Balancer*s work.
 * [Kubectl 1.11.3+](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 
-Also, please make sure that:
-
-* your [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) is properly set up.
-* your cluster supports [LoadBalancer](../concepts.md#supported-service-types) type of services.
+Finally, [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) needs to be properly set up.
 
 ## Let's go
 
@@ -63,7 +60,7 @@ spec:
 EOF
 ```
 
-Please notice that the namespace has this label: `operator.cnwan.io/watch: enabled` which inserts the namespace in the opeartor's [allowlist](../concepts.md#namespace-lists). Also notice that the service has annotations that will be registered as [metadata](../concepts.md#metadata):
+Please notice that the namespace has this label: `operator.cnwan.io/watch: enabled` which instructs the operator to watch events occurring in this namespace. Also notice that the service has annotations that will be registered as [metadata](../concepts.md#metadata):
 
 ```yaml
 annotations:
@@ -94,7 +91,7 @@ It doesn't really matter that there is no pod backing this service for now, as t
 
 ### 3 - Provide settings
 
-From the root directory navigate to `deploy/settings` and modify the file `settings.yaml` to look like this - please provide appropriate values for `host` and `port` keys with your etcd cluster's addresses:
+From the root directory navigate to `artifacts/settings` and modify the file `settings.yaml` to look like this - please provide appropriate values for `host` and `port` keys with your etcd cluster's addresses:
 
 ```yaml
 watchNamespacesByDefault: false
@@ -194,4 +191,5 @@ From the root directory of the project, run
 
 ```bash
 ./scripts/remove.sh
+kubectl delete ns training-app-namespace
 ```

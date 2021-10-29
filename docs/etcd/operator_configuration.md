@@ -4,7 +4,7 @@ This short guide is focused on configuring the CN-WAN Operator to use and config
 
 ## Settings format
 
-The included directory `deploy/settings` contains a `settings.yaml` for you to modify with the appropriate values.
+The included directory `artifacts/settings` contains a `settings.yaml` for you to modify with the appropriate values.
 
 For your convenience, here is how the settings for the CN-WAN Operator looks like:
 
@@ -23,9 +23,14 @@ serviceRegistry:
   gcpServiceDirectory:
     defaultRegion: <region>
     projectID: <project>
+  awsCloudMap:
+    defaultRegion: <region>
+cloudMetadata:
+  network: auto
+  subNetwork: auto
 ```
 
-We will only cover etcd settings here, so you can go ahead and remove the whole `gcpServiceDirectory` settings:
+We will only cover etcd settings here, so you can go ahead and remove some settings:
 
 ```yaml
 watchNamespacesByDefault: false
