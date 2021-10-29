@@ -30,7 +30,7 @@ Which one you choose depends on different factors, including:
 
 and so on.
 
-As we said on the main documentation, the CN-WAN Operator currently supports *Google Service Directory* and *etcd*.
+As we said on the main documentation, the CN-WAN Operator currently supports *Google Service Directory*, *etcd* and *AWS Cloud Map*.
 
 ## Objects
 

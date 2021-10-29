@@ -31,6 +31,8 @@ serviceRegistry:
   gcpServiceDirectory:
     defaultRegion: <region>
     projectID: <project>
+  awsCloudMap:
+    defaultRegion: <region>
 cloudMetadata:
   network: auto
   subNetwork: auto
@@ -120,11 +122,13 @@ cloudMetadata:
   subNetwork: auto
 ```
 
-and the Operator will try to detect such information on its own. You can remove a field, e.g. `subNetwork`, from the settings if you don't want that to be registered.
+and the Operator will try to detect such information on its own. Note that automatic feature is only supported for *GKE* and for the other platforms you will have to write that information manually until they will be supported as well.
+
+You can remove a field, e.g. `subNetwork`, from the settings if you don't want that to be registered.
 
 These values will be registered on a service metadata as:
 
-```text
+```yaml
 cnwan.io/network: <name-or-id>
 cnwan.io/sub-network: <name-or-id>
 ```
@@ -135,10 +139,11 @@ Additionally, `cnwan.io/platform: <name>` will also be included if the operator 
 
 Under `serviceRegistry` you define which service registry to use and how the operator should connect to it or manage its objects.
 
-As of now, only one of `etcd` or `gcpServiceDirectory` is allowed, and therefore you should remove the one that you don't use. Please follow one of the following guides to learn how to configure the Operator with the chosen service registry:
+As of now, only one of `etcd`, `gcpServiceDirectory` or `awsCloudMap` is allowed, and therefore you should remove the one that you don't use. Please follow one of the following guides to learn how to configure the Operator with the chosen service registry:
 
 * [etcd](./etcd/operator_configuration.md)
-* [service directory](./gcp_service_directory/configure_with_operator.md)
+* [Service Directory](./gcp_service_directory/configure_with_operator.md)
+* [Cloud Map](./aws_cloud_map/operator_configuration.md)
 
 ## Deploy settings
 

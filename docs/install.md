@@ -15,12 +15,15 @@ You need to have the following:
 
 Depending on the service registry you chose:
 
-* For Google Service Directory:
-  * a Project in [Google Cloud](https://console.cloud.google.com/) with [Service Directory](https://cloud.google.com/service-directory) enabled
-  * a [Google Cloud Service Account](https://cloud.google.com/iam/docs/service-accounts) with at least role `roles/servicedirectory.editor`.
 * For etcd:
   * a working and reachable etcd cluster
   * optional: user credentials for etcd
+* For Google Service Directory:
+  * a Project in [Google Cloud](https://console.cloud.google.com/) with [Service Directory](https://cloud.google.com/service-directory) enabled
+  * a [Google Cloud Service Account](https://cloud.google.com/iam/docs/service-accounts) with at least role `roles/servicedirectory.editor`.
+* For AWS Cloud Map:
+  * a AWS Account
+  * AWS credentials. Make sure you read AWS documentation to know how to get credentials, for example [here](https://docs.aws.amazon.com/singlesignon/latest/userguide/howtogetcredentials.html), but we encourage you to do some research the documentation on your own, as there are many ways to get them.
 
 ### Software
 
@@ -47,7 +50,7 @@ Before deploying the operator you will need to configure it.
 
 ### Settings
 
-Modify the file `artifacts/deploy/settings/settings.yaml` with the appropriate values. If you haven't already, please read [Configuration](./configuration.md) to learn how to do this.
+Modify the file `artifacts/settings/settings.yaml` with the appropriate values. If you haven't already, please read [Configuration](./configuration.md) to learn how to do this.
 
 ## Deploy
 
@@ -58,7 +61,7 @@ Before continuing, if you also have other files that you want to be deployed, yo
 To deploy the operator with the provided script, you will have to execute `deploy.sh` as such:
 
 ```bash
-./scripts/deploy.sh etcd|servicedirectory
+./scripts/deploy.sh etcd|servicedirectory|cloudmap
 ```
 
 If you want to use your own image, you'll need to provide `--image` flag, for example:
@@ -84,13 +87,27 @@ From the root directory of the project, execute
 
 ### With Google Service Directory
 
-Place your Google account in `deploy/settings` and rename it as `gcloud-credentials.json`. Therefore, your `deploy/settings` will contain `settings.yaml` and `gcloud-credentials.json`.
+Place your Google service account in `artifacts/secrets` and rename it as `gcloud-credentials.json`.
 
 Now run
 
 ```bash
 ./scripts/deploy.sh servicedirectory
 ```
+
+or you can provide the file via `--service-account`.
+
+### With AWS Cloud Map
+
+Place your AWS credentials file `artifacts/secrets` and rename it as `credentials`.
+
+Now run
+
+```bash
+./scripts/deploy.sh cloudmap
+```
+
+or you can provide the file via `--credentials`
 
 ## Remove
 
