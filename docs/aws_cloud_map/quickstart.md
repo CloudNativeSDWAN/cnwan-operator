@@ -1,15 +1,12 @@
 # Quickstart
 
-Follow this guide if you want to see how the CN-WAN Operator automatically connects and manages a service registry on top of etcd.
-
-## Requirements
-
 To run this, make sure you have:
 
-* A working etcd cluster: you can follow [this guide](./demo_cluster_setup.md) to create a **demo** cluster for this quickstart
 * Access to a Kubernetes cluster running at least version `1.11.3` with support for [LoadBalancer](./concepts.md#supported-service-types) type of services and that can perform outbound HTTP/S requests successfully.
   * You can even try with [KinD](https://kind.sigs.k8s.io/) or [Minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/), but make sure *Load Balancer*s work.
 * [Kubectl 1.11.3+](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+* An AWS account
+* AWS Credentials file
 
 Finally, [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) needs to be properly set up.
 
@@ -60,7 +57,7 @@ spec:
 EOF
 ```
 
-Please notice that the namespace has this label: `operator.cnwan.io/watch: enabled` which instructs the operator to watch events occurring in this namespace. Also notice that the service has annotations that will be registered as [metadata](../concepts.md#metadata):
+Please notice that the namespace has this label: `operator.cnwan.io/watch: enabled` which instructs the operator to watch events occurring in this namespace. Also notice that the service has annotations that will be registered as [metadata](./concepts.md#metadata):
 
 ```yaml
 annotations:
@@ -85,81 +82,57 @@ NAME                   TYPE           CLUSTER-IP       EXTERNAL-IP    PORT(S)   
 web-training           LoadBalancer   10.11.12.13      20.21.22.23    80:32058/TCP                  1h
 ```
 
-If you see `<none>` or `<pending>` under `EXTERNAL-IP` you either have to wait to see an IP there or your cluster doesn't support [LoadBalancer](../concepts.md#supported-service-types).
+If you see `<none>` or `<pending>` under `EXTERNAL-IP` you either have to wait to see an IP there or your cluster doesn't support [LoadBalancer](./concepts.md#supported-service-types).
 
 It doesn't really matter that there is no pod backing this service for now, as this is just a test. Of course, in a real world scenario you should make sure a pod is there.
 
-### 3 - Provide settings
+### 3 - Provide the credentials file
 
-From the root directory navigate to `artifacts/settings` and modify the file `settings.yaml` to look like this - please provide appropriate values for `host` and `port` keys with your etcd cluster's addresses:
+Navigate to the root directory and place your credentials file to `artifacts/secrets`, with name `credentials`.
+
+### 4 - Provide settings
+
+From the root directory navigate to `artifacts/settings` and modify the file `settings.yaml` to look like this - please provide appropriate values in place of `<gcloud-project>` and `<gcloud-region>`:
 
 ```yaml
 watchNamespacesByDefault: false
-servicennotations:
+serviceAnnotations:
   - traffic-profile
   - version
 serviceRegistry:
-  etcd:
-    authentication: WithUsernameAndPassword
-    endpoints:
-    - host: <host-1>
-      port: <port-1>
-    - host: <host-2>
-      port: <port-2>
+  awsCloudMap:
+    defaultRegion: <region>
 ```
 
-If you have followed our [demo cluster](./demo_cluster_setup.md) guide abd supposing the address you chose is `10.10.10.10`, the your `endpoints` setting just looks like this:
+Please notice the values inside `annotations`:
 
 ```yaml
-endpoints:
-- host: 10.10.10.10
-```
-
-Please notice the values inside `serviceAnnotations`:
-
-```yaml
-  serviceAnnotations:
+  annotations:
   - traffic-profile
   - version
 ```
 
-This means that the operator will register `traffic-profile` as metadata if it finds it among a [service's annotations list](../concepts.md#allowed-annotations).
+This means that the operator will register `traffic-profile` as tags if it finds it among a [service's annotations list](./concepts.md#allowed-annotations).
 
-**Important**: if you **don't** have [authentication mode](./demo_cluster_setup.md#make-it-more-secure) you can remove `authentication: WithUsernameAndPassword` entirely. We encourage you to read and learn more about [etcd settings](./operator_configuration.md).
+### 5 - Deploy the operator
 
-### 4 - Deploy the operator
-
-From the root directory of the project, execute one of the following lines:
+From the root directory of the project, execute
 
 ```bash
-# If you have username and password for etcd
-./scripts/deploy.sh etcd --username <username> --password <password>
-
-# If you don't have username and password for etcd
-./scripts/deploy.sh etcd
+./scripts/deploy.sh cloudmap
 ```
 
-### 5 - See it on etcd
+### 6 - See it on Cloud Map
 
-Log in to etcd and look at data there with `etcdctl` - modify `host:port` and `user` accordingly:
+Now, log in to Cloud Map from the AWS console and after some time you will see a namespace that has the same name as the Kubernetes namespace where that service was found in.
 
-```bash
-etcdctl --endpoints http://host:port --user user:password get /service-registry/ --prefix
-```
+If you click on it, you will see a service: its tags contain `traffic-profile: standard`. It will also contain an instance with data about the port and the address.
 
-`/service-registry` is the [prefix](./concepts.md#prefix) that all service registry objects will have on their key. This is the default value and it's there because we didn't [configure CN-WAN operator](./operator_configuration.md) with a different prefix.
-
-Now, watch for changes there:
-
-```bash
-etcdctl --endpoints http://host:port --user user:password watch /service-registry/ --prefix
-```
-
-### 6 - Update metadata
+### 7 - Update metadata
 
 Now you're basically done, but you can follow these additional steps to see more of the operator in action.
 
-Suppose you made a mistake: this is a training application where your employees will follow video tutorials. Therefore, its kind of traffic - or, *profile*, must be `video`.
+Suppose you made a mistake: this is a training application where your employees will follow video tutorials and therefore, its kind of traffic - or, *profile*, must be `video`.
 
 Execute:
 
@@ -167,9 +140,9 @@ Execute:
 kubectl annotate service web-training traffic-profile=video --overwrite -n training-app-namespace
 ```
 
-The operator has updated the metadata in etcd accordingly.
+The operator has updated the tags in Cloud Map accordingly.
 
-### 7 - Add new metadata
+### 8 - Add new metadata
 
 Suppose you have a CI/CD pipeline that for each PR builds a container with a new tag. Also, it updates the service that serves the pods running that container by specifying the new version. Today, you will be that pipeline:
 
@@ -177,11 +150,11 @@ Suppose you have a CI/CD pipeline that for each PR builds a container with a new
 kubectl annotate service web-training version=2.2 -n training-app-namespace --overwrite
 ```
 
-Once again, you will see that the metadata for that service have changed accordingly in etcd.
+Once again, log in to Cloud Map and see how the tags for that service have changed accordingly.
 
 ## Where to go from here
 
-Well, that's it for a quickstart. Now we encourage you to learn more about CN-WAN Operator by taking a look at the [CN-WAN Operator docs](../../README.md#documentation) and [etcd docs](../../README.md#etcd-documentation).
+Well, that's it for a quickstart. Now we encourage you to learn more about CN-WAN Operator by taking a look at the [docs](./).
 
 Also, make sure you read the [official documentation of CN-WAN](https://github.com/CloudNativeSDWAN/cnwan-docs) to learn how you can apply this simple quickstart to a real world scenario.
 

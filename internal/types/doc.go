@@ -16,4 +16,7 @@
 
 // Package types contains some types or constants that are used throughout
 // the whole program.
+//
+// DEPRECATED: this package will removed in future and all types will be
+// moved to other dedicated packages.
 package types

@@ -31,7 +31,7 @@ trap print_error ERR
 
 function print_help {
     echo "Usage:"
-    echo "deploy.sh servicedirectory|etcd [--help|options]"
+    echo "deploy.sh servicedirectory|etcd|cloudmap [--help|options]"
     echo
     echo
     echo "Global options:"
@@ -39,12 +39,14 @@ function print_help {
     echo "--help        show this help"
     echo
     echo "servicedirectory options:"
-    echo "--service-account     the path to the google service account (default: ./artifacts/secrets/gcloud-credentials.json)."
+    echo "--service-account     the path to the Google service account (default: ./artifacts/secrets/gcloud-credentials.json)."
     echo
     echo "etcd options:"
     echo "--username    the username for etcd. This will also be used to create the corresponding Kubernetes secrets."
     echo "--password    the password for etcd. This will also be used to create the corresponding Kubernetes secrets."
     echo
+    echo "cloudmap options:"
+    echo "--credentials     the path to the AWS credentials file (default: ./artifacts/secrets/credentials)."
     echo "Examples:"
     echo "deploy.sh etcd --username user --password pass"
     echo "deploy.sh servicedirectory --image example.com/username/repo:tag"
@@ -68,6 +70,7 @@ PARENT_DIR=$(dirname $DIR)
 DEPLOY_DIR=$PARENT_DIR/artifacts/deploy
 SECRETS_DIR=$PARENT_DIR/artifacts/secrets
 SERVICE_ACCOUNT_PATH=$SECRETS_DIR/gcloud-credentials.json
+AWS_CREDENTIALS_PATH=$SECRETS_DIR/credentials
 IMG=""
 ETCD_USERNAME=""
 ETCD_PASSWORD=""
@@ -101,7 +104,7 @@ if [ "$1" == "--help" ]; then
     exit 0
 fi;
 
-if [ \( "$1" != "servicedirectory" \) -a \( "$1" != "etcd" \) ]; then
+if [ \( "$1" != "servicedirectory" \) -a \( "$1" != "etcd" \) -a \( "$1" != "cloudmap" \) ]; then
     no_sr_err
 fi;
 SR=$1
@@ -136,7 +139,18 @@ while test $# -gt 0; do
             if test $# -gt 0; then
                 SERVICE_ACCOUNT_PATH=$1
             else
-                echo "error: no service account path"
+                echo "error: no service account path provided"
+                exit 1
+            fi
+            shift
+        ;;
+
+        --credentials)
+            shift
+            if test $# -gt 0; then
+                AWS_CREDENTIALS_PATH=$1
+            else
+                echo "error: no credentials path provided"
                 exit 1
             fi
             shift
@@ -161,15 +175,12 @@ done
 
 # Check for gcloud service account existence
 if [ "$SR" == "servicedirectory" ]; then
-    # if [ "$1" == "ServiceDirectory" ]; then
-        # SR="SD"
-        # Does the service account file exist?
-        file_exists $SERVICE_ACCOUNT_PATH
-        if [ "$FILE_VALID" -eq 0 ]; then
-            echo "error: $SERVICE_ACCOUNT_PATH file was not found"
-            exit 1
-        fi;
-    # fi;
+    # Does the service account file exist?
+    file_exists $SERVICE_ACCOUNT_PATH
+    if [ "$FILE_VALID" -eq 0 ]; then
+        echo "error: $SERVICE_ACCOUNT_PATH file was not found"
+        exit 1
+    fi;
 fi;
 
 if [ "$SR" == "etcd" ]; then
@@ -179,6 +190,15 @@ if [ "$SR" == "etcd" ]; then
     fi;
     if [ \( ! -z "$ETCD_PASSWORD" \) -a \( -z "$ETCD_USERNAME" \)  ]; then
         echo "error: no username provided"
+        exit 1
+    fi;
+fi;
+
+# Check for AWS credentials file existence
+if [ "$SR" == "cloudmap" ]; then
+    file_exists $AWS_CREDENTIALS_PATH
+    if [ "$FILE_VALID" -eq 0 ]; then
+        echo "error: $AWS_CREDENTIALS_PATH file was not found"
         exit 1
     fi;
 fi;
@@ -209,6 +229,10 @@ if [ "$SR" == "etcd" ]; then
     if [ \( ! -z "$ETCD_PASSWORD" \) -a \( ! -z "$ETCD_USERNAME" \) ]; then
         kubectl create secret generic etcd-credentials -n cnwan-operator-system --from-literal=username=$ETCD_USERNAME --from-literal=password=$ETCD_PASSWORD
     fi;
+fi;
+
+if [ "$SR" == "cloudmap" ]; then
+    kubectl create secret generic aws-credentials -n cnwan-operator-system --from-file=$AWS_CREDENTIALS_PATH
 fi;
 
 sed -e "s#{CONTAINER_IMAGE}#$IMG#" $DEPLOY_DIR/07_deployment.yaml.tpl > $DEPLOY_DIR/07_deployment_generated.yaml

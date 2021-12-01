@@ -29,6 +29,7 @@ import (
 const (
 	defaultK8sNamespace                   string = "cnwan-operator-system"
 	defaultGoogleServiceAccountSecretName string = "google-service-account"
+	defaultAwsCredentialsSecret           string = "aws-credentials"
 	defaultEtcdCredentialsSecretName      string = "etcd-credentials"
 	defaultOpSettingsConfigmapName        string = "cnwan-operator-settings"
 )
@@ -84,6 +85,30 @@ func GetGoogleServiceAccountSecret(ctx context.Context) ([]byte, error) {
 		return nil, fmt.Errorf(`secret %s/%s has no data`, defaultK8sNamespace, defaultGoogleServiceAccountSecretName)
 	case l > 1:
 		return nil, fmt.Errorf(`secret %s/%s has multiple data`, defaultK8sNamespace, defaultGoogleServiceAccountSecretName)
+	}
+
+	var data []byte
+	for _, d := range secret.Data {
+		data = d
+		break
+	}
+
+	return data, nil
+}
+
+// GetAWSCredentialsSecret tries to retrieve the Google Service Account
+// secret from Kubernetes, so that it could be used to login to AWS.
+// TODO: as of now this function is basically the same as the one for
+// google. For now we keep it like this, but the whole package will soon
+// be redesigned anyways.
+func GetAWSCredentialsSecret(ctx context.Context) ([]byte, error) {
+	secret, err := getSecret(ctx, defaultAwsCredentialsSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(secret.Data) == 0 {
+		return nil, fmt.Errorf(`secret %s/%s has no data`, defaultK8sNamespace, defaultAwsCredentialsSecret)
 	}
 
 	var data []byte

@@ -19,12 +19,16 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 
 	sd "cloud.google.com/go/servicedirectory/apiv1"
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/cluster"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/servicediscovery"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/api/option"
 )
@@ -85,6 +89,52 @@ func getGSDClient(ctx context.Context) (*sd.RegistrationClient, error) {
 	}
 
 	return cli, err
+}
+
+func getAWSClient(ctx context.Context, region *string) (*servicediscovery.Client, error) {
+	saBytes, err := cluster.GetAWSCredentialsSecret(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("could not load google service account secret: %s", err)
+	}
+
+	// TODO: on next versions this will be a const, as it will be moved to
+	// its dedicated aws package
+	tempPath := "/tmp/cnwan-operator-aws-credentials"
+
+	opts := []func(*config.LoadOptions) error{}
+	if region != nil {
+		opts = append(opts, config.WithRegion(*region))
+	}
+
+	// TODO: this needs to be re-written in case allowing loading default
+	// credentials that do exist on file system
+	if err := ioutil.WriteFile(tempPath, saBytes, 0644); err != nil {
+		return nil, err
+	}
+	opts = append(opts, config.WithSharedCredentialsFiles([]string{tempPath}))
+	defer os.Remove(tempPath)
+
+	cfg, err := config.LoadDefaultConfig(context.TODO(), opts...)
+	if err != nil {
+		return nil, nil
+	}
+
+	return servicediscovery.NewFromConfig(cfg), nil
+}
+
+func parseAndResetAWSCloudMapSettings(cmSettings *types.CloudMapSettings) (*types.CloudMapSettings, error) {
+	newSettings := &types.CloudMapSettings{
+		DefaultRegion: "",
+	}
+
+	if cmSettings.DefaultRegion == "" {
+		return nil, fmt.Errorf("invalid cloud map region provided")
+	}
+	newSettings.DefaultRegion = cmSettings.DefaultRegion
+
+	// TODO: support getting region from cluster
+
+	return newSettings, nil
 }
 
 func parseAndResetGSDSettings(gcSettings *types.ServiceDirectorySettings) (*types.ServiceDirectorySettings, error) {

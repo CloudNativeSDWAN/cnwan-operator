@@ -54,6 +54,29 @@ func TestParseAndValidateSettings(t *testing.T) {
 			expErr: fmt.Errorf("no service registry provided"),
 		},
 		{
+			id: "2-service-registries",
+			arg: &types.Settings{
+				WatchNamespacesByDefault: true,
+				ServiceRegistrySettings: &types.ServiceRegistrySettings{
+					EtcdSettings:             &types.EtcdSettings{},
+					ServiceDirectorySettings: &types.ServiceDirectorySettings{},
+				},
+			},
+			expErr: fmt.Errorf("UNSUPPORTED: multiple service registries have been provided"),
+		},
+		{
+			id: "3-service-registries",
+			arg: &types.Settings{
+				WatchNamespacesByDefault: true,
+				ServiceRegistrySettings: &types.ServiceRegistrySettings{
+					EtcdSettings:             &types.EtcdSettings{},
+					ServiceDirectorySettings: &types.ServiceDirectorySettings{},
+					CloudMapSettings:         &types.CloudMapSettings{},
+				},
+			},
+			expErr: fmt.Errorf("UNSUPPORTED: multiple service registries have been provided"),
+		},
+		{
 			id: "etcd-unknown-auth",
 			arg: &types.Settings{
 				ServiceRegistrySettings: &types.ServiceRegistrySettings{
@@ -144,36 +167,6 @@ func TestParseAndValidateSettings(t *testing.T) {
 				},
 			},
 			expErr: fmt.Errorf("no etcd endpoints provided"),
-		},
-		{
-			id: "both-but-only-etcd-is-there",
-			arg: &types.Settings{
-				WatchNamespacesByDefault: true,
-				Service: types.ServiceSettings{
-					Annotations: []string{"one", "two"},
-				},
-				ServiceRegistrySettings: &types.ServiceRegistrySettings{
-					EtcdSettings: &types.EtcdSettings{
-						Endpoints: []*types.EtcdEndpoint{
-							{Host: "10.10.10.10"},
-						},
-					},
-					ServiceDirectorySettings: &types.ServiceDirectorySettings{},
-				},
-			},
-			expRes: &types.Settings{
-				WatchNamespacesByDefault: true,
-				Service: types.ServiceSettings{
-					Annotations: []string{"one", "two"},
-				},
-				ServiceRegistrySettings: &types.ServiceRegistrySettings{
-					EtcdSettings: &types.EtcdSettings{
-						Endpoints: []*types.EtcdEndpoint{
-							{Host: "10.10.10.10", Port: &portDef},
-						},
-					},
-				},
-			},
 		},
 		{
 			id: "successful-with-cloud-cfg",

@@ -6,17 +6,13 @@ Curious to see CN-WAN Operator in action but feeling lazy about learning how it 
 
 To run this, make sure you have:
 
-* Access to a Kubernetes cluster running at least version `1.11.3`
-  * [Minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) is also fine.
+* Access to a Kubernetes cluster running at least version `1.11.3` with support for [LoadBalancer](./concepts.md#supported-service-types) type of services and that can perform outbound HTTP/S requests successfully.
+  * You can even try with [KinD](https://kind.sigs.k8s.io/) or [Minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/), but make sure *Load Balancer*s work.
 * [Kubectl 1.11.3+](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * A Project in [Google Cloud](https://console.cloud.google.com/) with [Service Directory](https://cloud.google.com/service-directory) enabled
 * A [Google Cloud Service Account](https://cloud.google.com/iam/docs/service-accounts) with at least role `roles/servicedirectory.editor`.
 
-Additionally:
-
-* [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) properly set up.
-* Your cluster is able to perform outbound HTTP/S requests successfully.
-* Your cluster supports [LoadBalancer](./concepts.md#supported-service-types) type of services.
+Finally, [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) needs to be properly set up.
 
 ## Let's go
 
@@ -65,7 +61,7 @@ spec:
 EOF
 ```
 
-Please notice that the namespace has this label: `operator.cnwan.io/watch: enabled` which inserts the namespace in the opeartor's [allowlist](./concepts.md#namespace-lists). Also notice that the service has annotations that will be registered as [metadata](./concepts.md#metadata):
+Please notice that the namespace has this label: `operator.cnwan.io/watch: enabled` which instructs the operator to watch events occurring in this namespace. Also notice that the service has annotations that will be registered as [metadata](./concepts.md#metadata):
 
 ```yaml
 annotations:
@@ -96,11 +92,11 @@ It doesn't really matter that there is no pod backing this service for now, as t
 
 ### 3 - Provide the service account
 
-Navigate to the root directory and place your service account to `deploy/settings`, with name `gcloud-credentials.json`. So, you will have `deploy/settings/gcloud-credentials.json`.
+Navigate to the root directory and place your service account to `artifacts/secrets`, with name `gcloud-credentials.json`.
 
 ### 4 - Provide settings
 
-From the root directory navigate to `deploy/settings` and modify the file `settings.yaml` to look like this - please provide appropriate values in place of `<gcloud-project>` and `<gcloud-region>`:
+From the root directory navigate to `artifacts/settings` and modify the file `settings.yaml` to look like this - please provide appropriate values in place of `<gcloud-project>` and `<gcloud-region>`:
 
 ```yaml
 serviceRegistry:
@@ -140,7 +136,7 @@ Explanation of this is explained [here](./configure_with_operator.md#automatic-v
 From the root directory of the project, execute
 
 ```bash
-./scripts/deploy.sh
+./scripts/deploy.sh servicedirectory
 ```
 
 ### 6 - See it on Service Directory
@@ -168,7 +164,7 @@ The operator has updated the metadata in Service Directory accordingly.
 Suppose you have a CI/CD pipeline that for each PR builds a container with a new tag. Also, it updates the service that serves the pods running that container by specifying the new version. Today, you will be that pipeline:
 
 ```bash
-kubectl annotate service web-training version=2.2 -n training-app-namespace
+kubectl annotate service web-training version=2.2 -n training-app-namespace --overwrite
 ```
 
 Once again, log in to Service Directory and see how the metadata for that service have changed accordingly.
@@ -185,4 +181,5 @@ From the root directory of the project, run
 
 ```bash
 ./scripts/remove.sh
+kubectl delete ns training-app-namespace
 ```

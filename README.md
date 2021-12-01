@@ -49,9 +49,15 @@ If you want to quickly see how CN-WAN Operator works, you can follow this simple
 
 ### Google Service Directory
 
-* [Quickstart with service directory](./docs/gcp_service_directory/quickstart.md)
+* [Quickstart with Service Directory](./docs/gcp_service_directory/quickstart.md)
 * [Concepts](./docs/gcp_service_directory/concepts.md)
-* [Configure CN-Operator with service directory](./docs/gcp_service_directory/configure_with_operator.md)
+* [Configure CN-Operator with Service Directory](./docs/gcp_service_directory/configure_with_operator.md)
+
+### AWS Cloud Map
+
+* [Quickstart with Cloud Map](./docs/aws_cloud_map/quickstart.md)
+* [Concepts](./docs/aws_cloud_map/concepts.md)
+* [Configure CN-Operator with Cloud Map](./docs/aws_cloud_map/operator_configuration.md)
 
 ## Contributing
 

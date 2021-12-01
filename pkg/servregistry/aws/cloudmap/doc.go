@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2021 Cisco
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,10 +14,6 @@
 //
 // All rights reserved.
 
-// Package utils contains some utility code that can be reused by many
-// components or whose purpose does not really fit the other packages,
-// so it is moved here to keep some separation of concerns.
-//
-// DEPRECATED: this package will be deprecated and functions that are
-// present here will be moved to other packages.
-package utils
+// Package cloudmap contains code that connects to AWS Cloud Map and manages
+// namespaces, services and instances (endpoints) inside it.
+package cloudmap

@@ -26,6 +26,7 @@ import (
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/utils"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/cluster"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
+	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/aws/cloudmap"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
 	sd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/gcloud/servicedirectory"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -174,6 +175,24 @@ func main() {
 		}
 
 		servreg = &sd.Handler{ProjectID: sdSettings.ProjectID, DefaultRegion: sdSettings.DefaultRegion, Log: setupLog.WithName("ServiceDirectory"), Context: ctx, Client: cli}
+	}
+	if settings.ServiceRegistrySettings.CloudMapSettings != nil {
+		setupLog.Info("using aws cloud map...")
+
+		cmSettings, err := parseAndResetAWSCloudMapSettings(settings.CloudMapSettings)
+		if err != nil {
+			returnCode = 12
+			runtime.Goexit()
+		}
+
+		cli, err := getAWSClient(context.Background(), &cmSettings.DefaultRegion)
+		if err != nil {
+			setupLog.Error(err, "fatal error encountered")
+			returnCode = 12
+			runtime.Goexit()
+		}
+
+		servreg = cloudmap.NewHandler(ctx, cli, setupLog)
 	}
 
 	srBroker, err := sr.NewBroker(servreg, sr.MetadataPair{Key: opKey, Value: opVal}, persistentMeta...)

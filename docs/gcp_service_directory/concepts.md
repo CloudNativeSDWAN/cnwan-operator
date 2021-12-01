@@ -10,5 +10,5 @@ For more information, visit Service Directory's [official website](https://cloud
 
 To learn how you can use the CN-WAN Operator with Service Directory, you can follow one of these guides:
 
-* A [quickstart](./quickstart.md) for Dervice Directory and CN-WAN Operator
+* A [quickstart](./quickstart.md) for Service Directory and CN-WAN Operator
 * A [guide](./configure_with_operator.md) on how to configure CN-WAN Operator to correctly connect to Service Directory
