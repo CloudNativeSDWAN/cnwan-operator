@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] (2021-12-09)
+
+### Fixed
+
+- Some broken links on the documentation
+
+### Added
+
+- `serviceRegistry.awsCloudMap` and `serviceRegistry.awsCloudMap.defaultRegion`
+    on operator settings.
+- `CloudMapSettings` struct to contain Cloud Map settings.
+- `cloudmap` package to hold data and code for Cloud Map operations.
+- `Handler` inside `cloudmap` package, which is in charge of performing the
+    operations above, include `namespace`, `service` and `endpoint` operations.
+- `fakeCloudMapClient` for testing and mocking the client.
+- unexported `cloudMapIDs` struct inside `cloudmap` package to hold the `ARN`
+    and `ID` of an object in Cloud Map.
+- Unit tests for Cloud Map functions.
+- Deployment scripts now have `cloudmap` command for deploying the operator
+    with Cloud Map settings.
+- Documentation for Cloud Map.
+
+### Changed
+
+- Validation now takes into account the fact that we have 3 service registries,
+    and validation is first performed by counting how many are included in the
+    settings.
+- Some documentation sections have been modified with better wording or updated
+    descriptions.
+
 ## [0.6.0] (2021-09-29)
 
 ### Fixed
