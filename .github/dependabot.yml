@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/" # Location of package manifests
+    schedule:
+      interval: "daily"
+    assignees:
+      - "asimpleidea"
+    commit-message:
+      prefix: "⬆️ "
+      include: "scope"
+    reviewers:
+      - "asimpleidea"
+      - "arnatal"
+      - "ljakab"
+    labels:
+      - "dependencies"
