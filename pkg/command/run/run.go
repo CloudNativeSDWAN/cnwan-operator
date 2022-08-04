@@ -56,7 +56,8 @@ const (
 // run command, its children commands and internal options that are nott
 // exposed to the user.
 type RunOptions struct {
-	OperatorOptions `yaml:",inline"`
+	OperatorOptions          `yaml:",inline"`
+	*ServiceDirectoryOptions `yaml:"serviceDirectory"`
 
 	PersistentMetadata map[string]string
 	RunningInK8s       bool
@@ -207,7 +208,7 @@ func GetRunCommand() *cobra.Command {
 	// Sub commands
 	// -----------------------------
 
-	// TODO: add commands
+	cmd.AddCommand(getRunServiceDirectoryCommand(runOpts, optsFile))
 
 	return cmd
 }
