@@ -1,4 +1,4 @@
-// Copyright © 2020, 2021 Cisco
+// Copyright © 2020, 2021, 2022 Cisco
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,8 +20,8 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/controllers"
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
@@ -49,6 +49,22 @@ const (
 	defaultSdServAccPath string = "./credentials/gcloud-credentials.json"
 	defaultTimeout       int    = 30
 	defaultNsName        string = "cnwan-operator-system"
+
+	// Exit codes
+	Success int = iota
+	CannotGetConfigmap
+	CannotUnmarshalConfigmap
+	SettingsValidationError
+	CannotEstablishConnectionToEtcd
+	CannotGetServiceDirectoryClient
+	InvalidServiceDirectorySettings
+	CannotGetCloudMapClient
+	InvalidCloudMapSettings
+	CannotGetBroker
+	CannotGetControllerManager
+	CannotCreateServiceController
+	CannotCreateNamespaceController
+	CannotRunControllerManager
 )
 
 var (
@@ -64,22 +80,21 @@ func init() {
 }
 
 func main() {
-	// TODO: on next version, this main will be completely changed with a
-	// better return code and exiting mechanism. Right now is fine but
-	// too cluttered.
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
+	if code, err := run(); err != nil {
+		setupLog.Error(err, "error occurred")
+		os.Exit(code)
+	}
+}
+
+func run() (int, error) {
 	//--------------------------------------
 	// Inits and defaults
 	//--------------------------------------
-	returnCode := 0
-	defer os.Exit(returnCode)
 
 	ctx, canc := context.WithCancel(context.Background())
 	defer canc()
-
-	var etcdClient *clientv3.Client
-	var servreg sr.ServiceRegistry
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	nsName := os.Getenv("CNWAN_OPERATOR_NAMESPACE")
 	if len(nsName) == 0 {
@@ -88,36 +103,26 @@ func main() {
 	}
 
 	//--------------------------------------
-	// Load the settings
+	// Load and parse settings
 	//--------------------------------------
 
-	settings, err := func() (*types.Settings, error) {
+	var settings *types.Settings
+	{
 		settingsByte, err := cluster.GetOperatorSettingsConfigMap(ctx)
 		if err != nil {
-			setupLog.Error(err, "unable to retrieve settings from configmap")
-			returnCode = 1
-			runtime.Goexit()
+			return CannotGetConfigmap, fmt.Errorf("unable to retrieve settings from configmap: %w", err)
 		}
 		setupLog.Info("settings file loaded successfully")
 
-		var settings types.Settings
-		if err := yaml.Unmarshal(settingsByte, &settings); err != nil {
-			return nil, err
+		var _settings *types.Settings
+		if err := yaml.Unmarshal(settingsByte, &_settings); err != nil {
+			return CannotUnmarshalConfigmap, fmt.Errorf("cannot unmarshal settings: %w", err)
 		}
 
-		return &settings, nil
-	}()
-	if err != nil {
-		setupLog.Error(err, "error while getting settings")
-		returnCode = 1
-		runtime.Goexit()
-	}
-
-	settings, err = utils.ParseAndValidateSettings(settings)
-	if err != nil {
-		setupLog.Error(err, "error while validation options")
-		returnCode = 2
-		runtime.Goexit()
+		settings, err = utils.ParseAndValidateSettings(_settings)
+		if err != nil {
+			return SettingsValidationError, fmt.Errorf("invalid settings provided: %w", err)
+		}
 	}
 	setupLog.Info("settings parsed successfully")
 
@@ -146,52 +151,54 @@ func main() {
 	// Get the service registry
 	//--------------------------------------
 
+	var etcdClient *clientv3.Client
+	var servreg sr.ServiceRegistry
+
 	if settings.ServiceRegistrySettings.EtcdSettings != nil {
 		setupLog.Info("using etcd as a service registry...")
 		_cli, err := getEtcdClient(settings.EtcdSettings)
 		if err != nil {
-			setupLog.Error(err, "error while establishing connection to the etcd cluster")
-			returnCode = 4
-			runtime.Goexit()
+			return CannotEstablishConnectionToEtcd, fmt.Errorf("cannot establish connection to etcd: %w", err)
 		}
+
 		etcdClient = _cli
 		defer etcdClient.Close()
 		servreg = etcd.NewServiceRegistryWithEtcd(ctx, etcdClient, settings.EtcdSettings.Prefix)
 	}
+
 	if settings.ServiceRegistrySettings.ServiceDirectorySettings != nil {
 		setupLog.Info("using gcloud service directory...")
-
 		cli, err := getGSDClient(context.Background())
 		if err != nil {
-			setupLog.Error(err, "fatal error encountered")
-			returnCode = 11
-			runtime.Goexit()
+			return CannotGetServiceDirectoryClient, fmt.Errorf("cannot get service directory client: %w", err)
 		}
 		defer cli.Close()
 
 		sdSettings, err := parseAndResetGSDSettings(settings.ServiceRegistrySettings.ServiceDirectorySettings)
 		if err != nil {
-			setupLog.Error(err, "fatal error encountered")
-			returnCode = 11
-			runtime.Goexit()
+			return InvalidServiceDirectorySettings, fmt.Errorf("invalid service directory: %w", err)
 		}
 
-		servreg = &sd.Handler{ProjectID: sdSettings.ProjectID, DefaultRegion: sdSettings.DefaultRegion, Log: setupLog.WithName("ServiceDirectory"), Context: ctx, Client: cli}
+		servreg = &sd.Handler{
+			ProjectID:     sdSettings.ProjectID,
+			DefaultRegion: sdSettings.DefaultRegion,
+			Log:           setupLog.WithName("ServiceDirectory"),
+			Context:       ctx,
+			Client:        cli,
+		}
 	}
+
 	if settings.ServiceRegistrySettings.CloudMapSettings != nil {
 		setupLog.Info("using aws cloud map...")
 
 		cmSettings, err := parseAndResetAWSCloudMapSettings(settings.CloudMapSettings)
 		if err != nil {
-			returnCode = 12
-			runtime.Goexit()
+			return InvalidCloudMapSettings, fmt.Errorf("invalid cloud map settings: %w", err)
 		}
 
 		cli, err := getAWSClient(context.Background(), &cmSettings.DefaultRegion)
 		if err != nil {
-			setupLog.Error(err, "fatal error encountered")
-			returnCode = 12
-			runtime.Goexit()
+			return CannotGetCloudMapClient, fmt.Errorf("cannot get cloud map client: %w", err)
 		}
 
 		servreg = cloudmap.NewHandler(ctx, cli, setupLog)
@@ -199,9 +206,7 @@ func main() {
 
 	srBroker, err := sr.NewBroker(servreg, sr.MetadataPair{Key: opKey, Value: opVal}, persistentMeta...)
 	if err != nil {
-		setupLog.Error(err, "fatal error encountered")
-		returnCode = 6
-		runtime.Goexit()
+		return CannotGetBroker, fmt.Errorf("cannot get service registry broker: %w", err)
 	}
 
 	//--------------------------------------
@@ -214,9 +219,7 @@ func main() {
 		MetricsBindAddress: "0",
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		returnCode = 7
-		runtime.Goexit()
+		return CannotGetControllerManager, fmt.Errorf("cannot create controller manager: %w", err)
 	}
 
 	if err = (&controllers.ServiceReconciler{
@@ -227,10 +230,9 @@ func main() {
 		WatchNamespacesByDefault: settings.WatchNamespacesByDefault,
 		AllowedAnnotations:       settings.Service.Annotations,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Service")
-		returnCode = 8
-		runtime.Goexit()
+		return CannotCreateServiceController, fmt.Errorf("cannot create service controller: %w", err)
 	}
+
 	if err = (&controllers.NamespaceReconciler{
 		Client:                   mgr.GetClient(),
 		Log:                      ctrl.Log.WithName("controllers").WithName("Namespace"),
@@ -239,16 +241,14 @@ func main() {
 		WatchNamespacesByDefault: settings.WatchNamespacesByDefault,
 		AllowedAnnotations:       settings.Service.Annotations,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
-		returnCode = 9
-		runtime.Goexit()
+		return CannotCreateNamespaceController, fmt.Errorf("cannot create namespace controller: %w", err)
 	}
 	// +kubebuilder:scaffold:builder
 
-	setupLog.Info("starting manager")
+	setupLog.Info("starting controller manager...")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
-		returnCode = 10
-		runtime.Goexit()
+		return CannotRunControllerManager, fmt.Errorf("cannot run controller manager: %w", err)
 	}
+
+	return Success, nil
 }
