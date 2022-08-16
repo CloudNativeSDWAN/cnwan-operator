@@ -59,7 +59,7 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.0.1 // indirect
 	google.golang.org/api v0.92.0
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20220722212130-b98a9ff5e252
+	google.golang.org/genproto v0.0.0-20220804142021-4e6b2dfa6612
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
@@ -79,7 +79,7 @@ require (
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
-require cloud.google.com/go/compute v1.7.0
+require cloud.google.com/go/compute v1.8.0
 
 require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.12.14 // indirect
