@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.77
 	github.com/aws/aws-sdk-go-v2 v1.16.11
 	github.com/aws/aws-sdk-go-v2/config v1.17.1
-	github.com/aws/aws-sdk-go-v2/service/servicediscovery v1.17.11
+	github.com/aws/aws-sdk-go-v2/service/servicediscovery v1.17.13
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
