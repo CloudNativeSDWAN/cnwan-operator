@@ -201,3 +201,17 @@ func GetFilesFromSecret(ctx context.Context, nsName, name string) ([][]byte, err
 
 	return data, nil
 }
+
+func GetDataFromSecret(ctx context.Context, nsName, name string) (map[string][]byte, error) {
+	cli, err := getK8sClientSet()
+	if err != nil {
+		return nil, err
+	}
+
+	secret, err := cli.CoreV1().Secrets(nsName).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return secret.Data, nil
+}
