@@ -166,7 +166,7 @@ func GetRunCommand() *cobra.Command {
 	// Sub commands
 	// -----------------------------
 
-	// TODO: add commands
+	cmd.AddCommand(getRunCloudMapCommand(opts))
 
 	return cmd
 }
