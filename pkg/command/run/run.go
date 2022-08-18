@@ -26,20 +26,30 @@ import (
 	"os"
 	"time"
 
+	"github.com/CloudNativeSDWAN/cnwan-operator/controllers"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/cluster"
+	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"google.golang.org/api/option"
 	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
+// TODO: when #81 is fixed ctrl.Log will be removed in favor of zerolog.
 var log zerolog.Logger
 
 const (
 	defaultNamespaceName         string = "cnwan-operator-system"
 	namespaceEnvName             string = "CNWAN_OPERATOR_NAMESPACE"
 	defaultSettingsConfigMapName string = "cnwan-operator-settings"
+	opKey                        string = "owner"
+	opVal                        string = "cnwan-operator"
 )
 
 type Options struct {
@@ -47,8 +57,9 @@ type Options struct {
 	ServiceSettings          *ServiceSettings       `yaml:",inline"`
 	CloudMetadata            *CloudMetadataSettings `yaml:"cloudMetadata"`
 
-	RunningInK8s bool
-	Namespace    string
+	PersistentMetadata map[string]string
+	RunningInK8s       bool
+	Namespace          string
 }
 
 type ServiceSettings struct {
@@ -75,6 +86,7 @@ func GetRunCommand() *cobra.Command {
 
 			return true
 		}(),
+		PersistentMetadata: map[string]string{},
 	}
 
 	var (
@@ -222,7 +234,7 @@ func GetRunCommand() *cobra.Command {
 						log.Debug().
 							Str("namespace", opts.Namespace).
 							Str("name", cloudMetadataCredsSecret).
-							Msg("getting service account from secret...")
+							Msg("getting cloud map credentials from secret...")
 
 						ctx, canc := context.WithTimeout(context.Background(), 10*time.Second)
 						defer canc()
@@ -244,7 +256,10 @@ func GetRunCommand() *cobra.Command {
 				// -- Get data automatically?
 				netwCfg, err := func() (*cluster.NetworkConfiguration, error) {
 					if len(credentialsBytes) == 0 {
-						return nil, nil
+						if (opts.CloudMetadata.Network != nil && *opts.CloudMetadata.Network == "auto") ||
+							(opts.CloudMetadata.SubNetwork != nil && *opts.CloudMetadata.SubNetwork == "auto") {
+							return nil, fmt.Errorf("cannot infer network and/or subnetwork without credentials file. Please provide it via flags or option.")
+						}
 					}
 
 					ctx, canc := context.WithTimeout(context.Background(), 15*time.Second)
@@ -252,6 +267,7 @@ func GetRunCommand() *cobra.Command {
 
 					switch cluster.WhereAmIRunning() {
 					case cluster.GKECluster:
+						opts.PersistentMetadata["cnwan.io/platform"] = string(cluster.GKECluster)
 						nw, err := cluster.GetNetworkFromGKE(ctx, option.WithCredentialsJSON(credentialsBytes))
 						if err != nil {
 							return nil, fmt.Errorf("cannot get network configuration from GKE: %w", err)
@@ -259,6 +275,7 @@ func GetRunCommand() *cobra.Command {
 
 						return nw, nil
 					case cluster.EKSCluster:
+						opts.PersistentMetadata["cnwan.io/platform"] = string(cluster.EKSCluster)
 						nw, err := cluster.GetNetworkFromEKS(ctx)
 						if err != nil {
 							return nil, fmt.Errorf("cannot get network configuration from EKS: %w", err)
@@ -273,12 +290,19 @@ func GetRunCommand() *cobra.Command {
 					return err
 				}
 
-				if opts.CloudMetadata.Network != nil && *opts.CloudMetadata.Network == "auto" {
-					opts.CloudMetadata.Network = &netwCfg.NetworkName
+				if opts.CloudMetadata.Network != nil {
+					if *opts.CloudMetadata.Network == "auto" {
+						opts.CloudMetadata.Network = &netwCfg.NetworkName
+					}
+
+					opts.PersistentMetadata["cnwan.io/network"] = *opts.CloudMetadata.Network
 				}
 
-				if opts.CloudMetadata.SubNetwork != nil && *opts.CloudMetadata.SubNetwork == "auto" {
-					opts.CloudMetadata.SubNetwork = &netwCfg.SubNetworkName
+				if opts.CloudMetadata.SubNetwork != nil {
+					if *opts.CloudMetadata.SubNetwork == "auto" {
+						opts.CloudMetadata.SubNetwork = &netwCfg.SubNetworkName
+					}
+					opts.PersistentMetadata["cnwan.io/sub-network"] = *opts.CloudMetadata.SubNetwork
 				}
 			}
 
@@ -327,4 +351,65 @@ func GetRunCommand() *cobra.Command {
 	// TODO: add commands
 
 	return cmd
+}
+
+func run(sr servregistry.ServiceRegistry, opts *Options) error {
+	persistentMeta := []servregistry.MetadataPair{}
+	for key, val := range opts.PersistentMetadata {
+		persistentMeta = append(persistentMeta, servregistry.MetadataPair{
+			Key:   key,
+			Value: val,
+		})
+	}
+
+	srBroker, err := servregistry.NewBroker(sr, servregistry.MetadataPair{Key: opKey, Value: opVal}, persistentMeta...)
+	if err != nil {
+		return fmt.Errorf("cannot start service registry broker: %w", err)
+	}
+
+	scheme := k8sruntime.NewScheme()
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = corev1.AddToScheme(scheme)
+	// +kubebuilder:scaffold:scheme
+
+	// Controller manager
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Scheme:             scheme,
+		LeaderElection:     false,
+		MetricsBindAddress: "0",
+	})
+	if err != nil {
+		return fmt.Errorf("cannot start controller manager: %w", err)
+	}
+
+	// Service controller
+	if err = (&controllers.ServiceReconciler{
+		Client:                   mgr.GetClient(),
+		Log:                      ctrl.Log.WithName("controllers").WithName("Service"),
+		Scheme:                   mgr.GetScheme(),
+		ServRegBroker:            srBroker,
+		WatchNamespacesByDefault: opts.WatchNamespacesByDefault,
+		AllowedAnnotations:       opts.ServiceSettings.Annotations,
+	}).SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("cannot create service controller: %w", err)
+	}
+
+	// Namespace controller
+	if err = (&controllers.NamespaceReconciler{
+		Client:                   mgr.GetClient(),
+		Log:                      ctrl.Log.WithName("controllers").WithName("Namespace"),
+		Scheme:                   mgr.GetScheme(),
+		ServRegBroker:            srBroker,
+		WatchNamespacesByDefault: opts.WatchNamespacesByDefault,
+		AllowedAnnotations:       opts.ServiceSettings.Annotations,
+	}).SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("cannot create namespace controller: %w", err)
+	}
+	// +kubebuilder:scaffold:builder
+
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		return fmt.Errorf("error while starting controller manager: %w", err)
+	}
+
+	return nil
 }
