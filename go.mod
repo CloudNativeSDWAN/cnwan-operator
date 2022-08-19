@@ -79,7 +79,7 @@ require (
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
-require cloud.google.com/go/compute v1.8.0
+require cloud.google.com/go/compute v1.9.0
 
 require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.12.14 // indirect
