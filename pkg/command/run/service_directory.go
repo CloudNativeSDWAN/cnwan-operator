@@ -59,7 +59,7 @@ func getRunServiceDirectoryCommand(runOpts *RunOptions, fileOptsFlags *fileOrK8s
 	cmd := &cobra.Command{
 		Use:     "servicedirectory [COMMAND] [OPTIONS]",
 		Aliases: []string{"sd", "google-service-directory", "with-service-directory"},
-		Short:   "Run the program with Google Service Directory",
+		Short:   "Run the program with Google Service Directory.",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := parseServiceDirectoryCommand(runOpts.ServiceDirectoryOptions, fileOptsFlags, cmd); err != nil {
 				return fmt.Errorf("error while parsing service directory options: %w", err)
@@ -90,7 +90,7 @@ func getRunServiceDirectoryCommand(runOpts *RunOptions, fileOptsFlags *fileOrK8s
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runWithServiceDirectory(runOpts)
 		},
-		Example: "servicedirectory --project-id my-project-id default-region us-east1",
+		Example: "servicedirectory --project-id my-project-id --default-region us-east1",
 	}
 
 	// -----------------------------
@@ -176,6 +176,13 @@ func parseServiceDirectoryCommand(sdOpts *ServiceDirectoryOptions, flagOpts *fil
 
 func runWithServiceDirectory(opts *RunOptions) error {
 	sdOpts := opts.ServiceDirectoryOptions
+
+	// TODO: when #81 is solved an merged this will be replaced
+	// with zerolog
+	l := ctrl.Log.WithName("ServiceDirectory")
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	l.Info("starting...")
+
 	ctx, canc := context.WithTimeout(context.Background(), 15*time.Second)
 	defer canc()
 
@@ -187,21 +194,15 @@ func runWithServiceDirectory(opts *RunOptions) error {
 
 	defer cli.Close()
 
-	// TODO: when #81 is solved an merged this will be replaced
-	// with zerolog
-	l := ctrl.Log.WithName("ServiceDirectory")
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
-
+	// TODO: the context should be given by the run function, or explicitly
+	// provide a context for each call. This will be fixed with the new API.
 	sr := &sd.Handler{
 		ProjectID:     sdOpts.ProjectID,
 		DefaultRegion: sdOpts.DefaultRegion,
 		Log:           l,
-		Context:       ctx,
+		Context:       context.Background(),
 		Client:        cli,
 	}
 
-	// TODO: use the handler (in next commits)
-	_ = sr
-
-	return nil
+	return run(sr, opts)
 }
