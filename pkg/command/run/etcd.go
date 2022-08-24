@@ -27,11 +27,12 @@ import (
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/cluster"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"golang.org/x/term"
 	"gopkg.in/yaml.v3"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 const (
@@ -140,9 +141,9 @@ func getRunEtcdCommand(operatorOpts *Options) *cobra.Command {
 		"prefix to insert before every key.")
 	cmd.Flags().StringSliceVar(&opts.Endpoints, "endpoints", []string{"localhost:2379"},
 		"list of endpoints for etcd.")
-	cmd.Flags().StringVar(&fileOpts.path, "options-path", "",
+	cmd.Flags().StringVar(&fileOpts.path, "etcd.options-path", "",
 		"path to the file containing etcd options.")
-	cmd.Flags().StringVar(&fileOpts.k8s, "options-configmap", func() string {
+	cmd.Flags().StringVar(&fileOpts.k8s, "etcd.options-configmap", func() string {
 		if operatorOpts.RunningInK8s {
 			return defaultEtcdConfigMapName
 		}
@@ -205,10 +206,11 @@ func parseEtcdCommand(flagOpts *fileOrK8sResource, etcdOpts *EtcdOptions, opts *
 }
 
 func runWithEtcd(operatorOpts *Options, opts *EtcdOptions) error {
-	ctx, canc := context.WithTimeout(context.Background(), 15*time.Second)
-	defer canc()
-
-	spew.Dump(opts)
+	// TODO: when #81 is solved an merged this will be replaced
+	// with zerolog
+	l := ctrl.Log.WithName("etcd")
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	l.Info("starting...")
 
 	// TODO: support certificates
 	cli, err := clientv3.New(clientv3.Config{
@@ -217,17 +219,14 @@ func runWithEtcd(operatorOpts *Options, opts *EtcdOptions) error {
 		Password:    opts.Password,
 		DialTimeout: 15 * time.Second,
 	})
-
 	if err != nil {
 		return fmt.Errorf("cannot get etcd client: %w", err)
 	}
 
 	defer cli.Close()
 
-	servreg := etcd.NewServiceRegistryWithEtcd(ctx, cli, &opts.Prefix)
-
-	// TODO: use the handler
-	_ = servreg
-
-	return nil
+	// TODO: the context should be given by the run function, or explicitly
+	// provide a context for each call. This will be fixed with the new API.
+	servreg := etcd.NewServiceRegistryWithEtcd(context.Background(), cli, &opts.Prefix)
+	return run(servreg, operatorOpts)
 }

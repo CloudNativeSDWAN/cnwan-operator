@@ -79,7 +79,10 @@ require (
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
-require golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+require (
+	github.com/rs/zerolog v1.27.0
+	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+)
 
 require (
 	cloud.google.com/go/compute v1.8.0
