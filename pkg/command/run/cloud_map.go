@@ -60,7 +60,7 @@ func getRunCloudMapCommand(operatorOpts *Options) *cobra.Command {
 	// -----------------------------
 
 	cmd := &cobra.Command{
-		Use:     "cloudmap [COMMAND] [OPTIONS]",
+		Use:     "cloudmap [OPTIONS]",
 		Aliases: []string{"cm", "aws-cloud-map", "with-cloud-map"},
 		Short:   "Run the program with AWS Cloud Map",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -118,9 +118,9 @@ func getRunCloudMapCommand(operatorOpts *Options) *cobra.Command {
 		return ""
 	}(),
 		"name of the Kubernetes config map containing settings.")
-	cmd.Flags().StringVar(&credsOpts.path, "credentials-path", "",
+	cmd.Flags().StringVar(&credsOpts.path, "cloud-map.credentials-path", "",
 		"path to the credentials file.")
-	cmd.Flags().StringVar(&credsOpts.k8s, "credentials-secret", func() string {
+	cmd.Flags().StringVar(&credsOpts.k8s, "cloud-map.credentials-secret", func() string {
 		if operatorOpts.RunningInK8s {
 			return defaultCloudMapCredentialsSecretName
 		}
@@ -179,6 +179,12 @@ func parseCloudMapCommand(flagOpts *fileOrK8sResource, cmOpts *CloudMapOptions, 
 }
 
 func runWithCloudMap(operatorOpts *Options, cmOpts *CloudMapOptions) error {
+	// TODO: when #81 is solved an merged this will be replaced
+	// with zerolog
+	l := ctrl.Log.WithName("CloudMap")
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	l.Info("starting...")
+
 	ctx, canc := context.WithTimeout(context.Background(), 15*time.Second)
 	defer canc()
 	const tempPath = "/tmp/cnwan-operator-aws-credentials"
@@ -196,15 +202,8 @@ func runWithCloudMap(operatorOpts *Options, cmOpts *CloudMapOptions) error {
 		return fmt.Errorf("error while trying to load AWS configuration: %w", err)
 	}
 
-	// TODO: when #81 is solved an merged this will be replaced
-	// with zerolog
-	l := ctrl.Log.WithName("ServiceDirectory")
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
-
-	servreg := cloudmap.NewHandler(ctx, servicediscovery.NewFromConfig(cfg), l)
-
-	// TODO: use the handler (in next commits)
-	_ = servreg
-
-	return nil
+	// TODO: the context should be given by the run function, or explicitly
+	// provide a context for each call. This will be fixed with the new API
+	servreg := cloudmap.NewHandler(context.Background(), servicediscovery.NewFromConfig(cfg), l)
+	return run(servreg, operatorOpts)
 }
