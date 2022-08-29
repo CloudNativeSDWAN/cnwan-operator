@@ -19,19 +19,14 @@
 package run
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"time"
 
 	"github.com/CloudNativeSDWAN/cnwan-operator/controllers"
-	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/cluster"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
-	"google.golang.org/api/option"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
@@ -50,6 +45,13 @@ const (
 	defaultSettingsConfigMapName string = "cnwan-operator-settings"
 	opKey                        string = "owner"
 	opVal                        string = "cnwan-operator"
+	autoValue                    string = "auto"
+
+	flagCloudMetadataNetwork    string = "cloud-metadata.network"
+	flagCloudMetadataSubNetwork string = "cloud-metadata.subnetwork"
+	networkNameMetadataKey      string = "cnwan.io/network"
+	subNetworkNameMetadataKey   string = "cnwan.io/sub-network"
+	platformNameMetadataKey     string = "cnwan.io/platform"
 )
 
 type Options struct {
@@ -67,8 +69,13 @@ type ServiceSettings struct {
 }
 
 type CloudMetadataSettings struct {
-	Network    *string `yaml:"network"`
-	SubNetwork *string `yaml:"subNetwork"`
+	Network    string `yaml:"network"`
+	SubNetwork string `yaml:"subNetwork"`
+}
+
+type fileOrK8sResource struct {
+	path string
+	k8s  string
 }
 
 func GetRunCommand() *cobra.Command {
@@ -87,16 +94,10 @@ func GetRunCommand() *cobra.Command {
 			return true
 		}(),
 		PersistentMetadata: map[string]string{},
+		CloudMetadata:      &CloudMetadataSettings{},
 	}
-
-	var (
-		cloudMetadataNetwork     string
-		cloudMetadataSubNetwork  string
-		cloudMetadataCredsPath   string
-		cloudMetadataCredsSecret string
-		optsPath                 string
-		optsConfigMap            string
-	)
+	optsFile := &fileOrK8sResource{}
+	cloudMetadataCredsFile := &fileOrK8sResource{}
 
 	// -----------------------------
 	// The command
@@ -108,201 +109,14 @@ func GetRunCommand() *cobra.Command {
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			log = zerolog.New(os.Stderr).With().Timestamp().Logger()
 
-			// -- Get the current namespace
-			if nsName := os.Getenv(namespaceEnvName); nsName != "" {
-				opts.Namespace = nsName
-			} else {
-				log.Warn().
-					Str("default", defaultNamespaceName).
-					Msg("CNWAN_OPERATOR_NAMESPACE environment variable does not exist: using default value")
-				opts.Namespace = defaultNamespaceName
+			if err := parseOperatorCommand(optsFile, opts, cmd); err != nil {
+				return fmt.Errorf("error while parsing options: %w", err)
 			}
 
-			// -- Get the options from file or ConfigMap
-			if optsPath != "" || optsConfigMap != "" {
-				var (
-					fileOptions        []byte
-					decodedFileOptions *Options
-				)
-
-				// -- Get the options from path
-				if optsPath != "" {
-					if optsConfigMap != "" {
-						log.Warn().Msg("both path and configmap flags are provided: only the path will be used")
-						optsConfigMap = ""
-					}
-
-					log.Debug().Str("path", optsPath).
-						Msg("getting options from file...")
-					byteOpts, err := ioutil.ReadFile(optsPath)
-					if err != nil {
-						return fmt.Errorf("cannot open file %s: %w", optsPath, err)
-					}
-
-					fileOptions = byteOpts
-				}
-
-				// -- Get options from configmap
-				if optsConfigMap != "" {
-					log.Debug().
-						Str("namespace", opts.Namespace).
-						Str("name", optsConfigMap).
-						Msg("getting options from configmap...")
-
-					ctx, canc := context.WithTimeout(context.Background(), 10*time.Second)
-					cfgs, err := cluster.GetFilesFromConfigMap(ctx, opts.Namespace, optsConfigMap)
-					if err != nil {
-						canc()
-						return fmt.Errorf("cannot get configmap: %w", err)
-					}
-					canc()
-
-					fileOptions = cfgs[0]
-				}
-
-				if len(fileOptions) > 0 {
-					if err := yaml.Unmarshal(fileOptions, &decodedFileOptions); err != nil {
-						return fmt.Errorf("cannot decode options %s: %w", optsPath, err)
-					}
-				}
-
-				// -- Parse the cmd flags
-				if !cmd.Flag("watch-namespaces-by-default").Changed {
-					opts.WatchNamespacesByDefault = decodedFileOptions.WatchNamespacesByDefault
-				}
-
-				if !cmd.Flag("service-annotations").Changed {
-					opts.ServiceSettings.Annotations = decodedFileOptions.ServiceSettings.Annotations
-				}
-
-				if decodedFileOptions.CloudMetadata != nil {
-					opts.CloudMetadata = decodedFileOptions.CloudMetadata
-				}
-			}
-
-			if len(opts.ServiceSettings.Annotations) == 0 {
-				return fmt.Errorf("no service annotations provided")
-			}
-
-			// -- Parse the cloud metadata
-			if cmd.Flag("cloud-metadata.network").Changed || cmd.Flag("cloud-metadata.subnetwork").Changed {
-				if opts.CloudMetadata == nil {
-					opts.CloudMetadata = &CloudMetadataSettings{}
-				}
-
-				if cmd.Flag("cloud-metadata.network").Changed {
-					opts.CloudMetadata.Network = &cloudMetadataNetwork
-				}
-
-				if cmd.Flag("cloud-metadata.subnetwork").Changed {
-					opts.CloudMetadata.SubNetwork = &cloudMetadataSubNetwork
-				}
-			}
-
-			if opts.CloudMetadata != nil {
-				// -- Get the credentials
-				credentialsBytes, err := func() ([]byte, error) {
-					if cloudMetadataCredsPath == "" && cloudMetadataCredsSecret == "" {
-						return nil, nil
-					}
-
-					if opts.CloudMetadata.Network != nil && *opts.CloudMetadata.Network != "auto" &&
-						opts.CloudMetadata.SubNetwork != nil && *opts.CloudMetadata.SubNetwork != "auto" {
-						// No auto values to take. Let's stop here.
-						log.Info().Msg("neither network nor subnetwork are set to auto, no credential will be loaded")
-						return nil, nil
-					}
-
-					var creds []byte
-					if cloudMetadataCredsPath != "" {
-						if cloudMetadataCredsSecret != "" {
-							log.Warn().Msg("both path and secret cloud-metadata flags are provided: only the path will be used")
-							cloudMetadataCredsSecret = ""
-						}
-
-						log.Debug().Str("cloud-metadata.credentials-path", cloudMetadataCredsPath).
-							Msg("getting credentials from file...")
-						byteOpts, err := ioutil.ReadFile(cloudMetadataCredsPath)
-						if err != nil {
-							return nil, fmt.Errorf("cannot open file %s: %w", cloudMetadataCredsPath, err)
-						}
-
-						return byteOpts, nil
-					}
-
-					if cloudMetadataCredsSecret != "" {
-						log.Debug().
-							Str("namespace", opts.Namespace).
-							Str("name", cloudMetadataCredsSecret).
-							Msg("getting cloud map credentials from secret...")
-
-						ctx, canc := context.WithTimeout(context.Background(), 10*time.Second)
-						defer canc()
-
-						secrets, err := cluster.GetFilesFromSecret(ctx, opts.Namespace, cloudMetadataCredsSecret)
-						if err != nil {
-							return nil, fmt.Errorf("cannot get secret: %w", err)
-						}
-
-						return secrets[0], nil
-					}
-
-					return creds, nil
-				}()
-				if err != nil {
-					return err
-				}
-
-				// -- Get data automatically?
-				netwCfg, err := func() (*cluster.NetworkConfiguration, error) {
-					if len(credentialsBytes) == 0 {
-						if (opts.CloudMetadata.Network != nil && *opts.CloudMetadata.Network == "auto") ||
-							(opts.CloudMetadata.SubNetwork != nil && *opts.CloudMetadata.SubNetwork == "auto") {
-							return nil, fmt.Errorf("cannot infer network and/or subnetwork without credentials file. Please provide it via flags or option.")
-						}
-					}
-
-					ctx, canc := context.WithTimeout(context.Background(), 15*time.Second)
-					defer canc()
-
-					switch cluster.WhereAmIRunning() {
-					case cluster.GKECluster:
-						opts.PersistentMetadata["cnwan.io/platform"] = string(cluster.GKECluster)
-						nw, err := cluster.GetNetworkFromGKE(ctx, option.WithCredentialsJSON(credentialsBytes))
-						if err != nil {
-							return nil, fmt.Errorf("cannot get network configuration from GKE: %w", err)
-						}
-
-						return nw, nil
-					case cluster.EKSCluster:
-						opts.PersistentMetadata["cnwan.io/platform"] = string(cluster.EKSCluster)
-						nw, err := cluster.GetNetworkFromEKS(ctx)
-						if err != nil {
-							return nil, fmt.Errorf("cannot get network configuration from EKS: %w", err)
-						}
-
-						return nw, nil
-					default:
-						return nil, fmt.Errorf("cannot get network configuration: unsupported cluster")
-					}
-				}()
-				if err != nil {
-					return err
-				}
-
-				if opts.CloudMetadata.Network != nil {
-					if *opts.CloudMetadata.Network == "auto" {
-						opts.CloudMetadata.Network = &netwCfg.NetworkName
-					}
-
-					opts.PersistentMetadata["cnwan.io/network"] = *opts.CloudMetadata.Network
-				}
-
-				if opts.CloudMetadata.SubNetwork != nil {
-					if *opts.CloudMetadata.SubNetwork == "auto" {
-						opts.CloudMetadata.SubNetwork = &netwCfg.SubNetworkName
-					}
-					opts.PersistentMetadata["cnwan.io/sub-network"] = *opts.CloudMetadata.SubNetwork
+			if opts.CloudMetadata.Network == autoValue ||
+				opts.CloudMetadata.SubNetwork == autoValue {
+				if err := retrieveCloudNetworkCfg(cloudMetadataCredsFile, opts); err != nil {
+					return fmt.Errorf("error while parsing cloud metadata options: %w", err)
 				}
 			}
 
@@ -321,28 +135,32 @@ func GetRunCommand() *cobra.Command {
 	cmd.PersistentFlags().StringSliceVar(&opts.ServiceSettings.Annotations,
 		"service-annotations", []string{},
 		"comma-separated list of service annotation keys to watch.")
-	cmd.PersistentFlags().StringVar(&cloudMetadataNetwork,
-		"cloud-metadata.network", "",
-		"network's name that will be registered with the metadata.")
-	cmd.PersistentFlags().StringVar(&cloudMetadataSubNetwork,
-		"cloud-metadata.subnetwork", "",
-		"subnetwork's name that will be registered with the metadata.")
-	cmd.PersistentFlags().StringVar(&optsPath, "options.path", "",
+	cmd.PersistentFlags().StringVar(&optsFile.path, "options.path", "",
 		"path to the options file.")
-	cmd.PersistentFlags().StringVar(&optsConfigMap, "options.configmap", func() string {
+	cmd.PersistentFlags().StringVar(&optsFile.k8s, "options.configmap", func() string {
 		if opts.RunningInK8s {
 			return defaultSettingsConfigMapName
 		}
 
 		return ""
 	}(),
-		"name of the configmap with operator options. Must be in the same namespace.")
-	cmd.PersistentFlags().StringVar(&cloudMetadataCredsPath, "cloud-metadata.credentials-path", "",
-		`path to the credentials of the running cluster. `+
-			`Used only if the other cloud-metadata flags are set to auto.`)
-	cmd.PersistentFlags().StringVar(&cloudMetadataCredsSecret, "cloud-metadata.credentials-secret", "",
-		`name of the Kubernetes secret to the credentials of the running cluster. `+
-			`Used only if the other cloud-metadata flags are set to auto.`)
+		"name of the configmap with operator options. Must be in the same namespace. "+
+			"Will be ignored if options.path is also provided")
+	cmd.PersistentFlags().StringVar(&opts.CloudMetadata.Network,
+		flagCloudMetadataNetwork, "",
+		"network's name that will be registered with the metadata.")
+	cmd.PersistentFlags().StringVar(&opts.CloudMetadata.SubNetwork,
+		flagCloudMetadataSubNetwork, "",
+		"subnetwork's name that will be registered with the metadata.")
+	cmd.PersistentFlags().StringVar(&cloudMetadataCredsFile.path,
+		"cloud-metadata.credentials-path", "",
+		"path to the credentials of the running cluster. "+
+			"Used only if the other cloud-metadata flags are set to auto.")
+	cmd.PersistentFlags().StringVar(&cloudMetadataCredsFile.k8s,
+		"cloud-metadata.credentials-secret", "",
+		"name of the Kubernetes secret to the credentials of the running cluster. "+
+			"Used only if the other cloud-metadata flags are set to auto. "+
+			"Will be ignored if cloud-metadata.credentials-path is provided.")
 
 	// -----------------------------
 	// Sub commands
@@ -351,6 +169,87 @@ func GetRunCommand() *cobra.Command {
 	// TODO: add commands
 
 	return cmd
+}
+
+func parseOperatorCommand(flagOpts *fileOrK8sResource, opts *Options, cmd *cobra.Command) error {
+	// --------------------------------
+	// Get the current namespace
+	// --------------------------------
+
+	opts.Namespace = func() string {
+		if nsName := os.Getenv(namespaceEnvName); nsName != "" {
+			return nsName
+		}
+
+		log.Warn().Str("default", defaultNamespaceName).
+			Msg("CNWAN_OPERATOR_NAMESPACE environment variable does not exist: using default value")
+		return defaultNamespaceName
+	}()
+
+	// --------------------------------
+	// Get options from path or configmap
+	// --------------------------------
+
+	if flagOpts.path != "" || flagOpts.k8s != "" {
+		var (
+			fileOptions        []byte
+			decodedFileOptions *Options
+		)
+
+		var k8sres *k8sResource
+		if flagOpts.k8s != "" {
+			k8sres = &k8sResource{
+				Type:      "configmap",
+				Namespace: opts.Namespace,
+				Name:      flagOpts.k8s,
+			}
+		}
+
+		fileOptions, err := getFileFromPathOrK8sResource(flagOpts.path, k8sres)
+		if err != nil {
+			return fmt.Errorf("could not load options: %w", err)
+		}
+
+		// Unmarshal the file and put the values found inside into our main
+		// options struct...
+		if err := yaml.Unmarshal(fileOptions, &decodedFileOptions); err != nil {
+			return fmt.Errorf("cannot decode options %s: %w", flagOpts.path, err)
+		}
+
+		// ... unless cmd flags are provided. In which case they (the flags)
+		// take precedence.
+		if !cmd.Flag("watch-namespaces-by-default").Changed {
+			opts.WatchNamespacesByDefault = decodedFileOptions.WatchNamespacesByDefault
+		}
+		if !cmd.Flag("service-annotations").Changed {
+			opts.ServiceSettings.Annotations = decodedFileOptions.ServiceSettings.Annotations
+		}
+		if decodedFileOptions.CloudMetadata != nil {
+			if !cmd.Flag(flagCloudMetadataNetwork).Changed {
+				opts.CloudMetadata.Network = decodedFileOptions.CloudMetadata.Network
+			}
+			if !cmd.Flag(flagCloudMetadataSubNetwork).Changed {
+				opts.CloudMetadata.SubNetwork = decodedFileOptions.CloudMetadata.SubNetwork
+			}
+		}
+	}
+
+	if len(opts.ServiceSettings.Annotations) == 0 {
+		return fmt.Errorf("no service annotations provided")
+	}
+
+	// --------------------------------
+	// Persistent metadata
+	// --------------------------------
+
+	if opts.CloudMetadata.Network != "" {
+		opts.PersistentMetadata[networkNameMetadataKey] = opts.CloudMetadata.Network
+	}
+	if opts.CloudMetadata.SubNetwork != "" {
+		opts.PersistentMetadata[subNetworkNameMetadataKey] = opts.CloudMetadata.SubNetwork
+	}
+
+	return nil
 }
 
 func run(sr servregistry.ServiceRegistry, opts *Options) error {
