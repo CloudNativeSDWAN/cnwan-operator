@@ -1,4 +1,4 @@
-// Copyright © 2021 Cisco
+// Copyright © 2021, 2022 Cisco
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -133,6 +133,8 @@ func GetEtcdCredentialsSecret(ctx context.Context) (string, string, error) {
 	return string(secret.Data["username"]), string(secret.Data["password"]), nil
 }
 
+// DEPRECATED
+// TODO: remove me
 func GetOperatorSettingsConfigMap(ctx context.Context) ([]byte, error) {
 	cli, err := getK8sClientSet()
 	if err != nil {
@@ -159,4 +161,43 @@ func GetOperatorSettingsConfigMap(ctx context.Context) ([]byte, error) {
 	}
 
 	return data, err
+}
+
+func GetFilesFromConfigMap(ctx context.Context, nsName, name string) ([][]byte, error) {
+	cli, err := getK8sClientSet()
+	if err != nil {
+		return nil, err
+	}
+
+	cfgm, err := cli.CoreV1().ConfigMaps(nsName).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	data := [][]byte{}
+	for _, d := range cfgm.Data {
+		data = append(data, []byte(d))
+	}
+
+	return data, err
+}
+
+func GetFilesFromSecret(ctx context.Context, nsName, name string) ([][]byte, error) {
+	cli, err := getK8sClientSet()
+	if err != nil {
+		return nil, err
+	}
+
+	secret, err := cli.CoreV1().Secrets(nsName).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	data := [][]byte{}
+	for _, d := range secret.Data {
+		data = append(data, d)
+		break
+	}
+
+	return data, nil
 }

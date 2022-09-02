@@ -11,7 +11,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
-	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
+	github.com/coreos/go-systemd/v22 v22.3.3-0.20220203105225-a9a7ef127534 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/evanphx/json-patch v4.9.0+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
@@ -79,7 +79,11 @@ require (
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
-require cloud.google.com/go/compute v1.8.0
+require (
+	cloud.google.com/go/compute v1.8.0
+	github.com/rs/zerolog v1.27.0
+	github.com/spf13/cobra v0.0.5
+)
 
 require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.12.14 // indirect
@@ -92,4 +96,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.16.13 // indirect
 	github.com/aws/smithy-go v1.12.1 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.1.0 // indirect
+	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/mattn/go-colorable v0.1.12 // indirect
+	github.com/mattn/go-isatty v0.0.14 // indirect
 )
