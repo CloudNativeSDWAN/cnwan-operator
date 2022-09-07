@@ -52,12 +52,12 @@ require (
 	go.uber.org/zap v1.22.0
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
 	golang.org/x/net v0.0.0-20220624214902-1bab6f366d9e // indirect
-	golang.org/x/oauth2 v0.0.0-20220622183110-fd043fe589d2 // indirect
+	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094 // indirect
 	golang.org/x/sys v0.0.0-20220624220833-87e55d714810 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.0.1 // indirect
-	google.golang.org/api v0.93.0
+	google.golang.org/api v0.95.0
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20220804142021-4e6b2dfa6612
 	google.golang.org/grpc v1.48.0
