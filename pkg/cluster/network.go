@@ -20,7 +20,10 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -30,6 +33,7 @@ import (
 	awssess "github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	gccontainer "google.golang.org/api/container/v1"
+	"google.golang.org/api/googleapi"
 	gcoption "google.golang.org/api/option"
 )
 
@@ -45,6 +49,7 @@ const (
 )
 
 type NetworkConfiguration struct {
+	PlatformName   string
 	NetworkName    string
 	SubNetworkName string
 }
@@ -121,12 +126,39 @@ func GetNetworkFromGKE(ctx context.Context, opts ...gcoption.ClientOption) (*Net
 		return nil, err
 	}
 
-	cluster, err := cli.Projects.Zones.Clusters.Get(projectID, zone, clusterName).Do()
+	plcs := gccontainer.NewProjectsLocationsClustersService(cli)
+	cluster, err := plcs.Get(path.Join("projects", projectID, "locations", zone, "clusters", clusterName)).Do()
 	if err != nil {
-		return nil, err
+		var e *googleapi.Error
+		if errors.As(err, &e) {
+			if e.Code != http.StatusNotFound {
+				return nil, err
+			}
+		}
+
+		// Retry with a region, not with a zone.
+		// TODO: check if this always applies or it is just a special case.
+		// My guess is that this does not happen when running GKE in single
+		// zone, but only in multi-zone, e.g. when using autopilot.
+		// TODO: remove this fmt line after checking the above.
+		// See #131.
+		fmt.Println("could not get cluster data, retrying with region...")
+		lastDash := strings.LastIndex(zone, "-")
+		if lastDash == -1 {
+			return nil, err
+		}
+
+		cluster, err = plcs.Get(path.Join("projects", projectID, "locations", zone[:lastDash], "clusters", clusterName)).Do()
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return &NetworkConfiguration{cluster.Network, cluster.Subnetwork}, nil
+	return &NetworkConfiguration{
+		PlatformName:   string(GKECluster),
+		NetworkName:    cluster.Network,
+		SubNetworkName: cluster.Subnetwork,
+	}, nil
 }
 
 // GetNetworkFromEKS returns the network from EKS.
@@ -167,7 +199,11 @@ func GetNetworkFromEKS(ctx context.Context, cfgs ...*aws.Config) (*NetworkConfig
 	}
 
 	inst := out.Reservations[0].Instances[0]
-	return &NetworkConfiguration{aws.StringValue(inst.VpcId), aws.StringValue(inst.SubnetId)}, nil
+	return &NetworkConfiguration{
+		PlatformName:   string(EKSCluster),
+		NetworkName:    aws.StringValue(inst.VpcId),
+		SubNetworkName: aws.StringValue(inst.SubnetId),
+	}, nil
 }
 
 // GetGCPRegion attempts to get the region where GKE is running in.
