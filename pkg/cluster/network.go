@@ -45,6 +45,7 @@ const (
 )
 
 type NetworkConfiguration struct {
+	PlatformName   string
 	NetworkName    string
 	SubNetworkName string
 }
@@ -126,7 +127,11 @@ func GetNetworkFromGKE(ctx context.Context, opts ...gcoption.ClientOption) (*Net
 		return nil, err
 	}
 
-	return &NetworkConfiguration{cluster.Network, cluster.Subnetwork}, nil
+	return &NetworkConfiguration{
+		PlatformName:   string(GKECluster),
+		NetworkName:    cluster.Network,
+		SubNetworkName: cluster.Subnetwork,
+	}, nil
 }
 
 // GetNetworkFromEKS returns the network from EKS.
@@ -167,7 +172,11 @@ func GetNetworkFromEKS(ctx context.Context, cfgs ...*aws.Config) (*NetworkConfig
 	}
 
 	inst := out.Reservations[0].Instances[0]
-	return &NetworkConfiguration{aws.StringValue(inst.VpcId), aws.StringValue(inst.SubnetId)}, nil
+	return &NetworkConfiguration{
+		PlatformName:   string(EKSCluster),
+		NetworkName:    aws.StringValue(inst.VpcId),
+		SubNetworkName: aws.StringValue(inst.SubnetId),
+	}, nil
 }
 
 // GetGCPRegion attempts to get the region where GKE is running in.
