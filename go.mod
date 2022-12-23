@@ -80,7 +80,7 @@ require (
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
-require cloud.google.com/go/compute/metadata v0.2.2
+require cloud.google.com/go/compute/metadata v0.2.3
 
 require (
 	cloud.google.com/go/iam v0.8.0 // indirect
