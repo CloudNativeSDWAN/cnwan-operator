@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	cloud.google.com/go/compute v1.14.0 // indirect
-	cloud.google.com/go/servicedirectory v1.7.0
+	cloud.google.com/go/servicedirectory v1.8.0
 	github.com/aws/aws-sdk-go v1.44.78
 	github.com/aws/aws-sdk-go-v2 v1.17.4
 	github.com/aws/aws-sdk-go-v2/config v1.18.13
