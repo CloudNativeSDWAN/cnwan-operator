@@ -32,16 +32,32 @@ import (
 )
 
 const (
-	nsCtrlName string = "namespace-event-handler"
+	nsCtrlName         string = "namespace-event-handler"
+	watchLabel         string = "operator.cnwan.io/watch"
+	watchEnabledLabel  string = "enabled"
+	watchDisabledLabel string = "disabled"
 )
 
 type namespaceEventHandler struct {
+	// client
 	log zerolog.Logger
+	NamespaceControllerOptions
 }
 
-func NewNamespaceController(mgr manager.Manager, log zerolog.Logger) (controller.Controller, error) {
-	nsHandler := &namespaceEventHandler{log}
+type NamespaceControllerOptions struct {
+	WatchAllByDefault  bool
+	ServiceAnnotations []string
+}
 
+func NewNamespaceController(mgr manager.Manager, opts *NamespaceControllerOptions, log zerolog.Logger) (controller.Controller, error) {
+	if mgr == nil {
+		return nil, ErrorInvalidManager
+	}
+	if opts == nil {
+		return nil, ErrorInvalidNamespaceOptions
+	}
+
+	nsHandler := &namespaceEventHandler{log: log}
 	c, err := controller.New(nsCtrlName, mgr, controller.Options{
 		Reconciler: reconcile.Func(func(c context.Context, r reconcile.Request) (reconcile.Result, error) {
 			return reconcile.Result{}, nil
@@ -60,13 +76,43 @@ func NewNamespaceController(mgr manager.Manager, log zerolog.Logger) (controller
 	return c, nil
 }
 
+// Create handles create events.
+func (n *namespaceEventHandler) Create(ce event.CreateEvent, wq workqueue.RateLimitingInterface) {
+	defer wq.Done(ce.Object)
+
+	namespace, ok := ce.Object.(*corev1.Namespace)
+	if !ok {
+		return
+	}
+
+	if !shouldWatchLabel(namespace.Labels, n.WatchAllByDefault) {
+		return
+	}
+
+	// TODO: send event to listener that a new namespace has been created.
+}
+
 // Update handles update events.
 func (n *namespaceEventHandler) Update(ue event.UpdateEvent, wq workqueue.RateLimitingInterface) {
-	l := n.log.With().Str("event-handler", "Update").Logger()
 	defer wq.Done(ue.ObjectNew)
 
-	// TODO
-	_ = l
+	curr, currok := ue.ObjectNew.(*corev1.Namespace)
+	old, oldok := ue.ObjectOld.(*corev1.Namespace)
+	if !currok || !oldok {
+		return
+	}
+
+	watchedBefore := shouldWatchLabel(curr.Labels, n.WatchAllByDefault)
+	watchNow := shouldWatchLabel(old.Labels, n.WatchAllByDefault)
+
+	switch {
+	case !watchedBefore && !watchNow:
+		return
+	case !watchedBefore && watchNow:
+		// TODO: send create ns, send create for all services inside it
+	case watchedBefore && !watchNow:
+		// TODO: send delete for all services inside it, send delete ns
+	}
 }
 
 // Delete handles delete events.
@@ -78,22 +124,11 @@ func (n *namespaceEventHandler) Delete(de event.DeleteEvent, wq workqueue.RateLi
 		return
 	}
 
-	// TODO
-	_ = namespace
-}
-
-// Create handles create events.
-func (n *namespaceEventHandler) Create(ce event.CreateEvent, wq workqueue.RateLimitingInterface) {
-	l := n.log.With().Str("event-handler", "Create").Logger()
-	defer wq.Done(ce.Object)
-
-	namespace, ok := ce.Object.(*corev1.Namespace)
-	if !ok {
+	if !shouldWatchLabel(namespace.Labels, n.WatchAllByDefault) {
 		return
 	}
 
-	// TODO
-	_, _ = l, namespace
+	// TODO: send event to listener that a namespace has been deleted.
 }
 
 // Generic handles generic events.
@@ -101,4 +136,15 @@ func (n *namespaceEventHandler) Generic(ge event.GenericEvent, wq workqueue.Rate
 	// We don't really know what to do with generic events.
 	// We will just ignore this.
 	wq.Done(ge.Object)
+}
+
+func shouldWatchLabel(labels map[string]string, watchAllByDefault bool) bool {
+	switch labels[watchLabel] {
+	case watchEnabledLabel:
+		return true
+	case watchDisabledLabel:
+		return false
+	default:
+		return watchAllByDefault
+	}
 }
