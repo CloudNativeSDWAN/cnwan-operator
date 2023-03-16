@@ -1,4 +1,4 @@
-// Copyright © 2021 Cisco
+// Copyright © 2021 - 2023 Cisco
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,7 +20,10 @@ package controllers
 
 import (
 	"fmt"
+	"net"
 	"strings"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 // filterAnnotations is used to remove annotations that should be ignored
@@ -63,4 +66,38 @@ func filterAnnotations(currentAnnotations map[string]string, filter []string) ma
 	}
 
 	return filtered
+}
+
+func shouldWatchLabel(labels map[string]string, watchAllByDefault bool) bool {
+	switch labels[watchLabel] {
+	case watchEnabledLabel:
+		return true
+	case watchDisabledLabel:
+		return false
+	default:
+		return watchAllByDefault
+	}
+}
+
+func getIPsFromService(service *corev1.Service) ([]string, error) {
+	ips := []string{}
+	ips = append(ips, service.Spec.ExternalIPs...)
+
+	// Get data from load balancers
+	for _, ing := range service.Status.LoadBalancer.Ingress {
+		if ing.IP != "" {
+			ips = append(ips, ing.IP)
+		}
+
+		if ing.Hostname != "" {
+			if resolvedIPs, err := net.LookupHost(ing.Hostname); err != nil {
+				return nil, err
+			} else {
+				ips = append(ips, resolvedIPs...)
+			}
+		}
+		ips = append(ips, ing.IP)
+	}
+
+	return ips, nil
 }
