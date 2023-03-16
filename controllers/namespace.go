@@ -38,23 +38,23 @@ const (
 	watchDisabledLabel string = "disabled"
 )
 
+type ControllerOptions struct {
+	WatchNamespacesByDefault bool
+	ServiceAnnotations       []string
+}
+
 type namespaceEventHandler struct {
 	// client
 	log zerolog.Logger
-	NamespaceControllerOptions
+	ControllerOptions
 }
 
-type NamespaceControllerOptions struct {
-	WatchAllByDefault  bool
-	ServiceAnnotations []string
-}
-
-func NewNamespaceController(mgr manager.Manager, opts *NamespaceControllerOptions, log zerolog.Logger) (controller.Controller, error) {
+func NewNamespaceController(mgr manager.Manager, opts *ControllerOptions, log zerolog.Logger) (controller.Controller, error) {
 	if mgr == nil {
 		return nil, ErrorInvalidManager
 	}
 	if opts == nil {
-		return nil, ErrorInvalidNamespaceOptions
+		return nil, ErrorInvalidControllerOptions
 	}
 
 	nsHandler := &namespaceEventHandler{log: log}
@@ -85,7 +85,7 @@ func (n *namespaceEventHandler) Create(ce event.CreateEvent, wq workqueue.RateLi
 		return
 	}
 
-	if !shouldWatchLabel(namespace.Labels, n.WatchAllByDefault) {
+	if !shouldWatchLabel(namespace.Labels, n.WatchNamespacesByDefault) {
 		return
 	}
 
@@ -102,8 +102,8 @@ func (n *namespaceEventHandler) Update(ue event.UpdateEvent, wq workqueue.RateLi
 		return
 	}
 
-	watchedBefore := shouldWatchLabel(curr.Labels, n.WatchAllByDefault)
-	watchNow := shouldWatchLabel(old.Labels, n.WatchAllByDefault)
+	watchedBefore := shouldWatchLabel(curr.Labels, n.WatchNamespacesByDefault)
+	watchNow := shouldWatchLabel(old.Labels, n.WatchNamespacesByDefault)
 
 	switch {
 	case !watchedBefore && !watchNow:
@@ -124,7 +124,7 @@ func (n *namespaceEventHandler) Delete(de event.DeleteEvent, wq workqueue.RateLi
 		return
 	}
 
-	if !shouldWatchLabel(namespace.Labels, n.WatchAllByDefault) {
+	if !shouldWatchLabel(namespace.Labels, n.WatchNamespacesByDefault) {
 		return
 	}
 
@@ -136,15 +136,4 @@ func (n *namespaceEventHandler) Generic(ge event.GenericEvent, wq workqueue.Rate
 	// We don't really know what to do with generic events.
 	// We will just ignore this.
 	wq.Done(ge.Object)
-}
-
-func shouldWatchLabel(labels map[string]string, watchAllByDefault bool) bool {
-	switch labels[watchLabel] {
-	case watchEnabledLabel:
-		return true
-	case watchDisabledLabel:
-		return false
-	default:
-		return watchAllByDefault
-	}
 }

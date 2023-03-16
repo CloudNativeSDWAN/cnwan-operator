@@ -20,6 +20,6 @@ package controllers
 import "errors"
 
 var (
-	ErrorInvalidManager          = errors.New("invalid manager provided")
-	ErrorInvalidNamespaceOptions = errors.New("invalid namespace options provided")
+	ErrorInvalidManager           = errors.New("invalid manager provided")
+	ErrorInvalidControllerOptions = errors.New("invalid controller options provided")
 )
