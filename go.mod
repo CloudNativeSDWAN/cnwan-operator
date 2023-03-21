@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/compute v1.15.1 // indirect
 	cloud.google.com/go/servicedirectory v1.8.0
 	github.com/aws/aws-sdk-go v1.44.78
-	github.com/aws/aws-sdk-go-v2 v1.17.4
+	github.com/aws/aws-sdk-go-v2 v1.17.6
 	github.com/aws/aws-sdk-go-v2/config v1.18.13
 	github.com/aws/aws-sdk-go-v2/service/servicediscovery v1.19.2
 	github.com/beorn7/perks v1.0.1 // indirect
