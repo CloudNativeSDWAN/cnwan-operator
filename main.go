@@ -22,15 +22,19 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/CloudNativeSDWAN/cnwan-operator/controllers"
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/types"
 	"github.com/CloudNativeSDWAN/cnwan-operator/internal/utils"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/cluster"
+	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/controllers"
+	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/serviceregistry"
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/aws/cloudmap"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
 	sd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/gcloud/servicedirectory"
+	"github.com/rs/zerolog"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
@@ -209,46 +213,85 @@ func run() (int, error) {
 		return CannotGetBroker, fmt.Errorf("cannot get service registry broker: %w", err)
 	}
 
+	_ = srBroker
+
+	log := zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout}).With().Timestamp().Logger()
+	manager, err := controllers.NewManager("")
+	if err != nil {
+		log.Err(err).Msg("cannot create manager")
+		return 1, err
+	}
+
+	stopChan := make(chan os.Signal, 1)
+	signal.Notify(stopChan, syscall.SIGINT, syscall.SIGTERM)
+	watchCtx, watchCanc := context.WithCancel(ctx)
+	exitChan := make(chan struct{})
+	go func() {
+		defer close(exitChan)
+		eventsChan := make(chan *serviceregistry.Event, 100)
+		eventHandler := serviceregistry.NewEventHandler(log)
+
+		go func() {
+			eventHandler.WatchForEvents(watchCtx, eventsChan)
+			close(exitChan)
+		}()
+
+		controllers.NewNamespaceController(manager, &controllers.ControllerOptions{
+			EventsChan:         eventsChan,
+			ServiceAnnotations: settings.Service.Annotations,
+		}, log)
+		controllers.NewServiceController(manager, &controllers.ControllerOptions{
+			EventsChan:         eventsChan,
+			ServiceAnnotations: settings.Service.Annotations,
+		}, log)
+
+		manager.Start(ctx)
+		fmt.Println("closing")
+	}()
+
+	<-stopChan
+	watchCanc()
+	<-exitChan
 	//--------------------------------------
 	// Init manager
 	//--------------------------------------
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             scheme,
-		LeaderElection:     false,
-		MetricsBindAddress: "0",
-	})
-	if err != nil {
-		return CannotGetControllerManager, fmt.Errorf("cannot create controller manager: %w", err)
-	}
+	// mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	// 	Scheme:             scheme,
+	// 	LeaderElection:     false,
+	// 	MetricsBindAddress: "0",
+	// })
+	// if err != nil {
+	// 	return CannotGetControllerManager, fmt.Errorf("cannot create controller manager: %w", err)
+	// }
 
-	if err = (&controllers.ServiceReconciler{
-		Client:                   mgr.GetClient(),
-		Log:                      ctrl.Log.WithName("controllers").WithName("Service"),
-		Scheme:                   mgr.GetScheme(),
-		ServRegBroker:            srBroker,
-		WatchNamespacesByDefault: settings.WatchNamespacesByDefault,
-		AllowedAnnotations:       settings.Service.Annotations,
-	}).SetupWithManager(mgr); err != nil {
-		return CannotCreateServiceController, fmt.Errorf("cannot create service controller: %w", err)
-	}
+	// if err = (&controllers.ServiceReconciler{
+	// 	Client:                   mgr.GetClient(),
+	// 	Log:                      ctrl.Log.WithName("controllers").WithName("Service"),
+	// 	Scheme:                   mgr.GetScheme(),
+	// 	ServRegBroker:            srBroker,
+	// 	WatchNamespacesByDefault: settings.WatchNamespacesByDefault,
+	// 	AllowedAnnotations:       settings.Service.Annotations,
+	// }).SetupWithManager(mgr); err != nil {
+	// 	return CannotCreateServiceController, fmt.Errorf("cannot create service controller: %w", err)
+	// }
 
-	if err = (&controllers.NamespaceReconciler{
-		Client:                   mgr.GetClient(),
-		Log:                      ctrl.Log.WithName("controllers").WithName("Namespace"),
-		Scheme:                   mgr.GetScheme(),
-		ServRegBroker:            srBroker,
-		WatchNamespacesByDefault: settings.WatchNamespacesByDefault,
-		AllowedAnnotations:       settings.Service.Annotations,
-	}).SetupWithManager(mgr); err != nil {
-		return CannotCreateNamespaceController, fmt.Errorf("cannot create namespace controller: %w", err)
-	}
-	// +kubebuilder:scaffold:builder
+	// if err = (&controllers.NamespaceReconciler{
+	// 	Client:                   mgr.GetClient(),
+	// 	Log:                      ctrl.Log.WithName("controllers").WithName("Namespace"),
+	// 	Scheme:                   mgr.GetScheme(),
+	// 	ServRegBroker:            srBroker,
+	// 	WatchNamespacesByDefault: settings.WatchNamespacesByDefault,
+	// 	AllowedAnnotations:       settings.Service.Annotations,
+	// }).SetupWithManager(mgr); err != nil {
+	// 	return CannotCreateNamespaceController, fmt.Errorf("cannot create namespace controller: %w", err)
+	// }
+	// // +kubebuilder:scaffold:builder
 
-	setupLog.Info("starting controller manager...")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		return CannotRunControllerManager, fmt.Errorf("cannot run controller manager: %w", err)
-	}
+	// setupLog.Info("starting controller manager...")
+	// if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	// 	return CannotRunControllerManager, fmt.Errorf("cannot run controller manager: %w", err)
+	// }
 
 	return Success, nil
 }
