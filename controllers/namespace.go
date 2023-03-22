@@ -19,11 +19,15 @@ package controllers
 
 import (
 	"context"
+	"time"
 
+	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/serviceregistry"
+	serego "github.com/CloudNativeSDWAN/serego/api/core/types"
 	"github.com/rs/zerolog"
 	corev1 "k8s.io/api/core/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/util/workqueue"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -41,12 +45,13 @@ const (
 type ControllerOptions struct {
 	WatchNamespacesByDefault bool
 	ServiceAnnotations       []string
+	EventsChan               chan *serviceregistry.Event
 }
 
 type namespaceEventHandler struct {
-	// client
-	log zerolog.Logger
-	ControllerOptions
+	client client.Client
+	log    zerolog.Logger
+	*ControllerOptions
 }
 
 func NewNamespaceController(mgr manager.Manager, opts *ControllerOptions, log zerolog.Logger) (controller.Controller, error) {
@@ -57,7 +62,11 @@ func NewNamespaceController(mgr manager.Manager, opts *ControllerOptions, log ze
 		return nil, ErrorInvalidControllerOptions
 	}
 
-	nsHandler := &namespaceEventHandler{log: log}
+	nsHandler := &namespaceEventHandler{
+		client:            mgr.GetClient(),
+		log:               log,
+		ControllerOptions: opts,
+	}
 	c, err := controller.New(nsCtrlName, mgr, controller.Options{
 		Reconciler: reconcile.Func(func(c context.Context, r reconcile.Request) (reconcile.Result, error) {
 			return reconcile.Result{}, nil
@@ -78,18 +87,8 @@ func NewNamespaceController(mgr manager.Manager, opts *ControllerOptions, log ze
 
 // Create handles create events.
 func (n *namespaceEventHandler) Create(ce event.CreateEvent, wq workqueue.RateLimitingInterface) {
-	defer wq.Done(ce.Object)
-
-	namespace, ok := ce.Object.(*corev1.Namespace)
-	if !ok {
-		return
-	}
-
-	if !shouldWatchLabel(namespace.Labels, n.WatchNamespacesByDefault) {
-		return
-	}
-
-	// TODO: send event to listener that a new namespace has been created.
+	// The namespace is created once an appropriate service appears.
+	wq.Done(ce.Object)
 }
 
 // Update handles update events.
@@ -102,16 +101,16 @@ func (n *namespaceEventHandler) Update(ue event.UpdateEvent, wq workqueue.RateLi
 		return
 	}
 
-	watchedBefore := shouldWatchLabel(curr.Labels, n.WatchNamespacesByDefault)
-	watchNow := shouldWatchLabel(old.Labels, n.WatchNamespacesByDefault)
+	watchNow := checkNsLabels(curr.Labels, n.WatchNamespacesByDefault)
+	watchedBefore := checkNsLabels(old.Labels, n.WatchNamespacesByDefault)
 
 	switch {
-	case !watchedBefore && !watchNow:
+	case watchedBefore && watchNow:
 		return
-	case !watchedBefore && watchNow:
-		// TODO: send create ns, send create for all services inside it
 	case watchedBefore && !watchNow:
-		// TODO: send delete for all services inside it, send delete ns
+		n.handleUpdateEvent(curr, serviceregistry.EventDelete)
+	case !watchedBefore && watchNow:
+		n.handleUpdateEvent(curr, serviceregistry.EventCreate)
 	}
 }
 
@@ -124,11 +123,76 @@ func (n *namespaceEventHandler) Delete(de event.DeleteEvent, wq workqueue.RateLi
 		return
 	}
 
-	if !shouldWatchLabel(namespace.Labels, n.WatchNamespacesByDefault) {
+	if !checkNsLabels(namespace.Labels, n.WatchNamespacesByDefault) {
 		return
 	}
 
-	// TODO: send event to listener that a namespace has been deleted.
+	n.handleUpdateEvent(namespace, serviceregistry.EventDelete)
+}
+
+func (n *namespaceEventHandler) handleUpdateEvent(namespace *corev1.Namespace, eventType serviceregistry.EventType) {
+	ctx, canc := context.WithTimeout(context.Background(), 10*time.Second)
+	defer canc()
+
+	services := corev1.ServiceList{}
+	if err := n.client.List(ctx, &services, &client.ListOptions{
+		Namespace: namespace.Name,
+	}); err != nil {
+		n.log.Err(err).Str("namespace", namespace.Name).
+			Msg("cannot retrieve list of services inside namespace")
+		return
+	}
+
+	// Inline function definitions for sending the namespace and service
+	sendNsEvent := func() {
+		n.EventsChan <- &serviceregistry.Event{
+			EventType: eventType,
+			Object: &serego.Namespace{
+				Name: namespace.Name,
+			},
+		}
+	}
+	switch eventType {
+	case serviceregistry.EventCreate:
+		sendNsEvent()
+	case serviceregistry.EventDelete:
+		defer sendNsEvent()
+	}
+
+	sendServiceEvent := func(name string) {
+		n.EventsChan <- &serviceregistry.Event{
+			EventType: eventType,
+			Object: &serego.Service{
+				Namespace: namespace.Name,
+				Name:      name,
+			},
+		}
+	}
+
+	for _, service := range services.Items {
+		checkedService := checkService(&service, n.ServiceAnnotations)
+		if !checkedService.passed {
+			continue
+		}
+
+		func() {
+			// using an anonymous function, so we can defer events
+			// if needed.
+			switch eventType {
+			case serviceregistry.EventCreate:
+				sendServiceEvent(service.Name)
+			case serviceregistry.EventDelete:
+				defer sendServiceEvent(service.Name)
+			}
+
+			for _, endpoint := range checkedService.endpoints {
+				n.EventsChan <- &serviceregistry.Event{
+					EventType: serviceregistry.EventDelete,
+					Object:    endpoint,
+				}
+			}
+		}()
+	}
 }
 
 // Generic handles generic events.

@@ -19,14 +19,16 @@ package controllers
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"fmt"
+	"time"
 
+	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/serviceregistry"
+	serego "github.com/CloudNativeSDWAN/serego/api/core/types"
 	"github.com/rs/zerolog"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/util/workqueue"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -39,9 +41,9 @@ const (
 )
 
 type serviceEventHandler struct {
-	// client
-	log zerolog.Logger
-	ControllerOptions
+	client client.Client
+	log    zerolog.Logger
+	*ControllerOptions
 }
 
 func NewServiceController(mgr manager.Manager, opts *ControllerOptions, log zerolog.Logger) (controller.Controller, error) {
@@ -52,8 +54,12 @@ func NewServiceController(mgr manager.Manager, opts *ControllerOptions, log zero
 		return nil, ErrorInvalidControllerOptions
 	}
 
-	servHandler := &namespaceEventHandler{log: log}
-	c, err := controller.New(nsCtrlName, mgr, controller.Options{
+	servHandler := &serviceEventHandler{
+		client:            mgr.GetClient(),
+		log:               log,
+		ControllerOptions: opts,
+	}
+	c, err := controller.New(servCtrlName, mgr, controller.Options{
 		Reconciler: reconcile.Func(func(c context.Context, r reconcile.Request) (reconcile.Result, error) {
 			return reconcile.Result{}, nil
 		}),
@@ -81,42 +87,54 @@ func (s *serviceEventHandler) Create(ce event.CreateEvent, wq workqueue.RateLimi
 		return
 	}
 
-	if service.Spec.Type != corev1.ServiceTypeLoadBalancer {
+	l = l.With().Str("name", types.NamespacedName{
+		Namespace: service.Namespace,
+		Name:      service.Name,
+	}.String()).Logger()
+
+	watchNs, err := s.checkParentNamespace(service)
+	if !watchNs {
+		if err != nil {
+			l.Err(err).Msg("cannot check parent namespace")
+		}
+
 		return
 	}
 
-	annotations := filterAnnotations(service.Annotations, s.ServiceAnnotations)
-	if len(annotations) == 0 {
+	checkedService := checkService(service, s.ServiceAnnotations)
+	if !checkedService.passed {
+		if checkedService.err != nil {
+			l.Err(err).Msg("cannot check service")
+		}
+
 		return
 	}
 
-	ips, err := getIPsFromService(service)
-	if err != nil {
-		l.Err(err).Msg("error occurred while getting ips from service")
-		return
+	// Send an event to create the namespace. NOTE: we do this because we have
+	// no idea whether the namespace controller sent this before us. Se we
+	// disabled the namespace controller from sending Create events, and we let
+	// the service controller do that.
+	s.EventsChan <- &serviceregistry.Event{
+		EventType: serviceregistry.EventCreate,
+		Object: &serego.Namespace{
+			Name: service.Namespace,
+		},
 	}
-	if len(ips) == 0 {
-		return
+
+	s.EventsChan <- &serviceregistry.Event{
+		EventType: serviceregistry.EventCreate,
+		Object: &serego.Service{
+			Name:      service.Name,
+			Namespace: service.Namespace,
+		},
 	}
 
-	for _, port := range service.Spec.Ports {
-		for _, ip := range ips {
-
-			// Create an hashed name for this
-			toBeHashed := fmt.Sprintf("%s:%d", ip, port.Port)
-			h := sha256.New()
-			h.Write([]byte(toBeHashed))
-			hash := hex.EncodeToString(h.Sum(nil))
-
-			// Only take the first 10 characters of the hashed name
-			name := fmt.Sprintf("%s:%s", service.Name, hash[:10])
-			_ = name
-			// TODO: define the endpoint
+	for _, ep := range checkedService.endpoints {
+		s.EventsChan <- &serviceregistry.Event{
+			EventType: serviceregistry.EventCreate,
+			Object:    ep,
 		}
 	}
-
-	// TODO: check the namespace
-	// TODO: send event to listener that a new service has been created.
 }
 
 // Update handles update events.
@@ -130,67 +148,109 @@ func (s *serviceEventHandler) Update(ue event.UpdateEvent, wq workqueue.RateLimi
 		return
 	}
 
-	currAnnotations := filterAnnotations(curr.Annotations, s.ServiceAnnotations)
-	oldAnnotations := filterAnnotations(old.Annotations, s.ServiceAnnotations)
+	l = l.With().Str("name", types.NamespacedName{
+		Namespace: curr.Namespace,
+		Name:      curr.Name,
+	}.String()).Logger()
 
-	currIps, currErr := getIPsFromService(curr)
-	oldIps, oldErr := getIPsFromService(old)
-	if currErr != nil || oldErr != nil {
-		err := currErr
+	watchNs, err := s.checkParentNamespace(curr)
+	if !watchNs {
 		if err != nil {
-			err = oldErr
+			l.Err(err).Msg("cannot check parent namespace")
 		}
-		l.Err(oldErr).Msg("error occurred while getting ips from service")
+
 		return
 	}
 
-	// -----------------------------------------------
-	// Determine if this event should be skipped
-	// -----------------------------------------------
+	currChecked := checkService(curr, s.ServiceAnnotations)
+	oldChecked := checkService(old, s.ServiceAnnotations)
 
+	if currChecked.err != nil || oldChecked.err != nil {
+		err := currChecked.err
+		if err != nil {
+			err = oldChecked.err
+		}
+		l.Err(err).Msg("error occurred while getting ips from service")
+		return
+	}
+
+	// Easiest cases
 	switch {
-	case curr.Spec.Type != corev1.ServiceTypeLoadBalancer &&
-		old.Spec.Type != corev1.ServiceTypeLoadBalancer:
-		// Wasn't a LoadBalancer and still isn't
-	case len(oldAnnotations) == 0 && len(currAnnotations) == 0:
-		// Didn't and still hasn't required annotations.
-	case len(currIps) == 0 && len(oldIps) == 0:
-		// Wasn't DNS and still isn't
-		// TODO: case Namespace is not being watched:
+	case !oldChecked.passed && !currChecked.passed:
 		return
-	}
+	case oldChecked.passed && !currChecked.passed:
+		l.Info().Str("reason", currChecked.reason).Msg("sending delete...")
 
-	// -----------------------------------------------
-	// Determine if we should remove this
-	// -----------------------------------------------
+		for _, ep := range oldChecked.endpoints {
+			s.EventsChan <- &serviceregistry.Event{
+				EventType: serviceregistry.EventDelete,
+				Object:    ep,
+			}
+		}
 
-	mustBeRemoved := func() (remove bool, reason string) {
-		switch {
-		case len(currIps) == 0:
-			remove, reason = true, "no ips found"
-		case curr.Spec.Type != corev1.ServiceTypeLoadBalancer:
-			remove, reason = true, "not a LoadBalancer"
-		case len(currAnnotations) == 0:
-			remove, reason = true, "no valid annotations"
-		case len(currIps) == 0:
-			remove, reason = true, "no valid hostnames/ips found"
+		s.EventsChan <- &serviceregistry.Event{
+			EventType: serviceregistry.EventDelete,
+			Object: &serego.Service{
+				Name:      old.Name,
+				Namespace: old.Namespace,
+			},
+		}
+
+		return
+	case !oldChecked.passed && currChecked.passed:
+		l.Info().Msg("sending create...")
+		s.EventsChan <- &serviceregistry.Event{
+			EventType: serviceregistry.EventCreate,
+			Object: &serego.Service{
+				Name:      curr.Name,
+				Namespace: curr.Namespace,
+			},
+		}
+
+		for _, ep := range currChecked.endpoints {
+			s.EventsChan <- &serviceregistry.Event{
+				EventType: serviceregistry.EventCreate,
+				Object:    ep,
+			}
 		}
 
 		return
 	}
 
-	if remove, reason := mustBeRemoved(); remove {
-		l.Info().Str("reason", reason).Msg("sending delete...")
-		// TODO
-		return
+	// Check what is changed
+	oldEndpoints := getEndpointsMapFromSlice(oldChecked.endpoints)
+	currEndpoints := getEndpointsMapFromSlice(currChecked.endpoints)
+
+	// Check what must be removed, updated or created
+	for _, ep := range oldEndpoints {
+		currEp := currEndpoints[ep.Name]
+
+		if currEp == nil {
+			s.EventsChan <- &serviceregistry.Event{
+				EventType: serviceregistry.EventDelete,
+				Object:    ep,
+			}
+		} else {
+			s.EventsChan <- &serviceregistry.Event{
+				EventType: serviceregistry.EventUpdate,
+				Object:    currEp,
+			}
+		}
 	}
 
-	// TODO
+	for _, ep := range currEndpoints {
+		if _, exists := currEndpoints[ep.Name]; !exists {
+			s.EventsChan <- &serviceregistry.Event{
+				EventType: serviceregistry.EventCreate,
+				Object:    ep,
+			}
+		}
+	}
 }
 
 // Delete handles delete events.
 func (s *serviceEventHandler) Delete(de event.DeleteEvent, wq workqueue.RateLimitingInterface) {
-	l := s.log.With().Str("name", "delete-event-handler").Logger()
+	l := s.log.With().Str("handler", "service-delete-event-handler").Logger()
 	defer wq.Done(de.Object)
 
 	service, ok := de.Object.(*corev1.Service)
@@ -198,26 +258,49 @@ func (s *serviceEventHandler) Delete(de event.DeleteEvent, wq workqueue.RateLimi
 		return
 	}
 
-	if service.Spec.Type != corev1.ServiceTypeLoadBalancer {
+	l = l.With().Str("name", types.NamespacedName{
+		Namespace: service.Namespace,
+		Name:      service.Name,
+	}.String()).Logger()
+
+	watchNs, err := s.checkParentNamespace(service)
+	if !watchNs {
+		if err != nil {
+			l.Err(err).Msg("cannot check parent namespace")
+		}
+
 		return
 	}
 
-	annotations := filterAnnotations(service.Annotations, s.ServiceAnnotations)
-	if len(annotations) == 0 {
-		return
+	checkedService := checkService(service, s.ServiceAnnotations)
+
+	for _, ep := range checkedService.endpoints {
+		s.EventsChan <- &serviceregistry.Event{
+			EventType: serviceregistry.EventDelete,
+			Object:    ep,
+		}
 	}
 
-	ips, err := getIPsFromService(service)
-	if err != nil {
-		l.Err(err).Msg("error occurred while getting ips from service")
-		return
+	s.EventsChan <- &serviceregistry.Event{
+		EventType: serviceregistry.EventDelete,
+		Object: &serego.Service{
+			Name:      service.Name,
+			Namespace: service.Namespace,
+		},
 	}
-	if len(ips) == 0 {
-		return
+}
+
+func (s *serviceEventHandler) checkParentNamespace(service *corev1.Service) (bool, error) {
+	ctx, canc := context.WithTimeout(context.Background(), 10*time.Second)
+	defer canc()
+
+	var namespace corev1.Namespace
+	if err := s.client.
+		Get(ctx, types.NamespacedName{Name: service.Namespace}, &namespace); err != nil {
+		return false, err
 	}
 
-	// TODO: check the namespace
-	// TODO: send event to listener that a service has been deleted.
+	return checkNsLabels(namespace.Labels, s.WatchNamespacesByDefault), nil
 }
 
 // Generic handles generic events.

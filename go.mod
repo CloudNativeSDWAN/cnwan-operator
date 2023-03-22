@@ -5,6 +5,7 @@ go 1.20
 require (
 	cloud.google.com/go/compute/metadata v0.2.3
 	cloud.google.com/go/servicedirectory v1.8.0
+	github.com/CloudNativeSDWAN/serego/api v0.1.0
 	github.com/aws/aws-sdk-go v1.44.221
 	github.com/aws/aws-sdk-go-v2 v1.17.6
 	github.com/aws/aws-sdk-go-v2/config v1.18.17
