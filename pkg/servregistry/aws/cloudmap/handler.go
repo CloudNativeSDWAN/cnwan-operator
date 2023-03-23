@@ -1,4 +1,4 @@
-// Copyright © 2021 Cisco
+// Copyright © 2021, 2022 Cisco
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,6 +23,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"time"
 
 	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
@@ -96,20 +97,49 @@ func (h *Handler) ExtractData(ns *corev1.Namespace, serv *corev1.Service) (*sr.N
 
 	// Get the endpoints from the service
 	// First, build the ips
-	ips := []string{}
-	ips = append(ips, serv.Spec.ExternalIPs...)
+	// De-duplicate and chek the original host name
+	ipsSet := map[string]string{}
+
+	for _, ip := range serv.Spec.ExternalIPs {
+		ipsSet[ip] = ""
+	}
 
 	// Get data from load balancers
 	for _, ing := range serv.Status.LoadBalancer.Ingress {
-		ips = append(ips, ing.IP)
+		if ing.IP != "" {
+			ipsSet[ing.IP] = ""
+		}
+
+		if ing.Hostname != "" {
+			addrs, err := net.LookupHost(ing.Hostname)
+			if err != nil {
+				// TODO: this needs to be logged
+				continue
+			}
+
+			// TODO: log to what this has been resolved to.
+			for _, addr := range addrs {
+				if _, exists := ipsSet[addr]; !exists {
+					ipsSet[addr] = ing.Hostname
+				}
+			}
+		}
 	}
 
 	endpointsData := []*sr.Endpoint{}
 	for _, port := range serv.Spec.Ports {
-		for _, ip := range ips {
+		for addr, hostname := range ipsSet {
+			metadata := map[string]string{}
+
+			if hostname != "" {
+				metadata = map[string]string{
+					"cnwan.io/hostname": hostname,
+					"cnwan.io/resolved": time.Now().Format(time.RFC822),
+				}
+			}
 
 			// Create an hashed name for this
-			toBeHashed := fmt.Sprintf("%s-%d", ip, port.Port)
+			toBeHashed := fmt.Sprintf("%s-%d", addr, port.Port)
 			h := sha256.New()
 			h.Write([]byte(toBeHashed))
 			hash := hex.EncodeToString(h.Sum(nil))
@@ -120,9 +150,9 @@ func (h *Handler) ExtractData(ns *corev1.Namespace, serv *corev1.Service) (*sr.N
 				Name:     name,
 				NsName:   namespaceData.Name,
 				ServName: serviceData.Name,
-				Address:  ip,
+				Address:  addr,
 				Port:     port.Port,
-				Metadata: map[string]string{},
+				Metadata: metadata,
 			})
 		}
 	}
