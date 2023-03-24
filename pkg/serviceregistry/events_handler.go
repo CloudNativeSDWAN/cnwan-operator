@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	serego "github.com/CloudNativeSDWAN/serego/api/core"
 	"github.com/rs/zerolog"
 )
 
@@ -44,16 +45,20 @@ type Event struct {
 }
 
 type EventHandler struct {
-	workers   map[string]*namespaceWorkerData
-	waitGroup sync.WaitGroup
-	log       zerolog.Logger
+	seregoClient   *serego.ServiceRegistry
+	workers        map[string]*namespaceWorkerData
+	waitGroup      sync.WaitGroup
+	log            zerolog.Logger
+	persistentMeta map[string]string
 }
 
-func NewEventHandler(log zerolog.Logger) *EventHandler {
+func NewEventHandler(seregoClient *serego.ServiceRegistry, persistentMeta map[string]string, log zerolog.Logger) *EventHandler {
 	return &EventHandler{
-		workers:   map[string]*namespaceWorkerData{},
-		waitGroup: sync.WaitGroup{},
-		log:       log,
+		seregoClient:   seregoClient,
+		workers:        map[string]*namespaceWorkerData{},
+		waitGroup:      sync.WaitGroup{},
+		log:            log,
+		persistentMeta: persistentMeta,
 	}
 }
 
@@ -91,10 +96,6 @@ func (e *EventHandler) WatchForEvents(mainCtx context.Context, eventsChannel cha
 				l.Warn().Msg("could not find namespace name: skipping...")
 				continue
 			}
-
-			l.Info().Str("namespace", namespaceName).
-				Msg("received event: retrieving namespace worker in " +
-					"charge of it...")
 
 			nsWorker := e.getOrCreateNamespaceWorker(mainCtx, namespaceName)
 
@@ -137,8 +138,10 @@ func (e *EventHandler) getOrCreateNamespaceWorker(mainCtx context.Context, name 
 	l.Debug().Msg("creating namespace worker...")
 	data := &namespaceWorkerData{
 		worker: &namespaceWorker{
-			log:        e.log.With().Str("worker", name+"-event-handler").Logger(),
-			eventsChan: make(chan *Event, 25),
+			nsop:           e.seregoClient.Namespace(name),
+			log:            e.log.With().Str("worker", name+"-event-handler").Logger(),
+			eventsChan:     make(chan *Event, 25),
+			persistentMeta: e.persistentMeta,
 		},
 	}
 	data.ctx, data.canc = context.WithCancel(mainCtx)

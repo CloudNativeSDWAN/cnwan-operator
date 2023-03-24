@@ -18,7 +18,9 @@
 
 package serviceregistry
 
-import serego "github.com/CloudNativeSDWAN/serego/api/core/types"
+import (
+	serego "github.com/CloudNativeSDWAN/serego/api/core/types"
+)
 
 func getNamespaceNameFromEventObject(event *Event) string {
 	switch parsedObject := event.Object.(type) {
@@ -31,4 +33,9 @@ func getNamespaceNameFromEventObject(event *Event) string {
 	default:
 		return ""
 	}
+}
+
+func isOwnedByOperator(metadata map[string]string) bool {
+	owned, exists := metadata["owner"]
+	return exists && owned == "cnwan-operator"
 }
