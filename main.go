@@ -30,19 +30,11 @@ import (
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/cluster"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/controllers"
 	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/serviceregistry"
-	sr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
-	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/aws/cloudmap"
-	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
-	sd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/gcloud/servicedirectory"
+	serego "github.com/CloudNativeSDWAN/serego/api/core"
+	"github.com/CloudNativeSDWAN/serego/api/options/wrapper"
 	"github.com/rs/zerolog"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"gopkg.in/yaml.v3"
-	corev1 "k8s.io/api/core/v1"
-	k8sruntime "k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -71,23 +63,25 @@ const (
 	CannotRunControllerManager
 )
 
-var (
-	scheme   = k8sruntime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
-)
+// var (
+// 	// scheme   = k8sruntime.NewScheme()
+// 	setupLog = ctrl.Log.WithName("setup")
+// )
 
-func init() {
-	_ = clientgoscheme.AddToScheme(scheme)
+// func init() {
+// 	_ = clientgoscheme.AddToScheme(scheme)
 
-	_ = corev1.AddToScheme(scheme)
-	// +kubebuilder:scaffold:scheme
-}
+// 	_ = corev1.AddToScheme(scheme)
+// 	// +kubebuilder:scaffold:scheme
+// }
+
+var log zerolog.Logger
 
 func main() {
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	log = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout}).With().Timestamp().Logger()
 
 	if code, err := run(); err != nil {
-		setupLog.Error(err, "error occurred")
+		log.Err(err).Msg("error occurred")
 		os.Exit(code)
 	}
 }
@@ -102,7 +96,10 @@ func run() (int, error) {
 
 	nsName := os.Getenv("CNWAN_OPERATOR_NAMESPACE")
 	if len(nsName) == 0 {
-		setupLog.Info("CNWAN_OPERATOR_NAMESPACE environment variable does not exist: using default value", "default", defaultNsName)
+		log.Info().
+			Str("default", defaultNsName).
+			Msg("CNWAN_OPERATOR_NAMESPACE environment variable does not " +
+				"exist: using default value")
 		nsName = defaultNsName
 	}
 
@@ -116,7 +113,7 @@ func run() (int, error) {
 		if err != nil {
 			return CannotGetConfigmap, fmt.Errorf("unable to retrieve settings from configmap: %w", err)
 		}
-		setupLog.Info("settings file loaded successfully")
+		log.Info().Msg("settings file loaded successfully")
 
 		var _settings *types.Settings
 		if err := yaml.Unmarshal(settingsByte, &_settings); err != nil {
@@ -128,25 +125,30 @@ func run() (int, error) {
 			return SettingsValidationError, fmt.Errorf("invalid settings provided: %w", err)
 		}
 	}
-	setupLog.Info("settings parsed successfully")
+	log.Info().Msg("settings parsed successfully")
 
-	persistentMeta := []sr.MetadataPair{}
+	persistentMeta := map[string]string{
+		"owner": "cnwan-operator",
+	}
 	if settings.CloudMetadata != nil {
 		// No need to check for network and subnetwork nil as it was already
 		// validate previously.
 		netCfg, err := getNetworkCfg(settings.CloudMetadata.Network, settings.CloudMetadata.SubNetwork)
 		if err != nil {
-			setupLog.Error(err, "could not get cloud network information, skipping...")
+			log.Err(err).Msg("could not get cloud network information, skipping...")
 		} else {
-			setupLog.Info("got network configuration", "cnwan.io/network", netCfg.NetworkName, "cnwan.io/sub-network", netCfg.SubNetworkName)
+			log.Info().
+				Str("cnwan.io/network", netCfg.NetworkName).
+				Str("cnwan.io/sub-network", netCfg.SubNetworkName).
+				Msg("got network configuration")
 			if runningIn := cluster.WhereAmIRunning(); runningIn != cluster.UnknownCluster {
-				persistentMeta = append(persistentMeta, sr.MetadataPair{Key: "cnwan.io/platform", Value: string(runningIn)})
+				persistentMeta["cnwan.io/platform"] = string(runningIn)
 			}
 			if netCfg.NetworkName != "" {
-				persistentMeta = append(persistentMeta, sr.MetadataPair{Key: "cnwan.io/network", Value: netCfg.NetworkName})
+				persistentMeta["cnwan.io/network"] = netCfg.NetworkName
 			}
 			if netCfg.NetworkName != "" {
-				persistentMeta = append(persistentMeta, sr.MetadataPair{Key: "cnwan.io/sub-network", Value: netCfg.SubNetworkName})
+				persistentMeta["cnwan.io/sub-network"] = netCfg.SubNetworkName
 			}
 		}
 	}
@@ -155,24 +157,28 @@ func run() (int, error) {
 	// Get the service registry
 	//--------------------------------------
 
-	var etcdClient *clientv3.Client
-	var servreg sr.ServiceRegistry
+	var seregoClient *serego.ServiceRegistry
 
-	if settings.ServiceRegistrySettings.EtcdSettings != nil {
-		setupLog.Info("using etcd as a service registry...")
-		_cli, err := getEtcdClient(settings.EtcdSettings)
+	switch {
+
+	// Etcd
+	case settings.ServiceRegistrySettings.EtcdSettings != nil:
+		log.Info().Msg("using etcd")
+		cli, err := getEtcdClient(settings.EtcdSettings)
+		if err != nil {
+			return CannotEstablishConnectionToEtcd, fmt.Errorf("cannot establish connection to etcd: %w", err)
+		}
+		defer cli.Close()
+
+		seregoClient, err = serego.NewServiceRegistryFromEtcd(cli)
 		if err != nil {
 			return CannotEstablishConnectionToEtcd, fmt.Errorf("cannot establish connection to etcd: %w", err)
 		}
 
-		etcdClient = _cli
-		defer etcdClient.Close()
-		servreg = etcd.NewServiceRegistryWithEtcd(ctx, etcdClient, settings.EtcdSettings.Prefix)
-	}
-
-	if settings.ServiceRegistrySettings.ServiceDirectorySettings != nil {
-		setupLog.Info("using gcloud service directory...")
-		cli, err := getGSDClient(context.Background())
+		// Service directory
+	case settings.ServiceRegistrySettings.ServiceDirectorySettings != nil:
+		log.Info().Msg("using Service Directory")
+		cli, err := getGSDClient(ctx)
 		if err != nil {
 			return CannotGetServiceDirectoryClient, fmt.Errorf("cannot get service directory client: %w", err)
 		}
@@ -183,39 +189,29 @@ func run() (int, error) {
 			return InvalidServiceDirectorySettings, fmt.Errorf("invalid service directory: %w", err)
 		}
 
-		servreg = &sd.Handler{
-			ProjectID:     sdSettings.ProjectID,
-			DefaultRegion: sdSettings.DefaultRegion,
-			Log:           setupLog.WithName("ServiceDirectory"),
-			Context:       ctx,
-			Client:        cli,
+		seregoClient, err = serego.NewServiceRegistryFromServiceDirectory(cli,
+			wrapper.WithProjectID(sdSettings.ProjectID),
+			wrapper.WithRegion(sdSettings.DefaultRegion))
+		if err != nil {
+			return CannotGetServiceDirectoryClient, fmt.Errorf("cannot get service directory client: %w", err)
 		}
-	}
 
-	if settings.ServiceRegistrySettings.CloudMapSettings != nil {
-		setupLog.Info("using aws cloud map...")
-
+		// Cloud Map
+	case settings.ServiceRegistrySettings.CloudMapSettings != nil:
+		log.Info().Msg("using Cloud Map")
 		cmSettings, err := parseAndResetAWSCloudMapSettings(settings.CloudMapSettings)
 		if err != nil {
 			return InvalidCloudMapSettings, fmt.Errorf("invalid cloud map settings: %w", err)
 		}
 
-		cli, err := getAWSClient(context.Background(), &cmSettings.DefaultRegion)
+		cli, err := getAWSClient(ctx, &cmSettings.DefaultRegion)
 		if err != nil {
 			return CannotGetCloudMapClient, fmt.Errorf("cannot get cloud map client: %w", err)
 		}
 
-		servreg = cloudmap.NewHandler(ctx, cli, setupLog)
+		seregoClient, _ = serego.NewServiceRegistryFromCloudMap(cli)
 	}
 
-	srBroker, err := sr.NewBroker(servreg, sr.MetadataPair{Key: opKey, Value: opVal}, persistentMeta...)
-	if err != nil {
-		return CannotGetBroker, fmt.Errorf("cannot get service registry broker: %w", err)
-	}
-
-	_ = srBroker
-
-	log := zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout}).With().Timestamp().Logger()
 	manager, err := controllers.NewManager("")
 	if err != nil {
 		log.Err(err).Msg("cannot create manager")
@@ -229,7 +225,7 @@ func run() (int, error) {
 	go func() {
 		defer close(exitChan)
 		eventsChan := make(chan *serviceregistry.Event, 100)
-		eventHandler := serviceregistry.NewEventHandler(log)
+		eventHandler := serviceregistry.NewEventHandler(seregoClient, persistentMeta, log)
 
 		go func() {
 			eventHandler.WatchForEvents(watchCtx, eventsChan)
@@ -246,52 +242,13 @@ func run() (int, error) {
 		}, log)
 
 		manager.Start(ctx)
-		fmt.Println("closing")
+		log.Info().Msg("closing")
 	}()
 
 	<-stopChan
 	watchCanc()
 	<-exitChan
-	//--------------------------------------
-	// Init manager
-	//--------------------------------------
 
-	// mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-	// 	Scheme:             scheme,
-	// 	LeaderElection:     false,
-	// 	MetricsBindAddress: "0",
-	// })
-	// if err != nil {
-	// 	return CannotGetControllerManager, fmt.Errorf("cannot create controller manager: %w", err)
-	// }
-
-	// if err = (&controllers.ServiceReconciler{
-	// 	Client:                   mgr.GetClient(),
-	// 	Log:                      ctrl.Log.WithName("controllers").WithName("Service"),
-	// 	Scheme:                   mgr.GetScheme(),
-	// 	ServRegBroker:            srBroker,
-	// 	WatchNamespacesByDefault: settings.WatchNamespacesByDefault,
-	// 	AllowedAnnotations:       settings.Service.Annotations,
-	// }).SetupWithManager(mgr); err != nil {
-	// 	return CannotCreateServiceController, fmt.Errorf("cannot create service controller: %w", err)
-	// }
-
-	// if err = (&controllers.NamespaceReconciler{
-	// 	Client:                   mgr.GetClient(),
-	// 	Log:                      ctrl.Log.WithName("controllers").WithName("Namespace"),
-	// 	Scheme:                   mgr.GetScheme(),
-	// 	ServRegBroker:            srBroker,
-	// 	WatchNamespacesByDefault: settings.WatchNamespacesByDefault,
-	// 	AllowedAnnotations:       settings.Service.Annotations,
-	// }).SetupWithManager(mgr); err != nil {
-	// 	return CannotCreateNamespaceController, fmt.Errorf("cannot create namespace controller: %w", err)
-	// }
-	// // +kubebuilder:scaffold:builder
-
-	// setupLog.Info("starting controller manager...")
-	// if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-	// 	return CannotRunControllerManager, fmt.Errorf("cannot run controller manager: %w", err)
-	// }
-
+	log.Info().Msg("goodbye!")
 	return Success, nil
 }
