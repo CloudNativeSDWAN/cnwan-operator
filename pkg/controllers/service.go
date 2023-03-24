@@ -97,16 +97,15 @@ func (s *serviceEventHandler) Create(ce event.CreateEvent, wq workqueue.RateLimi
 		if err != nil {
 			l.Err(err).Msg("cannot check parent namespace")
 		}
-
 		return
 	}
 
 	checkedService := checkService(service, s.ServiceAnnotations)
 	if !checkedService.passed {
 		if checkedService.err != nil {
-			l.Err(err).Msg("cannot check service")
+			l.Err(checkedService.err).
+				Msg("cannot check service")
 		}
-
 		return
 	}
 
@@ -141,12 +140,23 @@ func (s *serviceEventHandler) Create(ce event.CreateEvent, wq workqueue.RateLimi
 func (s *serviceEventHandler) Update(ue event.UpdateEvent, wq workqueue.RateLimitingInterface) {
 	l := s.log.With().Str("name", "update-event-handler").Logger()
 	defer wq.Done(ue.ObjectNew)
-
 	curr, currok := ue.ObjectNew.(*corev1.Service)
 	old, oldok := ue.ObjectOld.(*corev1.Service)
 	if !currok || !oldok {
+
 		return
 	}
+
+	if curr.DeletionTimestamp != nil {
+		if old.DeletionTimestamp != nil {
+			return
+		}
+
+		s.handleDelete(curr)
+		return
+	}
+
+	defer wq.Done(ue.ObjectNew)
 
 	l = l.With().Str("name", types.NamespacedName{
 		Namespace: curr.Namespace,
@@ -164,14 +174,12 @@ func (s *serviceEventHandler) Update(ue event.UpdateEvent, wq workqueue.RateLimi
 
 	currChecked := checkService(curr, s.ServiceAnnotations)
 	oldChecked := checkService(old, s.ServiceAnnotations)
-
 	if currChecked.err != nil || oldChecked.err != nil {
-		err := currChecked.err
+		checkErr := currChecked.err
 		if err != nil {
-			err = oldChecked.err
+			checkErr = oldChecked.err
 		}
-		l.Err(err).Msg("error occurred while getting ips from service")
-		return
+		l.Err(checkErr).Msg("error occurred while getting ips from service")
 	}
 
 	// Easiest cases
@@ -199,6 +207,14 @@ func (s *serviceEventHandler) Update(ue event.UpdateEvent, wq workqueue.RateLimi
 		return
 	case !oldChecked.passed && currChecked.passed:
 		l.Info().Msg("sending create...")
+
+		s.EventsChan <- &serviceregistry.Event{
+			EventType: serviceregistry.EventCreate,
+			Object: &serego.Namespace{
+				Name: curr.Namespace,
+			},
+		}
+
 		s.EventsChan <- &serviceregistry.Event{
 			EventType: serviceregistry.EventCreate,
 			Object: &serego.Service{
@@ -215,6 +231,21 @@ func (s *serviceEventHandler) Update(ue event.UpdateEvent, wq workqueue.RateLimi
 		}
 
 		return
+	}
+
+	// Make sure the namespace and service are created.
+	s.EventsChan <- &serviceregistry.Event{
+		EventType: serviceregistry.EventCreate,
+		Object: &serego.Namespace{
+			Name: curr.Namespace,
+		},
+	}
+	s.EventsChan <- &serviceregistry.Event{
+		EventType: serviceregistry.EventCreate,
+		Object: &serego.Service{
+			Namespace: curr.Namespace,
+			Name:      curr.Name,
+		},
 	}
 
 	// Check what is changed
@@ -250,15 +281,11 @@ func (s *serviceEventHandler) Update(ue event.UpdateEvent, wq workqueue.RateLimi
 
 // Delete handles delete events.
 func (s *serviceEventHandler) Delete(de event.DeleteEvent, wq workqueue.RateLimitingInterface) {
-	l := s.log.With().Str("handler", "service-delete-event-handler").Logger()
-	defer wq.Done(de.Object)
+	wq.Done(de.Object)
+}
 
-	service, ok := de.Object.(*corev1.Service)
-	if !ok {
-		return
-	}
-
-	l = l.With().Str("name", types.NamespacedName{
+func (s *serviceEventHandler) handleDelete(service *corev1.Service) {
+	l := s.log.With().Str("name", types.NamespacedName{
 		Namespace: service.Namespace,
 		Name:      service.Name,
 	}.String()).Logger()

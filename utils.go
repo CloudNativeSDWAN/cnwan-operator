@@ -96,7 +96,7 @@ func getGSDClient(ctx context.Context) (*sd.RegistrationClient, error) {
 func getAWSClient(ctx context.Context, region *string) (*servicediscovery.Client, error) {
 	saBytes, err := cluster.GetAWSCredentialsSecret(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("could not load google service account secret: %s", err)
+		return nil, fmt.Errorf("could not load aws credentials secret: %s", err)
 	}
 
 	// TODO: on next versions this will be a const, as it will be moved to
@@ -147,19 +147,19 @@ func parseAndResetGSDSettings(gcSettings *types.ServiceDirectorySettings) (*type
 
 	if gcSettings != nil && gcSettings.DefaultRegion != "" {
 		newSettings.DefaultRegion = gcSettings.DefaultRegion
-		setupLog.Info("using region defined in settings", "region", gcSettings.DefaultRegion)
+		// setupLog.Info("using region defined in settings", "region", gcSettings.DefaultRegion)
 	}
 
 	if gcSettings != nil && gcSettings.ProjectID != "" {
 		newSettings.ProjectID = gcSettings.ProjectID
-		setupLog.Info("using project ID defined in settings", "project-id", gcSettings.ProjectID)
+		// setupLog.Info("using project ID defined in settings", "project-id", gcSettings.ProjectID)
 	}
 
 	if newSettings.DefaultRegion != "" && newSettings.ProjectID != "" {
 		return newSettings, nil
 	}
 
-	setupLog.Info("attempting to retrieve some data from Google Cloud...")
+	// setupLog.Info("attempting to retrieve some data from Google Cloud...")
 	if cluster.WhereAmIRunning() != cluster.GKECluster {
 		return nil, fmt.Errorf("could not load data from Google Cloud: either platform is not GKE or there are no permissions to do so")
 	}
@@ -170,7 +170,7 @@ func parseAndResetGSDSettings(gcSettings *types.ServiceDirectorySettings) (*type
 			return nil, fmt.Errorf("could not get region from GCP: %s", err)
 		}
 		newSettings.DefaultRegion = *_defRegion
-		setupLog.Info("retrieved region from GCP", "region", newSettings.DefaultRegion)
+		// setupLog.Info("retrieved region from GCP", "region", newSettings.DefaultRegion)
 	}
 
 	if newSettings.ProjectID == "" {
@@ -179,7 +179,7 @@ func parseAndResetGSDSettings(gcSettings *types.ServiceDirectorySettings) (*type
 			return nil, fmt.Errorf("could not get project ID from GCP: %s", err)
 		}
 		newSettings.ProjectID = *_projectID
-		setupLog.Info("retrieved project ID from GCP", "project ID", newSettings.ProjectID)
+		// setupLog.Info("retrieved project ID from GCP", "project ID", newSettings.ProjectID)
 	}
 
 	return newSettings, nil

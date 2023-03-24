@@ -172,6 +172,9 @@ func (n *namespaceEventHandler) handleUpdateEvent(namespace *corev1.Namespace, e
 	for _, service := range services.Items {
 		checkedService := checkService(&service, n.ServiceAnnotations)
 		if !checkedService.passed {
+			if checkedService.err != nil {
+				n.log.Err(checkedService.err).Msg("cannot check service")
+			}
 			continue
 		}
 

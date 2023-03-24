@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	serego "github.com/CloudNativeSDWAN/serego/api/core/types"
 	corev1 "k8s.io/api/core/v1"
@@ -71,7 +72,7 @@ func filterAnnotations(currentAnnotations map[string]string, filter []string) ma
 	return filtered
 }
 
-func getIPsFromService(service *corev1.Service) ([]string, error) {
+func getIPsFromService(service *corev1.Service, attempts int) ([]string, error) {
 	ipsMap := map[string]bool{}
 	for _, externalIP := range service.Spec.ExternalIPs {
 		ipsMap[externalIP] = true
@@ -84,7 +85,11 @@ func getIPsFromService(service *corev1.Service) ([]string, error) {
 		}
 
 		if ing.Hostname != "" {
-			resolvedIPs, err := net.LookupHost(ing.Hostname)
+			if attempts == 0 {
+				attempts = 1
+			}
+
+			resolvedIPs, err := tryResolveHostnames(ing.Hostname, attempts)
 			if err != nil {
 				return nil, err
 			}
@@ -100,6 +105,21 @@ func getIPsFromService(service *corev1.Service) ([]string, error) {
 		ips = append(ips, ip)
 	}
 	return ips, nil
+}
+
+func tryResolveHostnames(hostname string, maxAttempts int) (resolvedIPs []string, err error) {
+	// TODO: get a context to do this so we know when
+	// we have to stop checking
+	for attempts := 0; attempts < maxAttempts; attempts++ {
+		resolvedIPs, err = net.LookupHost(hostname)
+		if err == nil {
+			return resolvedIPs, nil
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+
+	return nil, fmt.Errorf("too many failed attempts to resolve hostname: %w", err)
 }
 
 func checkNsLabels(labels map[string]string, watchAllByDefault bool) bool {
@@ -134,7 +154,7 @@ func checkService(service *corev1.Service, annotationsToKeep []string) (result c
 		return
 	}
 
-	ips, err := getIPsFromService(service)
+	ips, err := getIPsFromService(service, 10)
 	if len(ips) == 0 {
 		result.reason = "no valid hostnames/ips found"
 		if err != nil {
