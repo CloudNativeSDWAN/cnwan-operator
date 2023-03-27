@@ -1,4 +1,4 @@
-// Copyright © 2021 Cisco
+// Copyright © 2021, 2023 Cisco
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,7 +21,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -110,7 +109,7 @@ func getAWSClient(ctx context.Context, region *string) (*servicediscovery.Client
 
 	// TODO: this needs to be re-written in case allowing loading default
 	// credentials that do exist on file system
-	if err := ioutil.WriteFile(tempPath, saBytes, 0644); err != nil {
+	if err := os.WriteFile(tempPath, saBytes, 0644); err != nil {
 		return nil, err
 	}
 	opts = append(opts, config.WithSharedCredentialsFiles([]string{tempPath}))
