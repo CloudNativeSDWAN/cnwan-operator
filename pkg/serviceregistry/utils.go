@@ -1,4 +1,4 @@
-// Copyright © 2020 Cisco
+// Copyright © 2023 Cisco
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -16,8 +16,26 @@
 //
 // All rights reserved.
 
-// Package servicedirectory contains code that connects to Google Cloud
-// Service Directory and performs some actions with specific resources.
-// Examples of such actions are create, update or delete.
-// Examples of such resources are namespaces, services or endpoints.
-package servicedirectory
+package serviceregistry
+
+import (
+	serego "github.com/CloudNativeSDWAN/serego/api/core/types"
+)
+
+func getNamespaceNameFromEventObject(event *Event) string {
+	switch parsedObject := event.Object.(type) {
+	case *serego.Namespace:
+		return parsedObject.Name
+	case *serego.Service:
+		return parsedObject.Namespace
+	case *serego.Endpoint:
+		return parsedObject.Namespace
+	default:
+		return ""
+	}
+}
+
+func isOwnedByOperator(metadata map[string]string) bool {
+	owned, exists := metadata["owner"]
+	return exists && owned == "cnwan-operator"
+}
